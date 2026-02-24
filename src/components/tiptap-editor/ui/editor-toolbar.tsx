@@ -12,6 +12,8 @@ import {
   ListOrdered,
   Quote,
   Redo,
+  Sigma,
+  SquareFunction,
   Strikethrough,
   Table as TableIcon,
   Terminal,
@@ -26,6 +28,8 @@ interface EditorToolbarProps {
   editor: Editor | null;
   onLinkClick: () => void;
   onImageClick: () => void;
+  onFormulaInlineClick: () => void;
+  onFormulaBlockClick: () => void;
 }
 
 interface ToolbarButtonProps {
@@ -61,6 +65,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
   onLinkClick,
   onImageClick,
+  onFormulaInlineClick,
+  onFormulaBlockClick,
 }) => {
   const {
     isBold,
@@ -71,6 +77,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     isStrike,
     isCode,
     isCodeBlock,
+    isInlineMath,
+    isBlockMath,
     isBulletList,
     isOrderedList,
     isBlockquote,
@@ -91,6 +99,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
           isOrderedList: false,
           isBlockquote: false,
           isLink: false,
+          isInlineMath: false,
+          isBlockMath: false,
         };
       }
       return {
@@ -102,6 +112,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         isStrike: ctx.editor.isActive("strike"),
         isCode: ctx.editor.isActive("code"),
         isCodeBlock: ctx.editor.isActive("codeBlock"),
+        isInlineMath: ctx.editor.isActive("inlineMath"),
+        isBlockMath: ctx.editor.isActive("blockMath"),
         isBulletList: ctx.editor.isActive("bulletList"),
         isOrderedList: ctx.editor.isActive("orderedList"),
         isBlockquote: ctx.editor.isActive("blockquote"),
@@ -117,6 +129,8 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
     isStrike: false,
     isCode: false,
     isCodeBlock: false,
+    isInlineMath: false,
+    isBlockMath: false,
     isBulletList: false,
     isOrderedList: false,
     isBlockquote: false,
@@ -181,6 +195,18 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         isActive={isCodeBlock}
         icon={Terminal}
         label="代码块"
+      />
+      <ToolbarButton
+        onClick={onFormulaInlineClick}
+        isActive={isInlineMath}
+        icon={Sigma}
+        label="行内公式"
+      />
+      <ToolbarButton
+        onClick={onFormulaBlockClick}
+        isActive={isBlockMath}
+        icon={SquareFunction}
+        label="块级公式"
       />
 
       <div className="h-4 w-px bg-border/50 mx-2"></div>

@@ -78,4 +78,172 @@ describe("markdownToJsonContent", () => {
     const paragraph = json.content!.find((n) => n.type === "paragraph");
     expect(paragraph).toBeDefined();
   });
+
+  it("should convert inline math", async () => {
+    const json = await markdownToJsonContent("text $x^2 + y^2 = z^2$ more");
+
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    const inlineMath = p!.content!.find((n) => n.type === "inlineMath");
+    expect(inlineMath).toBeDefined();
+    expect(inlineMath!.attrs?.latex).toBe("x^2 + y^2 = z^2");
+  });
+
+  it("should convert block math", async () => {
+    const json = await markdownToJsonContent(
+      "before\n\n$$\nE = mc^2\n$$\n\nafter",
+    );
+
+    const blockMath = json.content!.find((n) => n.type === "blockMath");
+    expect(blockMath).toBeDefined();
+    expect(blockMath!.attrs?.latex).toBe("E = mc^2");
+  });
+
+  it("should keep ordinary dollar text as plain text (no math)", async () => {
+    const json = await markdownToJsonContent("I have $5 in my pocket.");
+
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    const inlineMath = p!.content!.find((n) => n.type === "inlineMath");
+    expect(inlineMath).toBeUndefined();
+    const textContent = p!
+      .content!.filter((n) => n.type === "text")
+      .map((n) => n.text ?? "")
+      .join("");
+    expect(textContent).toContain("$5");
+  });
+
+  it("should keep price-like dollar text as plain text", async () => {
+    const json = await markdownToJsonContent("The price is $10.99.");
+
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    const inlineMath = p!.content!.find((n) => n.type === "inlineMath");
+    expect(inlineMath).toBeUndefined();
+    expect(JSON.stringify(p)).toContain("$10.99");
+  });
+
+  it("should treat dollar in currency as plain text", async () => {
+    const json = await markdownToJsonContent("Cost: $100");
+
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    const inlineMath = p!.content!.find((n) => n.type === "inlineMath");
+    expect(inlineMath).toBeUndefined();
+    const textContent = p!
+      .content!.filter((n) => n.type === "text")
+      .map((n) => n.text ?? "")
+      .join("");
+    expect(textContent).toBe("Cost: $100");
+  });
+
+  it("should keep currency range text as plain text", async () => {
+    const json = await markdownToJsonContent("Budget is $5 or $10.");
+
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    const inlineMath = p!.content!.find((n) => n.type === "inlineMath");
+    expect(inlineMath).toBeUndefined();
+    const textContent = p!
+      .content!.filter((n) => n.type === "text")
+      .map((n) => n.text ?? "")
+      .join("");
+    expect(textContent).toContain("$5");
+    expect(textContent).toContain("$10");
+  });
+
+  it("should not parse math inside inline code", async () => {
+    const json = await markdownToJsonContent("Use `$x^2$` here.");
+
+    expect(JSON.stringify(json)).not.toContain('"type":"inlineMath"');
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    expect(JSON.stringify(p)).toContain("$x^2");
+  });
+
+  it("should not parse math inside fenced code blocks", async () => {
+    const json = await markdownToJsonContent(
+      "```md\n$x^2$ and $$E=mc^2$$\n```",
+    );
+
+    expect(JSON.stringify(json)).not.toContain('"type":"inlineMath"');
+    expect(JSON.stringify(json)).not.toContain('"type":"blockMath"');
+    const codeBlock = json.content!.find((n) => n.type === "codeBlock");
+    expect(codeBlock).toBeDefined();
+  });
+
+  it("should not parse math inside tilde fenced code blocks", async () => {
+    const json = await markdownToJsonContent(
+      "~~~md\n$x^2$ and $$E=mc^2$$\n~~~",
+    );
+
+    expect(JSON.stringify(json)).not.toContain('"type":"inlineMath"');
+    expect(JSON.stringify(json)).not.toContain('"type":"blockMath"');
+    const codeBlock = json.content!.find((n) => n.type === "codeBlock");
+    expect(codeBlock).toBeDefined();
+  });
+
+  it("should not parse math inside double-backtick inline code", async () => {
+    const json = await markdownToJsonContent("Use ``$x^2$`` here.");
+
+    expect(JSON.stringify(json)).not.toContain('"type":"inlineMath"');
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    expect(JSON.stringify(p)).toContain("$x^2");
+  });
+
+  it("should treat comma-grouped numbers as plain text", async () => {
+    const json = await markdownToJsonContent(
+      "Amounts: $50,000,000 and $1,234,567.89",
+    );
+
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    const inlineMath = p!.content!.find((n) => n.type === "inlineMath");
+    expect(inlineMath).toBeUndefined();
+    const textContent = p!
+      .content!.filter((n) => n.type === "text")
+      .map((n) => n.text ?? "")
+      .join("");
+    expect(textContent).toContain("$50,000,000");
+    expect(textContent).toContain("$1,234,567.89");
+  });
+
+  it("should keep balanced comma-grouped dollar value as plain text", async () => {
+    const json = await markdownToJsonContent("Value $50,000$ was recorded.");
+
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    const inlineMath = p!.content!.find((n) => n.type === "inlineMath");
+    expect(inlineMath).toBeUndefined();
+    const textContent = p!
+      .content!.filter((n) => n.type === "text")
+      .map((n) => n.text ?? "")
+      .join("");
+    expect(textContent).toContain("$50,000$");
+  });
+
+  it("should not parse math inside triple-backtick inline code", async () => {
+    const json = await markdownToJsonContent("Use ```$x^2$``` here.");
+
+    expect(JSON.stringify(json)).not.toContain('"type":"inlineMath"');
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    expect(JSON.stringify(p)).toContain("$x^2");
+  });
+
+  it("should not parse math inside quadruple-backtick inline code", async () => {
+    const json = await markdownToJsonContent("Use ````$x^2$```` here.");
+
+    expect(JSON.stringify(json)).not.toContain('"type":"inlineMath"');
+  });
+
+  it("should handle backticks inside code spans correctly", async () => {
+    const json = await markdownToJsonContent("Use `` `$x^2$` `` here.");
+
+    expect(JSON.stringify(json)).not.toContain('"type":"inlineMath"');
+    const p = json.content!.find((n) => n.type === "paragraph");
+    expect(p).toBeDefined();
+    expect(JSON.stringify(p)).toContain("$x^2");
+  });
 });

@@ -1,5 +1,6 @@
 import { renderToReactElement } from "@tiptap/static-renderer/pm/react";
 import type { JSONContent } from "@tiptap/react";
+import { MathFormula } from "@/components/content/math-formula";
 import { CodeBlock } from "@/features/theme/themes/default/components/content/code-block";
 import { ImageDisplay } from "@/features/theme/themes/default/components/content/image-display";
 import { extensions } from "@/features/posts/editor/config";
@@ -88,6 +89,14 @@ export function renderReact(content: JSONContent) {
               {children}
             </th>
           );
+        },
+        inlineMath: ({ node }) => {
+          const latex = (node.attrs as { latex?: string }).latex ?? "";
+          return <MathFormula latex={latex} mode="inline" />;
+        },
+        blockMath: ({ node }) => {
+          const latex = (node.attrs as { latex?: string }).latex ?? "";
+          return <MathFormula latex={latex} mode="block" />;
         },
       },
     },

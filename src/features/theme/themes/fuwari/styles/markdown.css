@@ -148,6 +148,20 @@
       @apply content-none;
     }
   }
+
+  /* KaTeX / Mathematics */
+  .tiptap-mathematics-render,
+  .katex {
+    font-size: 1.1em;
+    color: var(--tw-prose-body);
+  }
+  .tiptap-mathematics-render[data-type="block-math"],
+  .katex-display {
+    margin: 1.5em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-align: center;
+  }
 }
 
 :is(.dark .fuwari-custom-md) {

@@ -192,6 +192,20 @@ mark {
     code {
       @apply relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold;
     }
+
+    /* KaTeX / Mathematics */
+    .tiptap-mathematics-render,
+    .katex {
+      font-size: 1.1em;
+      color: inherit;
+    }
+    .tiptap-mathematics-render[data-type="block-math"],
+    .katex-display {
+      margin: 1.5em 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      text-align: center;
+    }
   }
 
   small {
@@ -256,6 +270,20 @@ mark {
 
 .ProseMirror table p {
   @apply m-0;
+}
+
+/* Mathematics / KaTeX in editor */
+.ProseMirror .tiptap-mathematics-render,
+.ProseMirror .katex {
+  font-size: 1.1em;
+  color: inherit;
+}
+.ProseMirror .tiptap-mathematics-render[data-type="block-math"],
+.ProseMirror .katex-display {
+  margin: 1em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
 }
 
 @layer utilities {
