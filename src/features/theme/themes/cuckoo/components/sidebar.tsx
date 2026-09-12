@@ -18,7 +18,7 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <aside className={cn("flex min-w-0 flex-col", className)}>
       {/* 站点信息卡(.sidebar-info) */}
-      <div className="cuckoo-card-base cuckoo-card-hoverable cuckoo-onload-animation">
+      <div className="cuckoo-card-base cuckoo-card-hoverable cuckoo-onload-animation relative">
         <div className="relative h-30 overflow-hidden">
           {siteConfig.theme.cuckoo.sidebarBg ? (
             <div
@@ -36,23 +36,23 @@ export function Sidebar({ className }: { className?: string }) {
               }}
             />
           )}
-          {/* 头像(半悬浮于底图下缘) */}
-          <div
-            className="absolute top-14 left-1/2 h-25 w-25 -translate-x-1/2 overflow-hidden rounded-full shadow-lg"
-            style={{ backgroundColor: "var(--cuckoo-card-bg)" }}
-          >
-            {siteConfig.theme.cuckoo.avatar ? (
-              <img
-                src={siteConfig.theme.cuckoo.avatar}
-                alt={siteConfig.title}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="cuckoo-text-50 flex h-full w-full items-center justify-center">
-                {siteConfig.title.slice(0, 1)}
-              </div>
-            )}
-          </div>
+        </div>
+        {/* 头像(以卡片定位,半悬浮于头图下缘,完整显示) */}
+        <div
+          className="absolute top-14 left-1/2 h-25 w-25 -translate-x-1/2 overflow-hidden rounded-full shadow-lg"
+          style={{ backgroundColor: "var(--cuckoo-card-bg)" }}
+        >
+          {siteConfig.theme.cuckoo.avatar ? (
+            <img
+              src={siteConfig.theme.cuckoo.avatar}
+              alt={siteConfig.title}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="cuckoo-text-50 flex h-full w-full items-center justify-center">
+              {siteConfig.title.slice(0, 1)}
+            </div>
+          )}
         </div>
         <div className="cuckoo-text-90 mt-14 px-6 pb-5 text-center">
           <div className="text-xl font-medium">{siteConfig.title}</div>
