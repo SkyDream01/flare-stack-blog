@@ -1,6 +1,6 @@
 # 部署 Flare Stack Blog
 
-通过 **GitHub + Cloudflare Workers Builds**，在浏览器中完成博客部署，并使用自己的域名访问和管理博客。
+可以通过 **GitHub + Cloudflare Workers Builds**，或仓库保留的 **GitHub Actions** 部署博客，并使用自己的域名访问和管理博客。本文默认介绍 Workers Builds；GitHub Actions 的推送方式见“以后如何更新”。
 
 ## 前置条件
 
@@ -236,6 +236,23 @@ Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) =>
 同步产生新提交后，Cloudflare Workers Builds 会自动部署，并执行数据库迁移，已有资源和运行时变量会保留。
 
 若更新说明要求新增变量或调整配置，请一并完成。自行修改过代码的仓库，可能需要先解决同步冲突。
+
+#### 使用 GitHub Actions 推送
+
+仓库中的 `.github/workflows/deploy.yml` 会监听 `main` 分支推送，也支持在 GitHub Actions 页面手动执行。它会依次生成 Wrangler 配置、构建前端、同步已提供的运行时机密、执行 D1 迁移并发布 Worker。
+
+在仓库的 **Settings → Secrets and variables → Actions** 中配置：
+
+- **Secrets**：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`BETTER_AUTH_SECRET`、`GITHUB_CLIENT_SECRET`。
+- **Variables**：`WORKER_NAME`、`QUEUE_NAME`、`DOMAIN`、`D1_DATABASE_ID`、`KV_NAMESPACE_ID`、`BUCKET_NAME`。
+
+`GITHUB_CLIENT_ID`、`BETTER_AUTH_URL`、`THEME`、`VITE_UMAMI_WEBSITE_ID` 等可选值放在 Variables；敏感值也可以放在 Secrets。旧部署使用的 `GH_CLIENT_ID`、`GH_CLIENT_SECRET`、`GH_TOKEN` 仍兼容。配置完成后执行：
+
+```bash
+git push origin main
+```
+
+即可触发 GitHub Action 推送部署；也可以在 **Actions → Deploy to Cloudflare Workers → Run workflow** 手动触发。
 
 ## 可选配置
 

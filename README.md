@@ -70,7 +70,7 @@ Flare Stack Blog 是一个深度拥抱 Cloudflare 生态的开源独立博客系
 
 ## 部署指南
 
-使用 GitHub 与 Cloudflare Workers Builds 部署，请阅读独立的 [图文部署指南](./docs/deployment.md)，包含首次部署、可选配置和后续更新。
+使用 GitHub、Cloudflare Workers Builds 或保留的 GitHub Actions 部署，请阅读独立的 [图文部署指南](./docs/deployment.md)，包含首次部署、可选配置和后续更新。
 
 ## 本地开发
 

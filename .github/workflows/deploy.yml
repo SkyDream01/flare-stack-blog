@@ -1,0 +1,134 @@
+name: Deploy to Cloudflare Workers
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**.md"
+      - ".agent/**"
+      - ".vscode/**"
+      - ".gitignore"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    env:
+      # Cloudflare API credentials
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Build-time values. Repository variables are preferred; secrets are
+      # accepted as a backwards-compatible fallback for existing deployments.
+      WORKER_NAME: ${{ vars.WORKER_NAME || secrets.WORKER_NAME }}
+      QUEUE_NAME: ${{ vars.QUEUE_NAME || secrets.QUEUE_NAME }}
+      DOMAIN: ${{ vars.DOMAIN || secrets.DOMAIN }}
+      D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID || secrets.D1_DATABASE_ID }}
+      KV_NAMESPACE_ID: ${{ vars.KV_NAMESPACE_ID || secrets.KV_NAMESPACE_ID }}
+      BUCKET_NAME: ${{ vars.BUCKET_NAME || secrets.BUCKET_NAME }}
+      ROUTE: ${{ vars.ROUTE || secrets.ROUTE }}
+      ZONE_NAME: ${{ vars.ZONE_NAME || secrets.ZONE_NAME }}
+      THEME: ${{ vars.THEME || secrets.THEME }}
+      VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY || secrets.VITE_TURNSTILE_SITE_KEY }}
+      VITE_UMAMI_WEBSITE_ID: ${{ vars.VITE_UMAMI_WEBSITE_ID || secrets.VITE_UMAMI_WEBSITE_ID }}
+
+      # Runtime values are synced to Worker secrets when supplied. Existing
+      # Cloudflare variables remain intact because wrangler.jsonc uses
+      # keep_vars: true.
+      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+      BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL || secrets.BETTER_AUTH_URL }}
+      ENVIRONMENT: ${{ vars.ENVIRONMENT || secrets.ENVIRONMENT }}
+      GITHUB_CLIENT_ID: ${{ vars.GITHUB_CLIENT_ID || secrets.GITHUB_CLIENT_ID || secrets.GH_CLIENT_ID }}
+      GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET || secrets.GH_CLIENT_SECRET }}
+      UMAMI_WEBSITE_ID: ${{ vars.UMAMI_WEBSITE_ID || secrets.UMAMI_WEBSITE_ID }}
+      UMAMI_SRC: ${{ vars.UMAMI_SRC || secrets.UMAMI_SRC }}
+      UMAMI_API_URL: ${{ vars.UMAMI_API_URL || secrets.UMAMI_API_URL }}
+      UMAMI_API_KEY: ${{ secrets.UMAMI_API_KEY }}
+      UMAMI_USERNAME: ${{ secrets.UMAMI_USERNAME }}
+      UMAMI_PASSWORD: ${{ secrets.UMAMI_PASSWORD }}
+      TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_API_TOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ vars.BUN_VERSION || 'latest' }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v6
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare Wrangler config
+        run: bun run wrangler:prepare
+
+      - name: Build application
+        run: bun run build
+
+      - name: Sync runtime secrets
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFileSync } from "node:fs";
+
+          const names = [
+            "BETTER_AUTH_SECRET",
+            "BETTER_AUTH_URL",
+            "DOMAIN",
+            "ENVIRONMENT",
+            "GITHUB_CLIENT_ID",
+            "GITHUB_CLIENT_SECRET",
+            "UMAMI_WEBSITE_ID",
+            "UMAMI_SRC",
+            "UMAMI_API_URL",
+            "UMAMI_API_KEY",
+            "UMAMI_USERNAME",
+            "UMAMI_PASSWORD",
+            "TURNSTILE_SECRET_KEY",
+            "GITHUB_TOKEN",
+          ];
+          const values = Object.fromEntries(
+            names.flatMap((name) => {
+              const value = process.env[name];
+              return value ? [[name, value]] : [];
+            }),
+          );
+          writeFileSync("secrets.json", JSON.stringify(values));
+          NODE
+
+          if [ "$(node -e 'console.log(Object.keys(JSON.parse(require("fs").readFileSync("secrets.json"))).length)')" -gt 0 ]; then
+            bunx wrangler secret bulk secrets.json
+          else
+            echo "No runtime secrets supplied by GitHub; keeping existing Worker variables."
+          fi
+
+      - name: Deploy Worker and apply D1 migrations
+        run: bun run deploy
+
+      - name: Remove temporary secrets file
+        if: always()
+        run: rm -f secrets.json
