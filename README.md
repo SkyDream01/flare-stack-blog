@@ -25,6 +25,18 @@ Flare Stack Blog 是一个深度拥抱 Cloudflare 生态的开源独立博客系
 > [!NOTE]
 > 本项目专为 Cloudflare Workers 边缘运行时设计。
 
+## 分支说明
+
+当前分支基于[上游项目](https://github.com/du2333/flare-stack-blog/)持续同步，同时保留独立的主题系统（Theme Contract）。同步上游的领域模型、数据层、管理后台和部署能力时，主题契约、主题注册表以及主题实现会继续保留。
+
+当前内置主题包括：
+
+- `default`：默认主题。
+- `fuwari`：Fuwari 风格主题。
+- `cuckoo`：Cuckoo 主题，包含专属背景、头像、侧栏资源和主题配置项。
+
+主题通过构建变量 `THEME` 选择，例如将 `THEME=cuckoo` 写入 `.env`，或配置为 GitHub Actions 的 Repository variable。Cuckoo 的背景、头像、侧栏、默认封面和主色调可以在管理后台的站点设置中维护。详细决策记录见 [ADR 0027](./docs/adr/0027-retain-theme-contract-in-downstream-fork.md)。
+
 ## 界面预览
 
 <div align="center">
