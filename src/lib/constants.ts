@@ -3,7 +3,7 @@ export const ADMIN_ITEMS_PER_PAGE = 12;
 export const CACHE_CONTROL = {
   public: {
     "Cache-Control": "public, max-age=0, must-revalidate",
-    "CDN-Cache-Control": "public, s-maxage=31536000",
+    "CDN-Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
   },
   swr: {
     "Cache-Control": "public, max-age=0, must-revalidate",
@@ -30,11 +30,3 @@ export const CACHE_CONTROL = {
     "CDN-Cache-Control": "private, no-store",
   },
 } as const;
-
-export const ADMIN_STATS = {
-  totalViews: 45231,
-  etherStability: 89.4,
-  systemHealth: "STABLE",
-  pendingComments: 12,
-  databaseSize: "1.2 GB",
-};

@@ -1,4 +1,4 @@
-import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
+import { seedSystemConfig } from "tests/config-fixture";
 import { eq } from "drizzle-orm";
 import {
   createAdminTestContext,
@@ -8,13 +8,10 @@ import {
   seedUser,
 } from "tests/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as AiService from "@/features/ai/ai.service";
 import * as CommentService from "@/features/comments/comments.service";
-import { CommentModerationWorkflow } from "@/features/comments/workflows/comment-moderation";
-import * as WorkflowHelpers from "@/features/comments/workflows/helpers";
+import * as CommentRepo from "@/features/comments/data/comments.data";
 import { DEFAULT_CONFIG } from "@/features/config/config.schema";
 import * as ConfigRepo from "@/features/config/data/config.data";
-import * as ConfigService from "@/features/config/service/config.service";
 import * as EmailData from "@/features/email/data/email.data";
 import * as PostService from "@/features/posts/services/posts.service";
 import { CommentsTable } from "@/lib/db/schema";
@@ -24,16 +21,6 @@ describe("Comments Integration", () => {
   let adminContext: ReturnType<typeof createAdminTestContext>;
   let userContext: ReturnType<typeof createAuthTestContext>;
   let postId: number;
-
-  const createCommentContent = (text: string) => ({
-    type: "doc" as const,
-    content: [
-      {
-        type: "paragraph" as const,
-        content: [{ type: "text" as const, text }],
-      },
-    ],
-  });
 
   beforeEach(async () => {
     // Setup admin context
@@ -64,57 +51,42 @@ describe("Comments Integration", () => {
           id,
           data: {
             title: "Test Post",
-            status: "published",
             slug: `test-post-${Date.now()}`,
           },
         }),
       );
+      unwrap(await PostService.publishPost(adminContext, { id }));
       postId = id;
 
       await ConfigRepo.upsertSystemConfig(adminContext.db, DEFAULT_CONFIG);
     });
 
     describe("Comment Creation", () => {
-      it("should create a comment with verifying status", async () => {
+      it("should create a published comment", async () => {
         const comment = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("Great post!"),
+            content: "Great post!",
           }),
         );
 
-        expect(comment.status).toBe("verifying");
+        expect(comment.status).toBe("published");
         expect(comment.userId).toBe("user-1");
         expect(comment.postId).toBe(postId);
-      });
-
-      it("should trigger moderation workflow on creation", async () => {
-        const comment = unwrap(
-          await CommentService.createComment(userContext, {
-            postId,
-            content: createCommentContent("Nice article!"),
-          }),
-        );
-
-        expect(
-          userContext.env.COMMENT_MODERATION_WORKFLOW.create,
-        ).toHaveBeenCalledWith({
-          params: { commentId: comment.id },
-        });
       });
 
       it("should create a reply to an existing comment", async () => {
         const parent = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("Parent comment"),
+            content: "Parent comment",
           }),
         );
 
         const reply = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("Reply to parent"),
+            content: "Reply to parent",
             rootId: parent.id,
           }),
         );
@@ -122,50 +94,27 @@ describe("Comments Integration", () => {
         expect(reply.rootId).toBe(parent.id);
         expect(reply.replyToCommentId).toBe(parent.id);
       });
-    });
 
-    describe("Comment Moderation", () => {
-      it("should allow admin to publish a comment", async () => {
-        const comment = unwrap(
-          await CommentService.createComment(userContext, {
-            postId,
-            content: createCommentContent("Awaiting moderation"),
-          }),
-        );
+      it("should reject a comment when the post has no Public Content Snapshot", async () => {
+        const { id: draftId } = await PostService.createEmptyPost(adminContext);
 
-        const moderatedComment = unwrap(
-          await CommentService.moderateComment(adminContext, {
-            id: comment.id,
-            status: "published",
-          }),
-        );
-
-        expect(moderatedComment.status).toBe("published");
-      });
-
-      it("should allow admin to mark a comment as pending", async () => {
-        const comment = unwrap(
-          await CommentService.createComment(userContext, {
-            postId,
-            content: createCommentContent("Needs review"),
-          }),
-        );
-
-        // First publish the comment
-        await CommentService.moderateComment(adminContext, {
-          id: comment.id,
-          status: "published",
+        const result = await CommentService.createComment(userContext, {
+          postId: draftId,
+          content: "On a draft",
         });
 
-        // Then mark as pending for re-review
-        const pendingComment = unwrap(
-          await CommentService.moderateComment(adminContext, {
-            id: comment.id,
-            status: "pending",
-          }),
-        );
+        expect(result.error?.reason).toBe("POST_NOT_PUBLISHED");
+      });
 
-        expect(pendingComment.status).toBe("pending");
+      it("should reject a comment after the post is unpublished", async () => {
+        unwrap(await PostService.unpublishPost(adminContext, { id: postId }));
+
+        const result = await CommentService.createComment(userContext, {
+          postId,
+          content: "After unpublish",
+        });
+
+        expect(result.error?.reason).toBe("POST_NOT_PUBLISHED");
       });
     });
 
@@ -174,7 +123,7 @@ describe("Comments Integration", () => {
         const comment = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("My comment"),
+            content: "My comment",
           }),
         );
 
@@ -182,8 +131,8 @@ describe("Comments Integration", () => {
           id: comment.id,
         });
 
-        const deletedComment = await CommentService.findCommentById(
-          userContext,
+        const deletedComment = await CommentRepo.findCommentById(
+          userContext.db,
           comment.id,
         );
         expect(deletedComment?.status).toBe("deleted");
@@ -193,7 +142,7 @@ describe("Comments Integration", () => {
         const comment = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("User 1's comment"),
+            content: "User 1's comment",
           }),
         );
 
@@ -217,23 +166,34 @@ describe("Comments Integration", () => {
         expect(result.error?.reason).toBe("PERMISSION_DENIED");
       });
 
-      it("should allow admin to hard delete any comment", async () => {
+      it("should allow admin to soft delete any comment", async () => {
         const comment = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("To be hard deleted"),
+            content: "To be deleted by admin",
           }),
         );
 
-        await CommentService.adminDeleteComment(adminContext, {
-          id: comment.id,
-        });
+        unwrap(
+          await CommentService.deleteComment(adminContext, {
+            id: comment.id,
+          }),
+        );
 
-        const hardDeletedComment = await CommentService.findCommentById(
-          adminContext,
+        const stored = await CommentRepo.findCommentById(
+          adminContext.db,
           comment.id,
         );
-        expect(hardDeletedComment).toBeFalsy();
+        expect(stored?.status).toBe("deleted");
+
+        const result = await CommentService.getRootCommentsByPostId(
+          userContext,
+          { postId },
+        );
+        expect(
+          result.items.find((item) => item.id === comment.id),
+        ).toBeUndefined();
+        expect(result.total).toBe(0);
       });
     });
 
@@ -242,26 +202,18 @@ describe("Comments Integration", () => {
         const root = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("Root comment"),
+            content: "Root comment",
           }),
         );
-
-        await CommentService.moderateComment(adminContext, {
-          id: root.id,
-          status: "published",
-        });
 
         const reply = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("Reply"),
+            content: "Reply",
             rootId: root.id,
           }),
         );
-        await CommentService.moderateComment(adminContext, {
-          id: reply.id,
-          status: "published",
-        });
+        expect(reply.status).toBe("published");
 
         const result = await CommentService.getRootCommentsByPostId(
           userContext,
@@ -273,34 +225,28 @@ describe("Comments Integration", () => {
         expect(result.items).toHaveLength(1);
         expect(result.items[0].id).toBe(root.id);
         expect(result.items[0].replyCount).toBe(1);
-        expect(result.total).toBe(1);
+        expect(result.items[0].replies).toHaveLength(1);
+        expect(result.items[0].replies[0].id).toBe(reply.id);
+        expect(result.total).toBe(2);
       });
 
       it("should get replies by root ID with pagination", async () => {
         const root = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("Root"),
+            content: "Root",
           }),
         );
-        await CommentService.moderateComment(adminContext, {
-          id: root.id,
-          status: "published",
-        });
 
         // Create 3 replies
         for (let i = 1; i <= 3; i++) {
-          const reply = unwrap(
+          unwrap(
             await CommentService.createComment(userContext, {
               postId,
-              content: createCommentContent(`Reply ${i}`),
+              content: `Reply ${i}`,
               rootId: root.id,
             }),
           );
-          await CommentService.moderateComment(adminContext, {
-            id: reply.id,
-            status: "published",
-          });
         }
 
         // Get first page
@@ -324,33 +270,317 @@ describe("Comments Integration", () => {
         expect(page2.items).toHaveLength(1);
       });
 
-      it("should include viewer's pending comments when viewerId provided", async () => {
+      it("should show a new comment to everyone immediately", async () => {
         const comment = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("My pending comment"),
+            content: "Public comment",
           }),
         );
 
-        // Without viewerId - should not see verifying comments
-        const resultWithoutViewer =
-          await CommentService.getRootCommentsByPostId(adminContext, {
-            postId,
-          });
-        const foundWithoutViewer = resultWithoutViewer.items.find(
-          (c) => c.id === comment.id,
+        const result = await CommentService.getRootCommentsByPostId(
+          adminContext,
+          { postId },
         );
-        expect(foundWithoutViewer).toBeUndefined();
+        expect(result.items.find((c) => c.id === comment.id)).toBeDefined();
+      });
 
-        // With viewerId - should see own verifying comments
-        const resultWithViewer = await CommentService.getRootCommentsByPostId(
+      it("should hide a deleted root with no published replies", async () => {
+        const root = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Lonely root",
+          }),
+        );
+        unwrap(
+          await CommentService.deleteComment(userContext, { id: root.id }),
+        );
+
+        const result = await CommentService.getRootCommentsByPostId(
           userContext,
-          { postId, viewerId: "user-1" },
+          { postId },
         );
-        const foundWithViewer = resultWithViewer.items.find(
-          (c) => c.id === comment.id,
+        expect(result.items).toHaveLength(0);
+        expect(result.total).toBe(0);
+
+        const replies = await CommentService.getRepliesByRootId(userContext, {
+          postId,
+          rootId: root.id,
+        });
+        expect(replies.items).toHaveLength(0);
+        expect(replies.total).toBe(0);
+      });
+
+      it("should keep a deleted root as a placeholder when it has published replies", async () => {
+        const root = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Root",
+          }),
         );
-        expect(foundWithViewer).toBeDefined();
+        unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Still here",
+            rootId: root.id,
+          }),
+        );
+        unwrap(
+          await CommentService.deleteComment(userContext, { id: root.id }),
+        );
+
+        const result = await CommentService.getRootCommentsByPostId(
+          userContext,
+          { postId },
+        );
+        expect(result.items).toHaveLength(1);
+        expect(result.items[0].id).toBe(root.id);
+        expect(result.items[0].status).toBe("deleted");
+        expect(result.items[0].replyCount).toBe(1);
+        expect(result.total).toBe(1);
+      });
+
+      it("should count published comments across all threads while paginating only visible roots", async () => {
+        const [firstRoot, secondRoot, deletedRoot, hiddenRoot] =
+          await userContext.db
+            .insert(CommentsTable)
+            .values([
+              {
+                postId,
+                userId: userContext.session.user.id,
+                content: "First root",
+                status: "published",
+                createdAt: new Date("2026-01-01T00:00:00Z"),
+              },
+              {
+                postId,
+                userId: userContext.session.user.id,
+                content: "Second root",
+                status: "published",
+                createdAt: new Date("2026-01-02T00:00:00Z"),
+              },
+              {
+                postId,
+                userId: userContext.session.user.id,
+                content: "Deleted with a surviving reply",
+                status: "deleted",
+                createdAt: new Date("2026-01-03T00:00:00Z"),
+              },
+              {
+                postId,
+                userId: userContext.session.user.id,
+                content: "Deleted with no surviving replies",
+                status: "deleted",
+                createdAt: new Date("2026-01-04T00:00:00Z"),
+              },
+            ])
+            .returning();
+
+        const { id: otherPostId } =
+          await PostService.createEmptyPost(adminContext);
+        await userContext.db.insert(CommentsTable).values([
+          {
+            postId,
+            rootId: firstRoot.id,
+            content: "First reply",
+            status: "published",
+          },
+          {
+            postId,
+            rootId: firstRoot.id,
+            content: "Second reply",
+            status: "published",
+          },
+          {
+            postId,
+            rootId: deletedRoot.id,
+            content: "Surviving reply",
+            status: "published",
+          },
+          {
+            postId,
+            rootId: firstRoot.id,
+            content: "Deleted reply",
+            status: "deleted",
+          },
+          {
+            postId,
+            rootId: hiddenRoot.id,
+            content: "Deleted hidden reply",
+            status: "deleted",
+          },
+          {
+            postId: otherPostId,
+            content: "Different post",
+            status: "published",
+          },
+        ]);
+
+        const firstPage = await CommentService.getRootCommentsByPostId(
+          userContext,
+          {
+            postId,
+            limit: 2,
+          },
+        );
+        expect(firstPage.total).toBe(5);
+        expect(firstPage.items.map((item) => item.id)).toEqual([
+          deletedRoot.id,
+          secondRoot.id,
+        ]);
+
+        const secondPage = await CommentService.getRootCommentsByPostId(
+          userContext,
+          {
+            postId,
+            offset: firstPage.items.length,
+            limit: 2,
+          },
+        );
+        expect(secondPage.total).toBe(5);
+        expect(secondPage.items.map((item) => item.id)).toEqual([firstRoot.id]);
+
+        const end = await CommentService.getRootCommentsByPostId(userContext, {
+          postId,
+          offset: firstPage.items.length + secondPage.items.length,
+          limit: 2,
+        });
+        expect(end.total).toBe(5);
+        expect(end.items).toEqual([]);
+      });
+
+      it("should omit deleted replies from replyCount and keep them in the preview", async () => {
+        const root = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Root",
+          }),
+        );
+        const first = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "First",
+            rootId: root.id,
+          }),
+        );
+        unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Second",
+            rootId: root.id,
+          }),
+        );
+        unwrap(
+          await CommentService.deleteComment(userContext, { id: first.id }),
+        );
+
+        const result = await CommentService.getRootCommentsByPostId(
+          userContext,
+          { postId },
+        );
+        expect(result.items[0].replyCount).toBe(1);
+        expect(result.items[0].replies).toHaveLength(2);
+        expect(result.items[0].replies[0].status).toBe("deleted");
+        expect(result.items[0].replies[1].status).toBe("published");
+        expect(result.total).toBe(2);
+      });
+
+      it("should preview the earliest three replies", async () => {
+        const root = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Root",
+          }),
+        );
+        for (const content of ["A", "B", "C", "D"]) {
+          unwrap(
+            await CommentService.createComment(userContext, {
+              postId,
+              content,
+              rootId: root.id,
+            }),
+          );
+        }
+
+        const result = await CommentService.getRootCommentsByPostId(
+          userContext,
+          { postId },
+        );
+        expect(result.items[0].replyCount).toBe(4);
+        expect(result.items[0].replies.map((reply) => reply.content)).toEqual([
+          "A",
+          "B",
+          "C",
+        ]);
+      });
+
+      it("should hide comments on the public list after unpublish and restore them on publish", async () => {
+        unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Keep me",
+          }),
+        );
+
+        unwrap(await PostService.unpublishPost(adminContext, { id: postId }));
+        const unpublished = await CommentService.getRootCommentsByPostId(
+          userContext,
+          { postId },
+        );
+        expect(unpublished.items).toHaveLength(0);
+        expect(unpublished.total).toBe(0);
+
+        unwrap(await PostService.publishPost(adminContext, { id: postId }));
+        const published = await CommentService.getRootCommentsByPostId(
+          userContext,
+          { postId },
+        );
+        expect(published.items).toHaveLength(1);
+        expect(published.items[0].content).toBe("Keep me");
+      });
+
+      it("should load a visible thread by a reply id", async () => {
+        const root = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Root",
+          }),
+        );
+        const reply = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Deep reply",
+            rootId: root.id,
+          }),
+        );
+
+        const thread = unwrap(
+          await CommentService.getThreadByCommentId(userContext, {
+            postId,
+            id: reply.id,
+          }),
+        );
+        expect(thread.id).toBe(root.id);
+        expect(thread.replyCount).toBe(1);
+        expect(thread.replies[0].id).toBe(reply.id);
+      });
+
+      it("should reject a hidden thread lookup", async () => {
+        const root = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Hidden",
+          }),
+        );
+        unwrap(
+          await CommentService.deleteComment(userContext, { id: root.id }),
+        );
+
+        const result = await CommentService.getThreadByCommentId(userContext, {
+          postId,
+          id: root.id,
+        });
+        expect(result.error?.reason).toBe("COMMENT_NOT_FOUND");
       });
     });
 
@@ -358,7 +588,7 @@ describe("Comments Integration", () => {
       it("should return ROOT_COMMENT_NOT_FOUND when replying to non-existent root", async () => {
         const result = await CommentService.createComment(userContext, {
           postId,
-          content: createCommentContent("Reply to nothing"),
+          content: "Reply to nothing",
           rootId: 999999,
         });
 
@@ -369,14 +599,14 @@ describe("Comments Integration", () => {
         const root = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("Root"),
+            content: "Root",
           }),
         );
 
         const reply = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("Reply"),
+            content: "Reply",
             rootId: root.id,
           }),
         );
@@ -384,7 +614,7 @@ describe("Comments Integration", () => {
         // Try to use the reply as a root (should fail)
         const result = await CommentService.createComment(userContext, {
           postId,
-          content: createCommentContent("Nested reply"),
+          content: "Nested reply",
           rootId: reply.id,
         });
 
@@ -400,23 +630,25 @@ describe("Comments Integration", () => {
             id: otherPostId,
             data: {
               title: "Other Post",
-              status: "published",
               slug: `other-post-${Date.now()}`,
             },
           }),
+        );
+        unwrap(
+          await PostService.publishPost(adminContext, { id: otherPostId }),
         );
 
         const otherPostComment = unwrap(
           await CommentService.createComment(userContext, {
             postId: otherPostId,
-            content: createCommentContent("Comment on other post"),
+            content: "Comment on other post",
           }),
         );
 
         // Try to reply to it from a different post
         const result = await CommentService.createComment(userContext, {
           postId,
-          content: createCommentContent("Cross-post reply"),
+          content: "Cross-post reply",
           rootId: otherPostComment.id,
         });
 
@@ -427,13 +659,13 @@ describe("Comments Integration", () => {
         const root = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("Root"),
+            content: "Root",
           }),
         );
 
         const result = await CommentService.createComment(userContext, {
           postId,
-          content: createCommentContent("Reply to invalid"),
+          content: "Reply to invalid",
           rootId: root.id,
           replyToCommentId: 999999,
         });
@@ -445,14 +677,14 @@ describe("Comments Integration", () => {
         const existing = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("Existing"),
+            content: "Existing",
           }),
         );
 
         // Try to create a root comment (no rootId) but with replyToCommentId
         const result = await CommentService.createComment(userContext, {
           postId,
-          content: createCommentContent("Invalid root"),
+          content: "Invalid root",
           replyToCommentId: existing.id,
         });
 
@@ -465,22 +697,17 @@ describe("Comments Integration", () => {
         const comment = unwrap(
           await CommentService.createComment(adminContext, {
             postId,
-            content: createCommentContent("Admin comment"),
+            content: "Admin comment",
           }),
         );
 
         expect(comment.status).toBe("published");
-
-        // Moderation workflow should NOT be triggered for admin
-        expect(
-          adminContext.env.COMMENT_MODERATION_WORKFLOW.create,
-        ).not.toHaveBeenCalled();
       });
 
       it("should enqueue admin notification email on new root comment", async () => {
         await CommentService.createComment(userContext, {
           postId,
-          content: createCommentContent("New root comment for notification"),
+          content: "New root comment for notification",
         });
 
         expect(userContext.env.QUEUE.send).toHaveBeenCalledWith(
@@ -495,26 +722,19 @@ describe("Comments Integration", () => {
       });
 
       it("should enqueue both email and webhook when both channels are enabled", async () => {
-        await ConfigService.updateSystemConfig(adminContext, {
+        await seedSystemConfig(adminContext, {
           ...DEFAULT_CONFIG,
           notification: {
             ...DEFAULT_CONFIG.notification,
             admin: {
               channels: {
                 email: true,
-                webhook: true,
               },
             },
-            webhooks: [
-              {
-                id: "dual-channel-endpoint",
-                name: "Dual Channel Endpoint",
-                url: "https://example.com/webhook",
-                enabled: true,
-                secret: "secret",
-                events: ["comment.admin_root_created"],
-              },
-            ],
+            webhook: {
+              url: "https://example.com/webhook",
+              secret: "secret",
+            },
           },
         });
 
@@ -522,7 +742,7 @@ describe("Comments Integration", () => {
 
         await CommentService.createComment(userContext, {
           postId,
-          content: createCommentContent("Dual channel comment"),
+          content: "Dual channel comment",
         });
 
         expect(userContext.env.QUEUE.send).toHaveBeenCalledTimes(2);
@@ -535,26 +755,19 @@ describe("Comments Integration", () => {
       });
 
       it("should enqueue admin webhook without email when admin email is disabled", async () => {
-        await ConfigService.updateSystemConfig(adminContext, {
+        await seedSystemConfig(adminContext, {
           ...DEFAULT_CONFIG,
           notification: {
             ...DEFAULT_CONFIG.notification,
             admin: {
               channels: {
                 email: false,
-                webhook: true,
               },
             },
-            webhooks: [
-              {
-                id: "admin-webhook",
-                name: "Admin Webhook",
-                url: "https://example.com/webhook",
-                enabled: true,
-                secret: "secret",
-                events: ["comment.admin_root_created"],
-              },
-            ],
+            webhook: {
+              url: "https://example.com/webhook",
+              secret: "secret",
+            },
           },
         });
 
@@ -562,7 +775,7 @@ describe("Comments Integration", () => {
 
         await CommentService.createComment(userContext, {
           postId,
-          content: createCommentContent("Webhook only notification"),
+          content: "Webhook only notification",
         });
 
         expect(userContext.env.QUEUE.send).toHaveBeenCalledTimes(1);
@@ -570,43 +783,45 @@ describe("Comments Integration", () => {
           expect.objectContaining({
             type: "WEBHOOK",
             data: expect.objectContaining({
-              endpointId: "admin-webhook",
               url: "https://example.com/webhook",
               event: expect.objectContaining({
                 type: "comment.admin_root_created",
+                data: expect.not.objectContaining({
+                  to: expect.anything(),
+                }),
               }),
             }),
           }),
         );
       });
 
-      it("should only enqueue webhook for endpoints subscribed to the event", async () => {
-        await ConfigService.updateSystemConfig(adminContext, {
+      it("should send webhook from the first legacy endpoint even if that row filtered events", async () => {
+        await seedSystemConfig(adminContext, {
           ...DEFAULT_CONFIG,
           notification: {
             ...DEFAULT_CONFIG.notification,
             admin: {
               channels: {
                 email: false,
-                webhook: true,
+                webhook: false,
               },
             },
             webhooks: [
               {
-                id: "matched-endpoint",
-                name: "Matched Endpoint",
-                url: "https://example.com/matched",
+                id: "legacy-first",
+                name: "Legacy First",
+                url: "https://example.com/legacy",
                 enabled: true,
-                secret: "secret-1",
-                events: ["comment.admin_root_created"],
+                secret: "legacy-secret",
+                events: ["friend_link.submitted"],
               },
               {
-                id: "unmatched-endpoint",
-                name: "Unmatched Endpoint",
-                url: "https://example.com/unmatched",
+                id: "legacy-second",
+                name: "Legacy Second",
+                url: "https://example.com/other",
                 enabled: true,
-                secret: "secret-2",
-                events: ["friend_link.submitted"],
+                secret: "other-secret",
+                events: ["comment.admin_root_created"],
               },
             ],
           },
@@ -616,7 +831,7 @@ describe("Comments Integration", () => {
 
         await CommentService.createComment(userContext, {
           postId,
-          content: createCommentContent("Only matched webhook should receive"),
+          content: "Legacy webhook config",
         });
 
         expect(userContext.env.QUEUE.send).toHaveBeenCalledTimes(1);
@@ -624,8 +839,8 @@ describe("Comments Integration", () => {
           expect.objectContaining({
             type: "WEBHOOK",
             data: expect.objectContaining({
-              endpointId: "matched-endpoint",
-              url: "https://example.com/matched",
+              url: "https://example.com/legacy",
+              secret: "legacy-secret",
               event: expect.objectContaining({
                 type: "comment.admin_root_created",
               }),
@@ -634,27 +849,20 @@ describe("Comments Integration", () => {
         );
       });
 
-      it("should not enqueue webhook for disabled endpoints", async () => {
-        await ConfigService.updateSystemConfig(adminContext, {
+      it("should not enqueue webhook when the URL is empty", async () => {
+        await seedSystemConfig(adminContext, {
           ...DEFAULT_CONFIG,
           notification: {
             ...DEFAULT_CONFIG.notification,
             admin: {
               channels: {
                 email: false,
-                webhook: true,
               },
             },
-            webhooks: [
-              {
-                id: "disabled-endpoint",
-                name: "Disabled Endpoint",
-                url: "https://example.com/disabled",
-                enabled: false,
-                secret: "secret",
-                events: ["comment.admin_root_created"],
-              },
-            ],
+            webhook: {
+              url: "",
+              secret: "secret",
+            },
           },
         });
 
@@ -662,7 +870,7 @@ describe("Comments Integration", () => {
 
         await CommentService.createComment(userContext, {
           postId,
-          content: createCommentContent("Comment with disabled webhook"),
+          content: "Comment with empty webhook URL",
         });
 
         expect(userContext.env.QUEUE.send).not.toHaveBeenCalled();
@@ -672,13 +880,9 @@ describe("Comments Integration", () => {
         const rootComment = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("User's comment"),
+            content: "User's comment",
           }),
         );
-        await CommentService.moderateComment(adminContext, {
-          id: rootComment.id,
-          status: "published",
-        });
 
         // Clear mocks to isolate the admin reply notification
         vi.mocked(adminContext.env.QUEUE.send).mockClear();
@@ -686,7 +890,7 @@ describe("Comments Integration", () => {
         // Admin replies to the user's comment
         await CommentService.createComment(adminContext, {
           postId,
-          content: createCommentContent("Admin reply"),
+          content: "Admin reply",
           rootId: rootComment.id,
           replyToCommentId: rootComment.id,
         });
@@ -703,7 +907,7 @@ describe("Comments Integration", () => {
       });
 
       it("should skip user reply notification when user email notifications are disabled", async () => {
-        await ConfigService.updateSystemConfig(adminContext, {
+        await seedSystemConfig(adminContext, {
           ...DEFAULT_CONFIG,
           notification: {
             ...DEFAULT_CONFIG.notification,
@@ -716,19 +920,15 @@ describe("Comments Integration", () => {
         const rootComment = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("User comment"),
+            content: "User comment",
           }),
         );
-        await CommentService.moderateComment(adminContext, {
-          id: rootComment.id,
-          status: "published",
-        });
 
         vi.mocked(adminContext.env.QUEUE.send).mockClear();
 
         await CommentService.createComment(adminContext, {
           postId,
-          content: createCommentContent("Admin reply"),
+          content: "Admin reply",
           rootId: rootComment.id,
           replyToCommentId: rootComment.id,
         });
@@ -740,13 +940,9 @@ describe("Comments Integration", () => {
         const rootComment = unwrap(
           await CommentService.createComment(userContext, {
             postId,
-            content: createCommentContent("User comment from deleted account"),
+            content: "User comment from deleted account",
           }),
         );
-        await CommentService.moderateComment(adminContext, {
-          id: rootComment.id,
-          status: "published",
-        });
 
         await adminContext.db
           .update(CommentsTable)
@@ -757,7 +953,7 @@ describe("Comments Integration", () => {
 
         await CommentService.createComment(adminContext, {
           postId,
-          content: createCommentContent("Admin reply after account deletion"),
+          content: "Admin reply after account deletion",
           rootId: rootComment.id,
           replyToCommentId: rootComment.id,
         });
@@ -769,7 +965,7 @@ describe("Comments Integration", () => {
         const rootComment = unwrap(
           await CommentService.createComment(adminContext, {
             postId,
-            content: createCommentContent("Admin's root comment"),
+            content: "Admin's root comment",
           }),
         );
 
@@ -779,7 +975,7 @@ describe("Comments Integration", () => {
         // Admin replies to own comment
         await CommentService.createComment(adminContext, {
           postId,
-          content: createCommentContent("Admin self-reply"),
+          content: "Admin self-reply",
           rootId: rootComment.id,
           replyToCommentId: rootComment.id,
         });
@@ -788,68 +984,24 @@ describe("Comments Integration", () => {
         expect(adminContext.env.QUEUE.send).not.toHaveBeenCalled();
       });
 
-      it("should skip reply notification via moderateComment when moderator is the reply-to author", async () => {
+      it("should enqueue a reply notification when a user replies to an admin", async () => {
         const rootComment = unwrap(
           await CommentService.createComment(adminContext, {
             postId,
-            content: createCommentContent("Admin's root comment"),
+            content: "Admin's root comment",
           }),
         );
 
-        // User creates a reply (goes to verifying status)
-        const reply = unwrap(
-          await CommentService.createComment(userContext, {
-            postId,
-            content: createCommentContent("User reply to admin"),
-            rootId: rootComment.id,
-            replyToCommentId: rootComment.id,
-          }),
-        );
+        vi.mocked(userContext.env.QUEUE.send).mockClear();
 
-        // Clear mocks to isolate the moderation notification
-        vi.mocked(adminContext.env.QUEUE.send).mockClear();
-
-        // Admin manually approves the reply (admin is both moderator and reply-to author)
-        await CommentService.moderateComment(
-          adminContext,
-          { id: reply.id, status: "published" },
-          adminContext.session.user.id,
-        );
-
-        // No notification — moderator already read the comment when approving
-        expect(adminContext.env.QUEUE.send).not.toHaveBeenCalled();
-      });
-
-      it("should trigger reply notification when moderator is not the reply-to author", async () => {
-        // Admin creates a root comment
-        const rootComment = unwrap(
-          await CommentService.createComment(adminContext, {
-            postId,
-            content: createCommentContent("Admin's root comment"),
-          }),
-        );
-
-        // User replies to admin's comment (goes to verifying status)
-        const reply = unwrap(
-          await CommentService.createComment(userContext, {
-            postId,
-            content: createCommentContent("User reply to admin"),
-            rootId: rootComment.id,
-            replyToCommentId: rootComment.id,
-          }),
-        );
-
-        // Clear mocks to isolate
-        vi.mocked(adminContext.env.QUEUE.send).mockClear();
-
-        // Admin approves — but without passing moderatorUserId (simulating no skip)
-        await CommentService.moderateComment(adminContext, {
-          id: reply.id,
-          status: "published",
+        await CommentService.createComment(userContext, {
+          postId,
+          content: "User reply to admin",
+          rootId: rootComment.id,
+          replyToCommentId: rootComment.id,
         });
 
-        // Notification should be sent to the admin (reply-to author) since no moderatorUserId
-        expect(adminContext.env.QUEUE.send).toHaveBeenCalledWith(
+        expect(userContext.env.QUEUE.send).toHaveBeenCalledWith(
           expect.objectContaining({
             type: "EMAIL",
             data: expect.objectContaining({
@@ -860,71 +1012,52 @@ describe("Comments Integration", () => {
         );
       });
 
-      it("should skip reply notification via moderateComment when admin email is disabled", async () => {
-        await ConfigService.updateSystemConfig(adminContext, {
+      it("should skip reply notification when admin email is disabled", async () => {
+        await seedSystemConfig(adminContext, {
           ...DEFAULT_CONFIG,
           notification: {
             ...DEFAULT_CONFIG.notification,
             admin: {
               channels: {
                 email: false,
-                webhook: false,
               },
             },
           },
         });
 
-        // Admin creates a root comment (published immediately)
         const rootComment = unwrap(
           await CommentService.createComment(adminContext, {
             postId,
-            content: createCommentContent("Admin root comment"),
+            content: "Admin root comment",
           }),
         );
 
-        // User creates a reply (goes to verifying status)
-        const reply = unwrap(
-          await CommentService.createComment(userContext, {
-            postId,
-            content: createCommentContent("User reply to admin"),
-            rootId: rootComment.id,
-            replyToCommentId: rootComment.id,
-          }),
-        );
+        vi.mocked(userContext.env.QUEUE.send).mockClear();
 
-        vi.mocked(adminContext.env.QUEUE.send).mockClear();
-
-        // Approve the reply without passing moderatorUserId — normally sends reply notification to admin
-        // But admin email is disabled so no email should be enqueued
-        await CommentService.moderateComment(adminContext, {
-          id: reply.id,
-          status: "published",
+        await CommentService.createComment(userContext, {
+          postId,
+          content: "User reply to admin",
+          rootId: rootComment.id,
+          replyToCommentId: rootComment.id,
         });
 
-        expect(adminContext.env.QUEUE.send).not.toHaveBeenCalled();
+        expect(userContext.env.QUEUE.send).not.toHaveBeenCalled();
       });
 
       it("should still emit admin webhook when reply notifications are unsubscribed", async () => {
-        await ConfigService.updateSystemConfig(adminContext, {
+        await seedSystemConfig(adminContext, {
           ...DEFAULT_CONFIG,
           notification: {
             ...DEFAULT_CONFIG.notification,
             admin: {
               channels: {
                 email: false,
-                webhook: true,
               },
             },
-            webhooks: [
-              {
-                id: "admin-reply-webhook",
-                name: "Admin Reply Webhook",
-                enabled: true,
-                url: "https://example.com/reply-webhook",
-                secret: "secret",
-                events: ["comment.reply_to_admin_published"],
-              },
-            ],
+            webhook: {
+              url: "https://example.com/reply-webhook",
+              secret: "secret",
+            },
           },
         });
         await EmailData.unsubscribe(
@@ -936,37 +1069,28 @@ describe("Comments Integration", () => {
         const rootComment = unwrap(
           await CommentService.createComment(adminContext, {
             postId,
-            content: createCommentContent("Admin root comment"),
+            content: "Admin root comment",
           }),
         );
 
-        const reply = unwrap(
-          await CommentService.createComment(userContext, {
-            postId,
-            content: createCommentContent("User reply to unsubscribed admin"),
-            rootId: rootComment.id,
-            replyToCommentId: rootComment.id,
-          }),
-        );
+        vi.mocked(userContext.env.QUEUE.send).mockClear();
 
-        vi.mocked(adminContext.env.QUEUE.send).mockClear();
-
-        await CommentService.moderateComment(adminContext, {
-          id: reply.id,
-          status: "published",
+        await CommentService.createComment(userContext, {
+          postId,
+          content: "User reply to unsubscribed admin",
+          rootId: rootComment.id,
+          replyToCommentId: rootComment.id,
         });
 
-        expect(adminContext.env.QUEUE.send).toHaveBeenCalledTimes(1);
-        expect(adminContext.env.QUEUE.send).toHaveBeenCalledWith(
+        expect(userContext.env.QUEUE.send).toHaveBeenCalledTimes(1);
+        expect(userContext.env.QUEUE.send).toHaveBeenCalledWith(
           expect.objectContaining({
             type: "WEBHOOK",
             data: expect.objectContaining({
-              endpointId: "admin-reply-webhook",
               url: "https://example.com/reply-webhook",
               event: expect.objectContaining({
                 type: "comment.reply_to_admin_published",
                 data: expect.objectContaining({
-                  to: "admin@example.com",
                   postTitle: "Test Post",
                   replierName: "Test User",
                   replyPreview: "User reply to unsubscribed admin",
@@ -976,184 +1100,6 @@ describe("Comments Integration", () => {
           }),
         );
       });
-
-      it("should get all comments with admin filters", async () => {
-        const comment1 = unwrap(
-          await CommentService.createComment(userContext, {
-            postId,
-            content: createCommentContent("Pending comment"),
-          }),
-        );
-        await CommentService.moderateComment(adminContext, {
-          id: comment1.id,
-          status: "pending",
-        });
-
-        const comment2 = unwrap(
-          await CommentService.createComment(userContext, {
-            postId,
-            content: createCommentContent("Published comment"),
-          }),
-        );
-        await CommentService.moderateComment(adminContext, {
-          id: comment2.id,
-          status: "published",
-        });
-
-        // Filter by status
-        const pendingOnly = await CommentService.getAllComments(adminContext, {
-          status: "pending",
-        });
-        expect(pendingOnly.items.every((c) => c.status === "pending")).toBe(
-          true,
-        );
-
-        // Filter by postId
-        const byPost = await CommentService.getAllComments(adminContext, {
-          postId,
-        });
-        expect(byPost.items.every((c) => c.postId === postId)).toBe(true);
-      });
-
-      it("should get user comment stats", async () => {
-        const comment1 = unwrap(
-          await CommentService.createComment(userContext, {
-            postId,
-            content: createCommentContent("Comment 1"),
-          }),
-        );
-        await CommentService.createComment(userContext, {
-          postId,
-          content: createCommentContent("Comment 2"),
-        });
-
-        // Delete one
-        await CommentService.deleteComment(userContext, {
-          id: comment1.id,
-        });
-
-        const stats = await CommentService.getUserCommentStats(
-          adminContext,
-          "user-1",
-        );
-
-        expect(stats.totalComments).toBe(2);
-        expect(stats.rejectedComments).toBe(1); // deleted counts as rejected
-        expect(stats.registeredAt).toBeDefined();
-      });
-    });
-  });
-
-  describe("CommentModerationWorkflow", () => {
-    const step: WorkflowStep = {
-      do: (async (
-        _name: string,
-        configOrCallback: unknown,
-        maybeCallback?: unknown,
-      ) => {
-        const callback =
-          typeof configOrCallback === "function"
-            ? configOrCallback
-            : maybeCallback;
-        return await (callback as () => Promise<unknown>)();
-      }) as WorkflowStep["do"],
-      sleep: (async () => undefined) as unknown as WorkflowStep["sleep"],
-      sleepUntil: (async () =>
-        undefined) as unknown as WorkflowStep["sleepUntil"],
-      waitForEvent: (async () =>
-        undefined) as unknown as WorkflowStep["waitForEvent"],
-    };
-
-    beforeEach(async () => {
-      vi.restoreAllMocks();
-
-      // Re-create contexts after restoreAllMocks to ensure fresh mocks
-      adminContext = createAdminTestContext({
-        executionCtx: createMockExecutionCtx(),
-      });
-      await seedUser(adminContext.db, adminContext.session.user);
-
-      const userSession = createMockSession({
-        user: {
-          id: "user-1",
-          name: "Test User",
-          email: "user@example.com",
-          role: null,
-        },
-      });
-      userContext = createAuthTestContext({ session: userSession });
-      await seedUser(userContext.db, userSession.user);
-
-      const { id } = await PostService.createEmptyPost(adminContext);
-      unwrap(
-        await PostService.updatePost(adminContext, {
-          id,
-          data: {
-            title: "上下文测试文章",
-            summary: "这是一篇讨论代码审核与评论交流边界的文章摘要。",
-            status: "published",
-            slug: `workflow-test-${Date.now()}`,
-            contentJson: createCommentContent(
-              "文章正文详细讨论了如何区分正常反驳、友好调侃、恶意辱骂和广告灌水。",
-            ),
-          },
-        }),
-      );
-      postId = id;
-    });
-
-    it("passes post and reply context to AI moderation", async () => {
-      userContext.env.ENVIRONMENT = "prod";
-
-      const root = unwrap(
-        await CommentService.createComment(userContext, {
-          postId,
-          content: createCommentContent("我觉得文章对误判问题分析得还不够细。"),
-        }),
-      );
-
-      const reply = unwrap(
-        await CommentService.createComment(userContext, {
-          postId,
-          rootId: root.id,
-          replyToCommentId: root.id,
-          content: createCommentContent(
-            "你这个理解不对，我是说审核要结合上下文看。",
-          ),
-        }),
-      );
-
-      const moderateSpy = vi
-        .spyOn(AiService, "moderateComment")
-        .mockResolvedValue({ safe: true, reason: "上下文完整，允许通过" });
-      vi.spyOn(WorkflowHelpers, "sendReplyNotification").mockResolvedValue();
-
-      await CommentModerationWorkflow.prototype.run.call(
-        { env: userContext.env },
-        {
-          payload: { commentId: reply.id },
-        } as WorkflowEvent<{ commentId: number }>,
-        step,
-      );
-
-      expect(moderateSpy).toHaveBeenCalledWith(
-        { env: userContext.env },
-        expect.objectContaining({
-          comment: "你这个理解不对，我是说审核要结合上下文看。",
-          post: expect.objectContaining({
-            title: "上下文测试文章",
-            summary: "这是一篇讨论代码审核与评论交流边界的文章摘要。",
-            contentPreview: expect.stringContaining(
-              "文章正文详细讨论了如何区分正常反驳",
-            ),
-          }),
-          thread: {
-            isReply: true,
-            rootComment: "我觉得文章对误判问题分析得还不够细。",
-            replyToComment: "我觉得文章对误判问题分析得还不够细。",
-          },
-        }),
-      );
     });
   });
 });

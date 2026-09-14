@@ -1,0 +1,90 @@
+.comment-actions-trigger {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fuwari-fg-50);
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+.comment-actions-trigger:hover,
+.comment-actions-trigger[aria-expanded="true"] {
+  background: var(--fuwari-btn-regular-bg);
+  color: var(--fuwari-primary);
+}
+.comment-actions-trigger:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.comment-actions-trigger:focus-visible,
+.comment-actions-item:focus-visible {
+  outline: 2px solid var(--fuwari-primary);
+  outline-offset: 2px;
+}
+.comment-actions-menu {
+  position: fixed;
+  z-index: 80;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+  border: 1px solid var(--fuwari-input-border);
+  border-radius: 12px;
+  background: var(--fuwari-card-bg);
+  box-shadow: 0 5px 18px rgb(0 0 0 / 0.08);
+}
+.comment-actions-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fuwari-fg-75);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+.comment-actions-item:hover,
+.comment-actions-item:focus-visible {
+  background: var(--fuwari-btn-regular-bg);
+  color: var(--fuwari-primary);
+}
+.comment-actions-item:focus-visible {
+  outline-offset: -2px;
+}
+.comment-actions-item[data-danger] {
+  color: var(--fuwari-danger-fg);
+}
+.comment-actions-item[data-danger]:hover,
+.comment-actions-item[data-danger]:focus-visible {
+  background: var(--fuwari-danger-bg);
+  color: var(--fuwari-danger-fg);
+}
+@media (pointer: coarse) {
+  .comment-actions-trigger {
+    width: 40px;
+    height: 40px;
+  }
+  .comment-actions-item {
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .comment-actions-trigger,
+  .comment-actions-item {
+    transition: none;
+  }
+}

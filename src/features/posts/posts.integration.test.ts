@@ -1,4 +1,3 @@
-import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import { env } from "cloudflare:workers";
 import { eq } from "drizzle-orm";
 import {
@@ -7,25 +6,17 @@ import {
   createTestContext,
   drainTestExecutionContexts,
   seedUser,
-  testRequest,
   waitForBackgroundTasks,
 } from "tests/test-utils";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as CacheService from "@/features/cache/cache.service";
-import postsListRoute from "@/features/posts/api/hono/posts.list.route";
-import {
-  GetPostsCursorInputSchema,
-  POSTS_CACHE_KEYS,
-  PostListResponseSchema,
-} from "@/features/posts/schema/posts.schema";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { invalidate } from "@/features/cache/public-cache";
+import { GetPostsCursorInputSchema } from "@/features/posts/schema/posts.schema";
 import * as PostRevisionService from "@/features/posts/services/post-revisions.service";
 import * as PostService from "@/features/posts/services/posts.service";
-import { calculatePostHash } from "@/features/posts/utils/sync";
-import { PostAutoSnapshotWorkflow } from "@/features/posts/workflows/post-auto-snapshot";
-import { PostProcessWorkflow } from "@/features/posts/workflows/post-process";
 import * as TagService from "@/features/tags/tags.service";
 import { PostRevisionsTable, PostsTable } from "@/lib/db/schema";
-import { type Duration, ms } from "@/lib/duration";
+import { getPostPublisher } from "@/lib/do/post-publisher-binding";
+
 import { unwrap } from "@/lib/errors";
 
 describe("Posts Integration", () => {
@@ -47,12 +38,82 @@ describe("Posts Integration", () => {
       data: {
         title,
         slug,
-        status: "published",
         publishedAt: new Date(),
       },
     });
+    unwrap(await PostService.publishPost(adminContext, { id }));
     return id;
   };
+
+  describe("Homepage pagination", () => {
+    it("paginates public snapshots with pinned posts first and no duplicate or private posts", async () => {
+      const publishedAt = "2026-01-01T00:00:00.000Z";
+      const rows = await adminContext.db
+        .insert(PostsTable)
+        .values(
+          Array.from({ length: 18 }, (_, i) => ({
+            title: `Private edit ${i}`,
+            slug: `private-edit-${i}`,
+            status: "published" as const,
+            publicSlug: `home-${i}`,
+            publicSnapshotJson: {
+              title: `Public ${i}`,
+              summary: null,
+              slug: `home-${i}`,
+              contentJson: null,
+              tagIds: [],
+              categoryId: null,
+              cover: null,
+              publishedAt,
+              pinnedAt: i < 9 ? "2026-02-01T00:00:00.000Z" : null,
+            },
+          })),
+        )
+        .returning();
+      await adminContext.db
+        .insert(PostsTable)
+        .values({ title: "Hidden draft", slug: "hidden-draft" });
+      const pages = [];
+      for (const page of [1, 2, 3])
+        pages.push(await PostService.getHomePosts(adminContext, page));
+      expect(pages.map((result) => result.items.length)).toEqual([8, 8, 2]);
+      expect(pages.map((result) => result.totalPages)).toEqual([3, 3, 3]);
+      const items = pages.flatMap((result) => result.items);
+      expect(items.map((item) => item.id)).toEqual([
+        ...rows
+          .slice(0, 9)
+          .reverse()
+          .map((row) => row.id),
+        ...rows
+          .slice(9)
+          .reverse()
+          .map((row) => row.id),
+      ]);
+      expect(items.every((item) => item.title.startsWith("Public "))).toBe(
+        true,
+      );
+      expect(new Set(items.map((item) => item.id)).size).toBe(18);
+      expect((await PostService.getHomePosts(adminContext, 999)).page).toBe(3);
+      await adminContext.db
+        .update(PostsTable)
+        .set({ publicSnapshotJson: null, publicSlug: null })
+        .where(eq(PostsTable.id, rows[8].id));
+      await waitForBackgroundTasks(adminContext.executionCtx);
+      await invalidate.postPublished(adminContext, { slug: "home-8" });
+      const refreshed = await PostService.getHomePosts(adminContext, 1);
+      expect(refreshed.items.some((item) => item.id === rows[8].id)).toBe(
+        false,
+      );
+    });
+
+    it("returns an empty first page for a site without published posts", async () => {
+      expect(await PostService.getHomePosts(adminContext, 5)).toEqual({
+        items: [],
+        page: 1,
+        totalPages: 1,
+      });
+    });
+  });
 
   describe("Post CRUD", () => {
     it("should create an empty draft post", async () => {
@@ -63,6 +124,7 @@ describe("Posts Integration", () => {
       expect(post).not.toBeNull();
       expect(post?.status).toBe("draft");
       expect(post?.title).toBe("");
+      expect(post?.publicSnapshotContentJson).toBeNull();
     });
 
     it("should update a post with content", async () => {
@@ -82,7 +144,6 @@ describe("Posts Integration", () => {
               },
             ],
           },
-          status: "published",
           publishedAt: new Date(),
         },
       });
@@ -90,7 +151,7 @@ describe("Posts Integration", () => {
       expect(updatedPost).not.toBeNull();
       expect(updatedPost.title).toBe("Updated Title");
       expect(updatedPost.slug).toBe("updated-title");
-      expect(updatedPost.status).toBe("published");
+      expect(updatedPost.status).toBe("draft");
     });
 
     it("should find a published post by slug", async () => {
@@ -100,10 +161,10 @@ describe("Posts Integration", () => {
         data: {
           title: "Public Post",
           slug: "public-post",
-          status: "published",
           publishedAt: new Date(),
         },
       });
+      unwrap(await PostService.publishPost(adminContext, { id }));
 
       // 等待 waitUntil 完成（缓存写入）
       await waitForBackgroundTasks(adminContext.executionCtx);
@@ -117,7 +178,7 @@ describe("Posts Integration", () => {
       expect(post?.title).toBe("Public Post");
     });
 
-    it("should backfill publicContentJson for legacy published posts on read", async () => {
+    it("writes a public snapshot on publish", async () => {
       const publicContext = createTestContext();
       const { id } = await PostService.createEmptyPost(adminContext);
       await updatePost({
@@ -125,7 +186,6 @@ describe("Posts Integration", () => {
         data: {
           title: "Legacy Snapshot",
           slug: "legacy-snapshot",
-          status: "published",
           publishedAt: new Date(),
           contentJson: {
             type: "doc",
@@ -139,24 +199,19 @@ describe("Posts Integration", () => {
           },
         },
       });
-      const beforeRead = await adminContext.db.query.PostsTable.findFirst({
-        where: eq(PostsTable.id, id),
-      });
+      unwrap(await PostService.publishPost(adminContext, { id }));
 
       const post = await PostService.findPostBySlug(publicContext, {
         slug: "legacy-snapshot",
       });
       expect(post).not.toBeNull();
 
-      await waitForBackgroundTasks(publicContext.executionCtx);
-
       const storedPost = await adminContext.db.query.PostsTable.findFirst({
         where: eq(PostsTable.id, id),
       });
-      expect(storedPost?.publicContentJson).toBeTruthy();
-      expect(storedPost?.updatedAt?.getTime()).toBe(
-        beforeRead?.updatedAt?.getTime(),
-      );
+      expect(storedPost?.publicSnapshotJson).toBeTruthy();
+      expect(storedPost?.publicSlug).toBe("legacy-snapshot");
+      expect(storedPost?.publicSnapshotJson?.cover ?? null).toBeNull();
     });
 
     it("should delete a post", async () => {
@@ -217,10 +272,10 @@ describe("Posts Integration", () => {
         data: {
           title: "Cached Post",
           slug: "cached-post",
-          status: "published",
           publishedAt: new Date(),
         },
       });
+      unwrap(await PostService.publishPost(adminContext, { id }));
 
       // First fetch - cache MISS
       const post1 = await PostService.findPostBySlug(adminContext, {
@@ -228,64 +283,35 @@ describe("Posts Integration", () => {
       });
       expect(post1).not.toBeNull();
 
-      // 等待缓存写入完成
       await waitForBackgroundTasks(adminContext.executionCtx);
 
-      // 验证 KV 中有缓存数据 (key 格式: version:post:slug)
-      const version = await CacheService.getVersion(
-        adminContext,
-        "posts:detail",
-      );
-      const cacheKey = `${version}:post:cached-post`;
-      const cachedData = await env.KV.get(cacheKey, "json");
+      const cachedData = await env.KV.get("v0:post:cached-post", "json");
       expect(cachedData).not.toBeNull();
     });
 
-    it("should invalidate cache when version is bumped", async () => {
+    it("should refetch after public cache invalidation", async () => {
       const { id } = await PostService.createEmptyPost(adminContext);
       await updatePost({
         id,
         data: {
           title: "Version Test",
           slug: "version-test",
-          status: "published",
           publishedAt: new Date(),
         },
       });
+      unwrap(await PostService.publishPost(adminContext, { id }));
 
-      // First fetch to populate cache
       await PostService.findPostBySlug(adminContext, { slug: "version-test" });
       await waitForBackgroundTasks(adminContext.executionCtx);
+      expect(await env.KV.get("v0:post:version-test", "json")).not.toBeNull();
 
-      // Get current bootstrap generation before any bump
-      const oldVersion = await CacheService.getVersion(
-        adminContext,
-        "posts:detail",
-      );
-      expect(oldVersion).toBe("v0");
+      await invalidate.postPublished(adminContext, { slug: "version-test" });
 
-      // One rotation must make the old cache generation unreachable
-      await CacheService.bumpVersion(adminContext, "posts:detail");
-
-      const newVersion = await CacheService.getVersion(
-        adminContext,
-        "posts:detail",
-      );
-      expect(newVersion).not.toBe(oldVersion);
-
-      // New cache key doesn't exist yet (old one is stale)
-      const newCacheKey = `${newVersion}:post:version-test`;
-      const newCachedData = await env.KV.get(newCacheKey, "json");
-      expect(newCachedData).toBeNull();
+      expect(await env.KV.get("v0:post:version-test", "json")).toBeNull();
     });
 
     it("should use isolated storage for each test", async () => {
-      // Verify KV is clean at the start of this test
-      const version = await CacheService.getVersion(
-        adminContext,
-        "posts:detail",
-      );
-      expect(version).toBe("v0");
+      expect(await env.KV.get("v0:post:cached-post")).toBeNull();
     });
   });
 
@@ -294,14 +320,21 @@ describe("Posts Integration", () => {
       const allTag = unwrap(
         await TagService.createTag(adminContext, { name: "all" }),
       );
-      const taggedPostId = await createPublishedPost(
-        "Tagged All Post",
-        "tagged-all-post",
-      );
+      const { id: taggedPostId } =
+        await PostService.createEmptyPost(adminContext);
+      await updatePost({
+        id: taggedPostId,
+        data: {
+          title: "Tagged All Post",
+          slug: "tagged-all-post",
+          publishedAt: new Date(),
+        },
+      });
       await TagService.setPostTags(adminContext, {
         postId: taggedPostId,
         tagIds: [allTag.id],
       });
+      unwrap(await PostService.publishPost(adminContext, { id: taggedPostId }));
       await createPublishedPost("Untagged Post", "untagged-post");
     };
 
@@ -321,13 +354,14 @@ describe("Posts Integration", () => {
       await waitForBackgroundTasks(initialPublicContext.executionCtx);
 
       await createPublishedPost("New Post", "new-post");
+      await waitForBackgroundTasks(adminContext.executionCtx);
 
       const emptyTagList = await PostService.getPostsCursor(
         createTestContext(),
         { tagName: "" },
       );
 
-      expect(emptyTagList.items).toEqual([]);
+      expect(emptyTagList.items.map((post) => post.slug)).toEqual(["new-post"]);
     });
 
     it("should keep a real Tag named all distinct from the unfiltered list", async () => {
@@ -373,7 +407,7 @@ describe("Posts Integration", () => {
       const publicContext = createTestContext();
       await createPublishedPost("Fresh Post", "fresh-post");
       await publicContext.env.KV.put(
-        POSTS_CACHE_KEYS.list("v0", 10, 0).join(":"),
+        "v0:posts:list:10:0:all",
         JSON.stringify({ items: [], nextCursor: null }),
       );
       vi.spyOn(publicContext.env.KV, "get").mockRejectedValueOnce(
@@ -397,7 +431,6 @@ describe("Posts Integration", () => {
           data: {
             title: `Post ${i}`,
             slug: `post-${i}`,
-            status: "published",
             // PostsTable stores timestamps with second precision, so use
             // deterministic minute-level gaps to avoid flaky ordering.
             publishedAt: new Date(
@@ -405,6 +438,7 @@ describe("Posts Integration", () => {
             ),
           },
         });
+        unwrap(await PostService.publishPost(adminContext, { id }));
       }
 
       // First page with limit 3
@@ -443,7 +477,6 @@ describe("Posts Integration", () => {
         data: {
           title: "TypeScript Post",
           slug: "ts-post",
-          status: "published",
           publishedAt: new Date(),
         },
       });
@@ -451,6 +484,7 @@ describe("Posts Integration", () => {
         postId: post1Id,
         tagIds: [tag.id],
       });
+      unwrap(await PostService.publishPost(adminContext, { id: post1Id }));
 
       const { id: post2Id } = await PostService.createEmptyPost(adminContext);
       await updatePost({
@@ -458,10 +492,10 @@ describe("Posts Integration", () => {
         data: {
           title: "JavaScript Post",
           slug: "js-post",
-          status: "published",
           publishedAt: new Date(),
         },
       });
+      unwrap(await PostService.publishPost(adminContext, { id: post2Id }));
 
       // Filter by tag
       const result = await PostService.getPostsCursor(publicContext, {
@@ -487,10 +521,10 @@ describe("Posts Integration", () => {
         data: {
           title: "Today Post",
           slug: "today-post",
-          status: "published",
           publishedAt: endOfTodayUTC,
         },
       });
+      unwrap(await PostService.publishPost(adminContext, { id }));
 
       const result = await PostService.getPostsCursor(publicContext, {});
 
@@ -510,10 +544,10 @@ describe("Posts Integration", () => {
         data: {
           title: "No Tag Post",
           slug: "no-tag-post",
-          status: "published",
           publishedAt: new Date(),
         },
       });
+      unwrap(await PostService.publishPost(adminContext, { id }));
 
       const result = await PostService.getPostsCursor(publicContext, {
         tagName: "NonExistentTag",
@@ -541,7 +575,6 @@ describe("Posts Integration", () => {
         data: {
           title: "Frontend Post",
           slug: "frontend-post",
-          status: "published",
           publishedAt: new Date(),
         },
       });
@@ -549,6 +582,7 @@ describe("Posts Integration", () => {
         postId: id,
         tagIds: [tag1.id, tag2.id],
       });
+      unwrap(await PostService.publishPost(adminContext, { id }));
 
       const result = await PostService.getPostsCursor(publicContext, {});
 
@@ -565,7 +599,7 @@ describe("Posts Integration", () => {
       const { id: draftId } = await PostService.createEmptyPost(adminContext);
       await updatePost({
         id: draftId,
-        data: { title: "Draft Post", slug: "draft-post", status: "draft" },
+        data: { title: "Draft Post", slug: "draft-post" },
       });
 
       const { id: pubId } = await PostService.createEmptyPost(adminContext);
@@ -574,10 +608,10 @@ describe("Posts Integration", () => {
         data: {
           title: "Published Post",
           slug: "pub-post",
-          status: "published",
           publishedAt: new Date(),
         },
       });
+      unwrap(await PostService.publishPost(adminContext, { id: pubId }));
 
       // Filter by draft status
       const drafts = await PostService.getPosts(adminContext, {
@@ -592,6 +626,94 @@ describe("Posts Integration", () => {
       });
       expect(published).toHaveLength(1);
       expect(published[0].title).toBe("Published Post");
+    });
+
+    it("reuses an empty Draft Post instead of inserting another", async () => {
+      const first = await PostService.createEmptyPost(adminContext);
+      const second = await PostService.createEmptyPost(adminContext);
+      expect(second.id).toBe(first.id);
+    });
+
+    it("inserts a new Draft Post when the previous empty one has a title", async () => {
+      const first = await PostService.createEmptyPost(adminContext);
+      await updatePost({
+        id: first.id,
+        data: { title: "Kept", slug: "kept-draft" },
+      });
+      const second = await PostService.createEmptyPost(adminContext);
+      expect(second.id).not.toBe(first.id);
+    });
+
+    it("lists admin posts with a total in one page helper", async () => {
+      const { id } = await PostService.createEmptyPost(adminContext);
+      await updatePost({
+        id,
+        data: { title: "Paged", slug: "paged-post" },
+      });
+
+      const page = await PostService.listAdminPostsPage(adminContext, {
+        limit: 12,
+        offset: 0,
+      });
+      expect(page.items).toHaveLength(1);
+      expect(page.total).toBe(1);
+      expect(page.items[0]?.title).toBe("Paged");
+    });
+
+    it("counts all matching statuses independently of the selected status and page", async () => {
+      await createPublishedPost("Matched published", "matched-published");
+      for (const [title, slug, summary] of [
+        ["Draft one", "draft-one", "matched summary"],
+        ["Draft two", "matched-slug", ""],
+        ["Unrelated", "unrelated", ""],
+      ]) {
+        const { id } = await PostService.createEmptyPost(adminContext);
+        await updatePost({ id, data: { title, slug, summary } });
+      }
+      const page = await PostService.listAdminPostsPage(adminContext, {
+        search: "matched",
+        status: "draft",
+        offset: 1,
+        limit: 1,
+      });
+      expect(page.items).toHaveLength(1);
+      expect(page.total).toBe(2);
+      expect(page.statusCounts).toEqual({ draft: 2, published: 1 });
+      const publicPage = await PostService.listAdminPostsPage(adminContext, {
+        search: "matched",
+        publicOnly: true,
+        limit: 1,
+      });
+      expect(publicPage.total).toBe(1);
+      expect(publicPage.statusCounts).toEqual({ draft: 0, published: 1 });
+      const beyond = await PostService.listAdminPostsPage(adminContext, {
+        search: "matched",
+        offset: 50,
+        limit: 12,
+      });
+      expect(beyond.items).toEqual([]);
+      expect(beyond.total).toBe(3);
+      expect(beyond.statusCounts).toEqual({ draft: 2, published: 1 });
+    });
+
+    it("returns zero status facets for no matches and treats wildcard searches literally", async () => {
+      const { id } = await PostService.createEmptyPost(adminContext);
+      await updatePost({
+        id,
+        data: { title: "100%_literal", slug: "literal" },
+      });
+      const literal = await PostService.listAdminPostsPage(adminContext, {
+        search: "%_",
+      });
+      expect(literal.statusCounts).toEqual({ draft: 1, published: 0 });
+      const empty = await PostService.listAdminPostsPage(adminContext, {
+        search: "missing",
+      });
+      expect(empty).toMatchObject({
+        items: [],
+        total: 0,
+        statusCounts: { draft: 0, published: 0 },
+      });
     });
 
     it("should search posts by title keyword", async () => {
@@ -624,6 +746,38 @@ describe("Posts Integration", () => {
       expect(results.map((p) => p.title)).toContain("Learn JavaScript");
     });
 
+    it("should search posts by summary and slug", async () => {
+      const { id: summaryId } = await PostService.createEmptyPost(adminContext);
+      await updatePost({
+        id: summaryId,
+        data: {
+          title: "Alpha",
+          slug: "alpha-slug",
+          summary: "unique-summary-token",
+        },
+      });
+
+      const { id: slugId } = await PostService.createEmptyPost(adminContext);
+      await updatePost({
+        id: slugId,
+        data: {
+          title: "Beta",
+          slug: "unique-slug-token",
+          summary: "other",
+        },
+      });
+
+      const bySummary = await PostService.getPosts(adminContext, {
+        search: "unique-summary-token",
+      });
+      expect(bySummary.map((p) => p.id)).toContain(summaryId);
+
+      const bySlug = await PostService.getPosts(adminContext, {
+        search: "unique-slug-token",
+      });
+      expect(bySlug.map((p) => p.id)).toContain(slugId);
+    });
+
     it("should count posts with filters", async () => {
       // Create mixed posts
       for (let i = 0; i < 3; i++) {
@@ -633,7 +787,6 @@ describe("Posts Integration", () => {
           data: {
             title: `Draft ${i}`,
             slug: `draft-${i}`,
-            status: "draft",
           },
         });
       }
@@ -645,10 +798,10 @@ describe("Posts Integration", () => {
           data: {
             title: `Published ${i}`,
             slug: `published-${i}`,
-            status: "published",
             publishedAt: new Date(),
           },
         });
+        unwrap(await PostService.publishPost(adminContext, { id }));
       }
 
       const draftCount = await PostService.getPostsCount(adminContext, {
@@ -673,7 +826,6 @@ describe("Posts Integration", () => {
         data: {
           title: "Secret Draft",
           slug: "secret-draft",
-          status: "draft",
         },
       });
 
@@ -694,34 +846,27 @@ describe("Posts Integration", () => {
   });
 
   describe("Workflow Integration", () => {
-    it("should trigger POST_PROCESS_WORKFLOW when startPostProcessWorkflow called", async () => {
+    it("does not insert another publish revision when republishing unchanged content", async () => {
       const { id } = await PostService.createEmptyPost(adminContext);
       await updatePost({
         id,
         data: {
-          title: "Workflow Test",
-          slug: "workflow-test",
-          status: "published",
+          title: "Idempotent Publish",
+          slug: "idempotent-publish",
           publishedAt: new Date(),
         },
       });
 
-      await PostService.startPostProcessWorkflow(adminContext, {
-        id,
-        status: "published",
-        clientToday: new Date().toISOString().slice(0, 10),
-      });
+      unwrap(await PostService.publishPost(adminContext, { id }));
+      unwrap(await PostService.publishPost(adminContext, { id }));
 
+      const revisions = await PostRevisionService.listPostRevisions(
+        adminContext,
+        { postId: id },
+      );
       expect(
-        adminContext.env.POST_PROCESS_WORKFLOW.create,
-      ).toHaveBeenCalledWith({
-        params: {
-          postId: id,
-          isPublished: true,
-          publishedAt: expect.any(String),
-          isFuturePost: false,
-        },
-      });
+        revisions.filter((revision) => revision.reason === "publish"),
+      ).toHaveLength(1);
     });
 
     it("should auto-set publishedAt when publishing for the first time", async () => {
@@ -733,17 +878,12 @@ describe("Posts Integration", () => {
         data: {
           title: "Auto Publish Date",
           slug: "auto-publish-date",
-          status: "published",
           // No publishedAt set
         },
       });
 
       // Trigger workflow - this should auto-set publishedAt
-      await PostService.startPostProcessWorkflow(adminContext, {
-        id,
-        status: "published",
-        clientToday: new Date().toISOString().slice(0, 10),
-      });
+      unwrap(await PostService.publishPost(adminContext, { id }));
 
       // Verify publishedAt was set
       const post = await PostService.findPostById(adminContext, { id });
@@ -751,123 +891,74 @@ describe("Posts Integration", () => {
     });
   });
 
-  describe("Related Posts", () => {
-    it("should return related posts ranked by tag match count", async () => {
+  describe("Adjacent Posts", () => {
+    it("returns newer and older published posts by snapshot date", async () => {
       const publicContext = createTestContext();
 
-      // 1. Create Tags
-      const tag1 = unwrap(
-        await TagService.createTag(adminContext, { name: "Tag1" }),
-      );
-      const tag2 = unwrap(
-        await TagService.createTag(adminContext, { name: "Tag2" }),
-      );
-      const tag3 = unwrap(
-        await TagService.createTag(adminContext, { name: "Tag3" }),
-      );
-
-      // 2. Create Main Post (Tags: T1, T2)
-      const { id: mainId } = await PostService.createEmptyPost(adminContext);
+      const { id: olderId } = await PostService.createEmptyPost(adminContext);
       await updatePost({
-        id: mainId,
+        id: olderId,
         data: {
-          title: "Main Post",
-          slug: "main-post",
-          status: "published",
-          publishedAt: new Date(),
+          title: "Older",
+          slug: "older",
+          publishedAt: new Date("2024-01-01T00:00:00.000Z"),
         },
       });
-      await TagService.setPostTags(adminContext, {
-        postId: mainId,
-        tagIds: [tag1.id, tag2.id],
-      });
+      unwrap(await PostService.publishPost(adminContext, { id: olderId }));
 
-      // 3. Create High Relevance Post (Tags: T1, T2) -> 2 matches
-      const { id: highId } = await PostService.createEmptyPost(adminContext);
+      const { id: currentId } = await PostService.createEmptyPost(adminContext);
       await updatePost({
-        id: highId,
+        id: currentId,
         data: {
-          title: "High Relevance",
-          slug: "high-rel",
-          status: "published",
-          publishedAt: new Date(),
+          title: "Current",
+          slug: "current",
+          publishedAt: new Date("2024-06-01T00:00:00.000Z"),
         },
       });
-      await TagService.setPostTags(adminContext, {
-        postId: highId,
-        tagIds: [tag1.id, tag2.id],
-      });
+      unwrap(await PostService.publishPost(adminContext, { id: currentId }));
 
-      // 4. Create Low Relevance Post (Tags: T1) -> 1 match
-      const { id: lowId } = await PostService.createEmptyPost(adminContext);
+      const { id: newerId } = await PostService.createEmptyPost(adminContext);
       await updatePost({
-        id: lowId,
+        id: newerId,
         data: {
-          title: "Low Relevance",
-          slug: "low-rel",
-          status: "published",
-          publishedAt: new Date(),
+          title: "Newer",
+          slug: "newer",
+          publishedAt: new Date("2024-12-01T00:00:00.000Z"),
         },
       });
-      await TagService.setPostTags(adminContext, {
-        postId: lowId,
-        tagIds: [tag1.id],
-      });
+      unwrap(await PostService.publishPost(adminContext, { id: newerId }));
 
-      // 5. Create Unrelated Post (Tags: T3) -> 0 matches
-      const { id: unrelatedId } =
+      const { id: pinnedOlderId } =
         await PostService.createEmptyPost(adminContext);
       await updatePost({
-        id: unrelatedId,
+        id: pinnedOlderId,
         data: {
-          title: "Unrelated",
-          slug: "unrelated",
-          status: "published",
-          publishedAt: new Date(),
+          title: "Pinned Older",
+          slug: "pinned-older",
+          publishedAt: new Date("2023-01-01T00:00:00.000Z"),
+          pinnedAt: new Date("2024-12-31T00:00:00.000Z"),
         },
       });
-      await TagService.setPostTags(adminContext, {
-        postId: unrelatedId,
-        tagIds: [tag3.id],
-      });
+      unwrap(
+        await PostService.publishPost(adminContext, { id: pinnedOlderId }),
+      );
 
-      // 6. Create Draft Post (Tags: T1, T2) -> High match but draft
       const { id: draftId } = await PostService.createEmptyPost(adminContext);
       await updatePost({
         id: draftId,
         data: {
-          title: "Draft High Rel",
-          slug: "draft-rel",
-          status: "draft", // Should be ignored
+          title: "Draft Between",
+          slug: "draft-between",
+          publishedAt: new Date("2024-09-01T00:00:00.000Z"),
         },
       });
-      await TagService.setPostTags(adminContext, {
-        postId: draftId,
-        tagIds: [tag1.id, tag2.id],
+
+      const adjacent = await PostService.getAdjacentPosts(publicContext, {
+        slug: "current",
       });
 
-      // Act: Get Related Posts
-      const related = await PostService.getRelatedPosts(publicContext, {
-        slug: "main-post",
-        limit: 10,
-      });
-
-      // Assert
-      expect(related).toHaveLength(2);
-
-      // Rank 1: High Relevance (2 matches)
-      expect(related[0].title).toBe("High Relevance");
-      expect(related[0].id).toBe(highId);
-
-      // Rank 2: Low Relevance (1 match)
-      expect(related[1].title).toBe("Low Relevance");
-      expect(related[1].id).toBe(lowId);
-
-      // Verify Exclusions
-      const ids = related.map((p) => p.id);
-      expect(ids).not.toContain(unrelatedId);
-      expect(ids).not.toContain(draftId);
-      expect(ids).not.toContain(mainId); // Should not contain itself
+      expect(adjacent.newer).toEqual({ slug: "newer", title: "Newer" });
+      expect(adjacent.older).toEqual({ slug: "older", title: "Older" });
     });
   });
 
@@ -884,7 +975,6 @@ describe("Posts Integration", () => {
           title: "Versioned Post",
           summary: "Snapshot summary",
           slug: "versioned-post",
-          readTimeInMinutes: 3,
           contentJson: {
             type: "doc",
             content: [
@@ -915,7 +1005,6 @@ describe("Posts Integration", () => {
         slug: "versioned-post",
         status: "draft",
         publishedAt: null,
-        readTimeInMinutes: 3,
         contentJson: {
           type: "doc",
           content: [
@@ -926,6 +1015,8 @@ describe("Posts Integration", () => {
           ],
         },
         tagIds: [tag.id],
+        categoryId: null,
+        coverMediaId: null,
       });
     });
 
@@ -1112,9 +1203,6 @@ describe("Posts Integration", () => {
     it("deletes multiple revisions for the current post only", async () => {
       const { id: firstPostId } =
         await PostService.createEmptyPost(adminContext);
-      const { id: secondPostId } =
-        await PostService.createEmptyPost(adminContext);
-
       await updatePost({
         id: firstPostId,
         data: {
@@ -1122,6 +1210,8 @@ describe("Posts Integration", () => {
           slug: "first-post-v1",
         },
       });
+      const { id: secondPostId } =
+        await PostService.createEmptyPost(adminContext);
       const firstRevision = unwrap(
         await PostRevisionService.createPostRevision(adminContext, {
           postId: firstPostId,
@@ -1206,7 +1296,6 @@ describe("Posts Integration", () => {
           title: "Published Revision",
           summary: "Before workflow",
           slug: "published-revision",
-          status: "published",
           publishedAt,
           contentJson: {
             type: "doc",
@@ -1224,11 +1313,7 @@ describe("Posts Integration", () => {
         tagIds: [tag.id],
       });
 
-      await PostService.startPostProcessWorkflow(adminContext, {
-        id,
-        status: "published",
-        clientToday: "2026-03-14",
-      });
+      unwrap(await PostService.publishPost(adminContext, { id }));
 
       const revisions = await PostRevisionService.listPostRevisions(
         adminContext,
@@ -1253,7 +1338,6 @@ describe("Posts Integration", () => {
         slug: "published-revision",
         status: "published",
         publishedAt: publishedAt.toISOString(),
-        readTimeInMinutes: 1,
         contentJson: {
           type: "doc",
           content: [
@@ -1264,6 +1348,8 @@ describe("Posts Integration", () => {
           ],
         },
         tagIds: [tag.id],
+        categoryId: null,
+        coverMediaId: null,
       });
     });
 
@@ -1302,26 +1388,7 @@ describe("Posts Integration", () => {
     });
   });
 
-  describe("PostProcessWorkflow", () => {
-    const step: WorkflowStep = {
-      do: (async (
-        _name: string,
-        configOrCallback: unknown,
-        maybeCallback?: unknown,
-      ) => {
-        const callback =
-          typeof configOrCallback === "function"
-            ? configOrCallback
-            : maybeCallback;
-        return await (callback as () => Promise<unknown>)();
-      }) as WorkflowStep["do"],
-      sleep: (async () => undefined) as unknown as WorkflowStep["sleep"],
-      sleepUntil: (async () =>
-        undefined) as unknown as WorkflowStep["sleepUntil"],
-      waitForEvent: (async () =>
-        undefined) as unknown as WorkflowStep["waitForEvent"],
-    };
-
+  describe("Publish", () => {
     beforeEach(async () => {
       vi.restoreAllMocks();
       adminContext = createAdminTestContext({
@@ -1330,102 +1397,100 @@ describe("Posts Integration", () => {
       await seedUser(adminContext.db, adminContext.session.user);
     });
 
-    it("rebuilds missing public content even when the sync hash matches", async () => {
+    it("highlights code blocks on publish and keeps them when the code is unchanged", async () => {
+      const { id } = await PostService.createEmptyPost(adminContext);
+      const contentJson = {
+        type: "doc" as const,
+        content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Server draft" }],
+          },
+          {
+            type: "codeBlock",
+            attrs: { language: "ts" },
+            content: [{ type: "text", text: "const answer = 42;" }],
+          },
+        ],
+      };
+      unwrap(
+        await PostService.updatePost(adminContext, {
+          id,
+          data: {
+            title: "Highlighted Snapshot",
+            slug: "highlighted-snapshot",
+            summary: "already summarized",
+            publishedAt: new Date(),
+            contentJson,
+          },
+        }),
+      );
+
+      unwrap(await PostService.publishPost(adminContext, { id }));
+
+      const first = await adminContext.db.query.PostsTable.findFirst({
+        where: eq(PostsTable.id, id),
+      });
+      expect(
+        first?.publicSnapshotJson?.contentJson?.content?.[0],
+      ).toMatchObject({
+        type: "paragraph",
+        content: [{ type: "text", text: "Server draft" }],
+      });
+      const firstHtml =
+        first?.publicSnapshotJson?.contentJson?.content?.[1]?.attrs
+          ?.highlightedHtml;
+      expect(firstHtml).toEqual(expect.stringContaining("shiki"));
+
+      unwrap(await PostService.publishPost(adminContext, { id }));
+
+      const second = await adminContext.db.query.PostsTable.findFirst({
+        where: eq(PostsTable.id, id),
+      });
+      expect(
+        second?.publicSnapshotJson?.contentJson?.content?.[1]?.attrs
+          ?.highlightedHtml,
+      ).toBe(firstHtml);
+
+      const adminPost = await PostService.findPostById(adminContext, { id });
+      expect(
+        adminPost?.contentJson?.content?.[1]?.attrs?.highlightedHtml,
+      ).toBeUndefined();
+      expect(
+        adminPost?.publicSnapshotContentJson?.content?.[1]?.attrs
+          ?.highlightedHtml,
+      ).toBe(firstHtml);
+    });
+
+    it("publishes through the per-post Durable Object", async () => {
       const { id } = await PostService.createEmptyPost(adminContext);
       unwrap(
         await PostService.updatePost(adminContext, {
           id,
           data: {
-            title: "Workflow Snapshot",
-            slug: "workflow-snapshot",
-            status: "published",
-            summary: "already summarized",
+            title: "DO Publish",
+            slug: "do-publish",
+            summary: "via durable object",
             publishedAt: new Date(),
-            contentJson: {
-              type: "doc",
-              content: [
-                {
-                  type: "codeBlock",
-                  attrs: { language: "ts" },
-                  content: [{ type: "text", text: "const answer = 42;" }],
-                },
-              ],
-            },
           },
         }),
       );
 
-      const post = await adminContext.db.query.PostsTable.findFirst({
-        where: eq(PostsTable.id, id),
-        with: {
-          postTags: {
-            with: {
-              tag: true,
-            },
-          },
-        },
-      });
-      expect(post).not.toBeNull();
-      const updatedAtBeforeRun = post!.updatedAt;
+      unwrap(await getPostPublisher(adminContext.env, id).publish(id));
 
-      await CacheService.set(
-        { env: adminContext.env },
-        POSTS_CACHE_KEYS.syncHash(id),
-        await calculatePostHash({
-          title: post!.title,
-          contentJson: post!.contentJson,
-          summary: post!.summary,
-          tagIds: post!.postTags.map((pt) => pt.tag.id),
-          slug: post!.slug,
-          publishedAt: post!.publishedAt,
-          readTimeInMinutes: post!.readTimeInMinutes,
-        }),
-      );
-
-      const workflow = Object.assign(
-        Object.create(PostProcessWorkflow.prototype),
-        {
-          env: adminContext.env,
-        },
-      ) as PostProcessWorkflow;
-
-      await workflow.run(
-        {
-          payload: { postId: id, isPublished: true, isFuturePost: false },
-        } as WorkflowEvent<{
-          postId: number;
-          isPublished: boolean;
-          isFuturePost?: boolean;
-        }>,
-        step,
-      );
-
-      const updatedPost = await adminContext.db.query.PostsTable.findFirst({
+      const published = await adminContext.db.query.PostsTable.findFirst({
         where: eq(PostsTable.id, id),
       });
-
-      expect(updatedPost?.publicContentJson).toBeTruthy();
-      expect(updatedPost?.updatedAt?.getTime()).toBe(
-        updatedAtBeforeRun.getTime(),
-      );
+      expect(published?.status).toBe("published");
+      expect(published?.publicSlug).toBe("do-publish");
     });
 
     it("shows the first Published Post after rotating an empty public list", async () => {
-      const requestPath = "/?limit=10";
-      const emptyResponse = await testRequest(
-        postsListRoute,
-        requestPath,
-        {},
-        adminContext.env,
-      );
-      const emptyList = PostListResponseSchema.parse(
-        await emptyResponse.json(),
-      );
+      const emptyList = await PostService.getPostsCursor(adminContext, {
+        limit: 10,
+      });
       expect(emptyList.items).toEqual([]);
       await drainTestExecutionContexts();
-      expect(await CacheService.getVersion(adminContext, "posts:list")).toBe(
-        "v0",
-      );
 
       const { id } = await PostService.createEmptyPost(adminContext);
       unwrap(
@@ -1434,7 +1499,6 @@ describe("Posts Integration", () => {
           data: {
             title: "First Published Post",
             slug: "first-published-post",
-            status: "published",
             summary: "Ready for the public list",
             publishedAt: new Date(),
             contentJson: {
@@ -1449,307 +1513,15 @@ describe("Posts Integration", () => {
           },
         }),
       );
+      unwrap(await PostService.publishPost(adminContext, { id }));
+      await waitForBackgroundTasks(adminContext.executionCtx);
 
-      const workflow = Object.assign(
-        Object.create(PostProcessWorkflow.prototype),
-        {
-          env: adminContext.env,
-        },
-      ) as PostProcessWorkflow;
-
-      await workflow.run(
-        {
-          payload: { postId: id, isPublished: true, isFuturePost: false },
-        } as WorkflowEvent<{
-          postId: number;
-          isPublished: boolean;
-          isFuturePost?: boolean;
-        }>,
-        step,
-      );
-
-      const refreshedResponse = await testRequest(
-        postsListRoute,
-        requestPath,
-        {},
-        adminContext.env,
-      );
-      const refreshedList = PostListResponseSchema.parse(
-        await refreshedResponse.json(),
-      );
+      const refreshedList = await PostService.getPostsCursor(adminContext, {
+        limit: 10,
+      });
       expect(refreshedList.items.map((post) => post.slug)).toContain(
         "first-published-post",
       );
     });
-  });
-
-  describe("PostAutoSnapshotWorkflow", () => {
-    const stepDo: WorkflowStep["do"] = (async (
-      _name: string,
-      configOrCallback: unknown,
-      maybeCallback?: unknown,
-    ) => {
-      const callback =
-        typeof configOrCallback === "function"
-          ? configOrCallback
-          : maybeCallback;
-      return await (callback as () => Promise<unknown>)();
-    }) as WorkflowStep["do"];
-
-    const noopStep: WorkflowStep = {
-      do: stepDo,
-      sleep: (async () => undefined) as WorkflowStep["sleep"],
-      sleepUntil: (async () =>
-        undefined) as unknown as WorkflowStep["sleepUntil"],
-      waitForEvent: (async () =>
-        undefined) as unknown as WorkflowStep["waitForEvent"],
-    };
-
-    function toMsDurationLabel(duration: string): Duration {
-      const normalized = duration
-        .replace(" seconds", "s")
-        .replace(" second", "s")
-        .replace(" minutes", "m")
-        .replace(" minute", "m");
-      return normalized as Duration;
-    }
-
-    function createTimerStep(
-      onSleep?: (sleepCalls: number) => Promise<void> | void,
-    ): WorkflowStep {
-      let sleepCalls = 0;
-
-      return {
-        do: stepDo,
-        sleep: (async (_name: string, duration: number | string) => {
-          const durationMs =
-            typeof duration === "number"
-              ? duration
-              : ms(toMsDurationLabel(duration));
-
-          vi.advanceTimersByTime(durationMs);
-          sleepCalls += 1;
-          await onSleep?.(sleepCalls);
-        }) as WorkflowStep["sleep"],
-        sleepUntil: noopStep.sleepUntil,
-        waitForEvent: noopStep.waitForEvent,
-      };
-    }
-
-    const createWorkflow = () =>
-      Object.assign(Object.create(PostAutoSnapshotWorkflow.prototype), {
-        env: adminContext.env,
-      }) as PostAutoSnapshotWorkflow;
-
-    beforeEach(async () => {
-      vi.restoreAllMocks();
-      adminContext = createAdminTestContext({
-        executionCtx: createMockExecutionCtx(),
-      });
-      await seedUser(adminContext.db, adminContext.session.user);
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it("enqueues an auto snapshot when a post is updated", async () => {
-      vi.mocked(adminContext.env.QUEUE.send).mockClear();
-      const { id } = await PostService.createEmptyPost(adminContext);
-
-      await updatePost({
-        id,
-        data: {
-          title: "Queued Update",
-          slug: "queued-update",
-        },
-      });
-      await waitForBackgroundTasks(adminContext.executionCtx);
-
-      expect(adminContext.env.QUEUE.send).toHaveBeenCalledWith({
-        type: "POST_AUTO_SNAPSHOT",
-        data: {
-          postId: id,
-          quietWindowSeconds: 30,
-        },
-      });
-    });
-
-    it("throttles duplicate auto snapshot queue messages for the same post", async () => {
-      vi.mocked(adminContext.env.QUEUE.send).mockClear();
-      const { id } = await PostService.createEmptyPost(adminContext);
-
-      await updatePost({
-        id,
-        data: {
-          title: "Throttle Once",
-          slug: "throttle-once",
-        },
-      });
-      await waitForBackgroundTasks(adminContext.executionCtx);
-
-      await updatePost({
-        id,
-        data: {
-          title: "Throttle Twice",
-          slug: "throttle-twice",
-        },
-      });
-      await waitForBackgroundTasks(adminContext.executionCtx);
-
-      expect(adminContext.env.QUEUE.send).toHaveBeenCalledTimes(1);
-    });
-
-    it("enqueues an auto snapshot when post tags change", async () => {
-      vi.mocked(adminContext.env.QUEUE.send).mockClear();
-      const tag = unwrap(
-        await TagService.createTag(adminContext, { name: "queue-tag" }),
-      );
-      const { id } = await PostService.createEmptyPost(adminContext);
-
-      await TagService.setPostTags(adminContext, {
-        postId: id,
-        tagIds: [tag.id],
-      });
-
-      expect(adminContext.env.QUEUE.send).toHaveBeenCalledWith({
-        type: "POST_AUTO_SNAPSHOT",
-        data: {
-          postId: id,
-          quietWindowSeconds: 30,
-        },
-      });
-    });
-
-    it("creates an auto revision after the quiet window", async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date("2026-03-14T10:00:00.000Z"));
-
-      const tag = unwrap(
-        await TagService.createTag(adminContext, { name: "auto-workflow-tag" }),
-      );
-      const { id } = await PostService.createEmptyPost(adminContext);
-
-      await updatePost({
-        id,
-        data: {
-          title: "Workflow Auto Revision",
-          slug: "workflow-auto-revision",
-          contentJson: {
-            type: "doc",
-            content: [
-              {
-                type: "paragraph",
-                content: [
-                  { type: "text", text: "Snapshot after quiet window" },
-                ],
-              },
-            ],
-          },
-        },
-      });
-      await TagService.setPostTags(adminContext, {
-        postId: id,
-        tagIds: [tag.id],
-      });
-
-      await createWorkflow().run(
-        {
-          payload: { postId: id, quietWindowSeconds: 5 },
-        } as WorkflowEvent<{ postId: number; quietWindowSeconds?: number }>,
-        createTimerStep(),
-      );
-
-      const revisions = await PostRevisionService.listPostRevisions(
-        adminContext,
-        {
-          postId: id,
-        },
-      );
-      expect(revisions).toHaveLength(1);
-      expect(revisions[0]?.reason).toBe("auto");
-    });
-
-    it("waits for the latest edit before creating an auto revision", async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date("2026-03-14T10:00:00.000Z"));
-
-      const { id } = await PostService.createEmptyPost(adminContext);
-
-      await updatePost({
-        id,
-        data: {
-          title: "Quiet Window Reset",
-          slug: "quiet-window-reset",
-        },
-      });
-
-      let sleepCalls = 0;
-      const quietStep = createTimerStep(async (calls) => {
-        sleepCalls = calls;
-        if (sleepCalls === 1) {
-          await updatePost({
-            id,
-            data: {
-              title: "Quiet Window Reset Again",
-            },
-          });
-        }
-      });
-
-      await createWorkflow().run(
-        {
-          payload: { postId: id, quietWindowSeconds: 5 },
-        } as WorkflowEvent<{ postId: number; quietWindowSeconds?: number }>,
-        quietStep,
-      );
-
-      const revisions = await PostRevisionService.listPostRevisions(
-        adminContext,
-        {
-          postId: id,
-        },
-      );
-      expect(revisions).toHaveLength(1);
-      expect(revisions[0]?.title).toBe("Quiet Window Reset Again");
-      expect(sleepCalls).toBeGreaterThan(1);
-    });
-
-    it("skips creating a duplicate auto revision when nothing changed", async () => {
-      vi.useFakeTimers();
-      vi.setSystemTime(new Date("2026-03-14T10:00:00.000Z"));
-
-      const { id } = await PostService.createEmptyPost(adminContext);
-
-      await updatePost({
-        id,
-        data: {
-          title: "No Change Auto Revision",
-          slug: "no-change-auto-revision",
-        },
-      });
-
-      unwrap(
-        await PostRevisionService.createPostRevision(adminContext, {
-          postId: id,
-          reason: "auto",
-        }),
-      );
-
-      await createWorkflow().run(
-        {
-          payload: { postId: id, quietWindowSeconds: 5 },
-        } as WorkflowEvent<{ postId: number; quietWindowSeconds?: number }>,
-        createTimerStep(),
-      );
-
-      const revisions = await PostRevisionService.listPostRevisions(
-        adminContext,
-        {
-          postId: id,
-        },
-      );
-      expect(revisions).toHaveLength(1);
-    }, 15000);
   });
 });

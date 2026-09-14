@@ -1,7 +1,6 @@
 import CodeBlock from "@tiptap/extension-code-block";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { CodeBlockView } from "./code-block-view";
-import { createShikiPlugin } from "./shiki-plugin";
 
 export const CodeBlockExtension = CodeBlock.extend({
   addAttributes() {
@@ -17,6 +16,8 @@ export const CodeBlockExtension = CodeBlock.extend({
     return {
       ...this.parent?.(),
       languageClassPrefix: "language-",
+      enableTabIndentation: true,
+      tabSize: 2,
       exitOnTripleEnter: true,
       exitOnArrowDown: true,
       defaultLanguage: null,
@@ -24,19 +25,5 @@ export const CodeBlockExtension = CodeBlock.extend({
   },
   addNodeView() {
     return ReactNodeViewRenderer(CodeBlockView);
-  },
-  addProseMirrorPlugins() {
-    return [...(this.parent?.() || []), createShikiPlugin({ name: this.name })];
-  },
-  addKeyboardShortcuts() {
-    return {
-      Tab: () => {
-        if (!this.editor.isActive(this.name)) {
-          return false;
-        }
-
-        return this.editor.commands.insertContent("  ");
-      },
-    };
   },
 });

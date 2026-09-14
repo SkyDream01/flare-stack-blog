@@ -32,7 +32,7 @@ export function PostCard({ post, pinned }: PostCardProps) {
             backgroundImage: coverBackgroundValue(
               siteConfig,
               post.slug,
-              post.coverImage,
+              post.cover?.url,
             ),
           }}
         />

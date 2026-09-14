@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { AUTH_KEYS } from "@/features/auth/queries";
+import { resetAuthBoundQueries } from "@/features/auth/queries";
 import { usePreviousLocation } from "@/hooks/use-previous-location";
 import { authClient } from "@/lib/auth/auth.client";
 import { getRegisterAuthErrorMessage } from "@/lib/auth/auth-errors";
@@ -30,7 +30,7 @@ const createRegisterSchema = (messages: Messages) =>
 
 type RegisterSchema = z.infer<ReturnType<typeof createRegisterSchema>>;
 
-export interface UseRegisterFormOptions {
+interface UseRegisterFormOptions {
   turnstileToken: string | null;
   turnstilePending: boolean;
   resetTurnstile: () => void;
@@ -51,32 +51,38 @@ export function useRegisterForm(options: UseRegisterFormOptions) {
   const queryClient = useQueryClient();
   const registerSchema = createRegisterSchema(m);
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<RegisterSchema>({
     resolver: standardSchemaResolver(registerSchema),
   });
 
   const onSubmit = async (data: RegisterSchema) => {
-    const { error } = await authClient.signUp.email({
-      email: data.email,
-      password: data.password,
-      name: data.name,
-      callbackURL: `${window.location.origin}/verify-email`,
-      fetchOptions: {
-        headers: { "X-Turnstile-Token": turnstileToken || "" },
-      },
-    });
-
-    resetTurnstile();
-
-    if (error) {
-      toast.error(m.register_toast_failed(), {
-        description:
-          getRegisterAuthErrorMessage(error, m) ?? m.register_error_default(),
+    setSubmitError(null);
+    try {
+      const { error } = await authClient.signUp.email({
+        email: data.email,
+        password: data.password,
+        name: data.name,
+        callbackURL: `${window.location.origin}/verify-email`,
+        fetchOptions: {
+          headers: { "X-Turnstile-Token": turnstileToken || "" },
+        },
       });
+
+      if (error) {
+        setSubmitError(
+          getRegisterAuthErrorMessage(error, m) ?? m.register_error_default(),
+        );
+        return;
+      }
+    } catch {
+      setSubmitError(m.register_error_default());
       return;
+    } finally {
+      resetTurnstile();
     }
 
-    queryClient.removeQueries({ queryKey: AUTH_KEYS.session });
+    resetAuthBoundQueries(queryClient);
 
     if (isEmailConfigured) {
       setIsSuccess(true);
@@ -96,9 +102,8 @@ export function useRegisterForm(options: UseRegisterFormOptions) {
     errors: form.formState.errors,
     handleSubmit: form.handleSubmit(onSubmit),
     isSubmitting: form.formState.isSubmitting,
+    submitError,
     isSuccess,
     turnstilePending,
   };
 }
-
-export type UseRegisterFormReturn = ReturnType<typeof useRegisterForm>;

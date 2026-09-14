@@ -5,88 +5,76 @@ import type { Messages } from "@/lib/i18n";
 
 const coercedDate = z.union([z.date(), z.string().pipe(z.coerce.date())]);
 
-export const FriendLinkSelectSchema = createSelectSchema(FriendLinksTable, {
+const FriendLinkSelectSchema = createSelectSchema(FriendLinksTable, {
   createdAt: coercedDate,
   updatedAt: coercedDate,
 });
 
-export const FriendLinkUserSchema = z.object({
+const FriendLinkUserSchema = z.object({
   id: z.string(),
   name: z.string(),
   image: z.string().nullable(),
 });
 
-export const FriendLinkWithUserSchema = FriendLinkSelectSchema.extend({
+const FriendLinkWithUserSchema = FriendLinkSelectSchema.extend({
   user: FriendLinkUserSchema.nullable(),
+});
+
+const friendLinkFields = {
+  siteName: z.string().min(1).max(100),
+  siteUrl: z.string().url(),
+  description: z.string().max(300).optional(),
+  logoUrl: z.union([z.literal(""), z.string().url()]).optional(),
+};
+
+const createFriendLinkFormFields = (m: Messages) => ({
+  siteName: z
+    .string()
+    .min(1, m.friend_link_validation_required())
+    .max(100, m.friend_link_validation_too_long({ max: 100 })),
+  siteUrl: z.string().url(m.friend_link_validation_invalid_url()),
+  description: z
+    .string()
+    .max(300, m.friend_link_validation_too_long({ max: 300 }))
+    .optional(),
+  logoUrl: z
+    .union([
+      z.literal(""),
+      z.string().url(m.friend_link_validation_invalid_url()),
+    ])
+    .optional(),
 });
 
 // === User submission input ===
 
 export const SubmitFriendLinkInputSchema = z.object({
-  siteName: z.string().min(1).max(100),
-  siteUrl: z.string().url(),
-  description: z.string().max(300).optional(),
-  logoUrl: z.union([z.literal(""), z.string().url()]).optional(),
-  contactEmail: z.string().email(),
+  id: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe(
+      "Omit for a new application. Supply an owned rejected application ID to revise and resubmit it.",
+    ),
+  ...friendLinkFields,
 });
 
 export const createSubmitFriendLinkSchema = (m: Messages) =>
   z.object({
-    siteName: z
-      .string()
-      .min(1, m.friend_link_validation_required())
-      .max(100, m.friend_link_validation_too_long({ max: 100 })),
-    siteUrl: z.string().url(m.friend_link_validation_invalid_url()),
-    description: z
-      .string()
-      .max(300, m.friend_link_validation_too_long({ max: 300 }))
-      .optional(),
-    logoUrl: z
-      .union([
-        z.literal(""),
-        z.string().url(m.friend_link_validation_invalid_url()),
-      ])
-      .optional(),
-    contactEmail: z.string().email(m.friend_link_validation_invalid_email()),
+    id: z.number().int().positive().optional(),
+    ...createFriendLinkFormFields(m),
   });
 
 // === Admin create input (manual add) ===
 
-export const CreateFriendLinkInputSchema = z.object({
-  siteName: z.string().min(1).max(100),
-  siteUrl: z.string().url(),
-  description: z.string().max(300).optional(),
-  logoUrl: z.union([z.literal(""), z.string().url()]).optional(),
-  contactEmail: z.union([z.literal(""), z.string().email()]).optional(),
-});
+export const CreateFriendLinkInputSchema = z.object(friendLinkFields);
 
 export const createCreateFriendLinkSchema = (m: Messages) =>
-  z.object({
-    siteName: z
-      .string()
-      .min(1, m.friend_link_validation_required())
-      .max(100, m.friend_link_validation_too_long({ max: 100 })),
-    siteUrl: z.string().url(m.friend_link_validation_invalid_url()),
-    description: z
-      .string()
-      .max(300, m.friend_link_validation_too_long({ max: 300 }))
-      .optional(),
-    logoUrl: z
-      .union([
-        z.literal(""),
-        z.string().url(m.friend_link_validation_invalid_url()),
-      ])
-      .optional(),
-    contactEmail: z
-      .union([
-        z.literal(""),
-        z.string().email(m.friend_link_validation_invalid_email()),
-      ])
-      .optional(),
-  });
+  z.object(createFriendLinkFormFields(m));
 
 // === Admin inputs ===
 export const GetAllFriendLinksInputSchema = z.object({
+  search: z.string().max(200).optional(),
   offset: z.number().optional(),
   limit: z.number().optional(),
   status: z.enum(["pending", "approved", "rejected"]).optional(),
@@ -101,50 +89,13 @@ export const RejectFriendLinkInputSchema = z.object({
   rejectionReason: z.string().max(500).optional(),
 });
 
-export const createRejectFriendLinkSchema = (m: Messages) =>
-  z.object({
-    id: z.number(),
-    rejectionReason: z
-      .string()
-      .max(500, m.friend_link_validation_too_long({ max: 500 }))
-      .optional(),
-  });
-
 export const UpdateFriendLinkInputSchema = z.object({
   id: z.number(),
-  siteName: z.string().min(1).max(100).optional(),
-  siteUrl: z.string().url().optional(),
-  description: z.string().max(300).optional(),
-  logoUrl: z.union([z.literal(""), z.string().url()]).optional(),
-  contactEmail: z.union([z.literal(""), z.string().email()]).optional(),
+  siteName: friendLinkFields.siteName.optional(),
+  siteUrl: friendLinkFields.siteUrl.optional(),
+  description: friendLinkFields.description,
+  logoUrl: friendLinkFields.logoUrl,
 });
-
-export const createUpdateFriendLinkSchema = (m: Messages) =>
-  z.object({
-    id: z.number(),
-    siteName: z
-      .string()
-      .min(1, m.friend_link_validation_required())
-      .max(100, m.friend_link_validation_too_long({ max: 100 }))
-      .optional(),
-    siteUrl: z.string().url(m.friend_link_validation_invalid_url()).optional(),
-    description: z
-      .string()
-      .max(300, m.friend_link_validation_too_long({ max: 300 }))
-      .optional(),
-    logoUrl: z
-      .union([
-        z.literal(""),
-        z.string().url(m.friend_link_validation_invalid_url()),
-      ])
-      .optional(),
-    contactEmail: z
-      .union([
-        z.literal(""),
-        z.string().email(m.friend_link_validation_invalid_email()),
-      ])
-      .optional(),
-  });
 
 export const DeleteFriendLinkInputSchema = z.object({
   id: z.number(),
@@ -155,10 +106,17 @@ export const ApprovedFriendLinksResponseSchema = z.array(
   FriendLinkWithUserSchema,
 );
 
-export const FRIEND_LINKS_CACHE_KEYS = {
-  approvedList: (version: string) =>
-    ["friend-links", "approved", version] as const,
-} as const;
+const FriendLinkStatusCountsSchema = z.object({
+  pending: z.number().int().nonnegative(),
+  approved: z.number().int().nonnegative(),
+  rejected: z.number().int().nonnegative(),
+});
+
+export const AdminFriendLinkListResponseSchema = z.object({
+  items: z.array(FriendLinkWithUserSchema),
+  total: z.number().int().nonnegative(),
+  counts: FriendLinkStatusCountsSchema,
+});
 
 // === Types ===
 export type SubmitFriendLinkInput = z.infer<typeof SubmitFriendLinkInputSchema>;
@@ -173,3 +131,6 @@ export type RejectFriendLinkInput = z.infer<typeof RejectFriendLinkInputSchema>;
 export type UpdateFriendLinkInput = z.infer<typeof UpdateFriendLinkInputSchema>;
 export type DeleteFriendLinkInput = z.infer<typeof DeleteFriendLinkInputSchema>;
 export type FriendLinkWithUser = z.infer<typeof FriendLinkWithUserSchema>;
+export type FriendLinkStatusCounts = z.infer<
+  typeof FriendLinkStatusCountsSchema
+>;

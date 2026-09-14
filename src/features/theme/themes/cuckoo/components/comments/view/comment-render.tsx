@@ -1,14 +1,16 @@
 import type { JSONContent } from "@tiptap/react";
 import { renderToReactElement } from "@tiptap/static-renderer/pm/react";
 import { getCommentExtensions } from "@/features/comments/components/editor/config";
+import { CommentBody } from "@/features/comments/components/comment-body";
 import { ImageDisplay } from "@/features/theme/themes/cuckoo/components/content/image-display";
 
 /**
  * Cuckoo comment renderer — uses commentExtensions with Cuckoo's ImageDisplay.
  * Wrap the output in `cuckoo-custom-md prose dark:prose-invert` for article-consistent styles.
  */
-export function renderCommentReact(content: JSONContent | null) {
+export function renderCommentReact(content: JSONContent | string | null) {
   if (!content) return null;
+  if (typeof content === "string") return <CommentBody content={content} />;
   return renderToReactElement({
     extensions: getCommentExtensions(),
     content,

@@ -1,28 +1,48 @@
 {
   "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
-  "entry": ["src/server.ts"],
+  "entry": ["src/server.ts", "src/**/*.test.ts", "scripts/**/*.test.ts"],
   "dynamicallyLoaded": [
     ".release-it.ts",
-    "src/features/theme/themes/*/index.ts",
     "tests/apply-migrations.ts",
     "tests/mocks/tanstack-start-mock.ts"
   ],
+  "ignoreExports": [
+    {
+      "file": "src/lib/orpc/server-client.ts",
+      "exports": ["createServerORPCClient"]
+    }
+  ],
+  "duplicates": {
+    "ignore": ["src/routeTree.gen.ts"]
+  },
   "rules": {
+    "duplicate-exports": "off",
     "unused-dependencies": "warn"
   },
   "usedClassMembers": [
-    {
-      "extends": "WorkflowEntrypoint",
-      "members": ["run"]
-    },
     {
       "extends": "WorkerEntrypoint",
       "members": ["fetch"]
     },
     {
       "extends": "DurableObject",
-      "members": ["alarm", "checkLimit", "hash", "verify"]
+      "members": [
+        "alarm",
+        "checkLimit",
+        "hash",
+        "verify",
+        "publish",
+        "unpublish"
+      ]
     }
   ],
-  "ignorePatterns": ["worker-configuration.d.ts"]
+  "ignorePatterns": [
+    "tmp/**",
+    "dist/**",
+    ".wrangler/**",
+    ".tanstack/**",
+    ".output/**",
+    ".cache/**",
+    "worker-configuration.d.ts"
+  ]
 }

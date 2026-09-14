@@ -1,4 +1,3 @@
-import type { JSONContent } from "@tiptap/react";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import {
   index,
@@ -11,18 +10,13 @@ import { user } from "./auth.table";
 import { createdAt, id, updatedAt } from "./helper";
 import { PostsTable } from "./posts.table";
 
-export const COMMENT_STATUSES = [
-  "pending",
-  "published",
-  "deleted",
-  "verifying",
-] as const;
+export const COMMENT_STATUSES = ["published", "deleted"] as const;
 
 export const CommentsTable = sqliteTable(
   "comments",
   {
     id,
-    content: text({ mode: "json" }).$type<JSONContent>(),
+    content: text(),
     rootId: integer("root_id").references(
       (): AnySQLiteColumn => CommentsTable.id,
       {
@@ -35,8 +29,7 @@ export const CommentsTable = sqliteTable(
     ),
     status: text("status", { enum: COMMENT_STATUSES })
       .notNull()
-      .default("verifying"),
-    aiReason: text("ai_reason"),
+      .default("published"),
 
     postId: integer("post_id")
       .notNull()

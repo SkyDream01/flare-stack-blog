@@ -1,4 +1,3 @@
-import { createEmailMessageFromNotification } from "@/features/email/service/email-message.mapper";
 import type { NotificationEvent } from "@/features/notification/notification.schema";
 import { serverEnv } from "@/lib/env/server.env";
 import type { Locale } from "@/lib/i18n";
@@ -15,16 +14,6 @@ function createPlainTextMessage(event: NotificationEvent, locale: Locale) {
           commentUrl: event.data.commentUrl,
           commenterName: event.data.commenterName,
           postTitle: event.data.postTitle,
-        },
-        { locale },
-      );
-    case "comment.admin_pending_review":
-      return m.email_webhook_comment_admin_pending_message(
-        {
-          commentPreview: event.data.commentPreview,
-          commenterName: event.data.commenterName,
-          postTitle: event.data.postTitle,
-          reviewUrl: event.data.reviewUrl,
         },
         { locale },
       );
@@ -73,16 +62,6 @@ function createPlainTextMessage(event: NotificationEvent, locale: Locale) {
   }
 }
 
-function createRenderedEmail(event: NotificationEvent, locale: Locale) {
-  const email = createEmailMessageFromNotification(event, locale);
-
-  return {
-    subject: email.subject,
-    message: createPlainTextMessage(event, locale),
-    html: email.html,
-  };
-}
-
 export function createWebhookBody(
   messageId: string,
   event: NotificationEvent,
@@ -95,10 +74,9 @@ export function createWebhookBody(
     id: messageId,
     type: event.type,
     timestamp: new Date().toISOString(),
-    source: "flare-stack-blog",
     test: options?.isTest ?? false,
     data: event.data,
-    ...createRenderedEmail(event, locale),
+    message: createPlainTextMessage(event, locale),
   };
 }
 

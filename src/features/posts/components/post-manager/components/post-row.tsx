@@ -1,155 +1,196 @@
-import { ClientOnly, useNavigate } from "@tanstack/react-router";
-import { Edit3, MoreVertical, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import Dropdown from "@/components/ui/dropdown";
+import { formatPublicPostDate } from "@/features/posts/utils/format-public-post-date";
+import { ClientOnly, Link } from "@tanstack/react-router";
+import { MoreHorizontal, Pin, Trash2 } from "lucide-react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
+import { createPortal } from "react-dom";
+import { MOTION, useMotionPresence } from "@/hooks/use-motion";
 import { formatDate } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
-import type { PostListItem } from "../types";
+import type { TaxonomyReturn } from "@/components/admin/taxonomy-state";
+import type { AdminPostListItem, SortField } from "../types";
 
 interface PostRowProps {
-  post: PostListItem;
-  onDelete: (post: PostListItem) => void;
+  post: AdminPostListItem;
+  sortBy: SortField;
+  editorState?: () => { taxonomyReturn: TaxonomyReturn };
+  onDelete: (
+    post: AdminPostListItem,
+    trigger: HTMLButtonElement | null,
+  ) => void;
 }
 
-export function PostRow({ post, onDelete }: PostRowProps) {
-  const navigate = useNavigate();
-
-  const handleEdit = () => {
-    navigate({
-      to: "/admin/posts/edit/$id",
-      params: { id: String(post.id) },
-    });
-  };
-
+export function PostRow({ post, sortBy, onDelete, editorState }: PostRowProps) {
+  const title = post.title.trim() || m.common_untitled();
+  const date = post[sortBy];
   return (
-    <div className="group px-4 py-4 flex flex-col md:grid md:grid-cols-12 gap-4 items-center hover:bg-muted/30 transition-all duration-200 relative border-b border-border/30 last:border-0">
-      {/* Main Content: Info Block */}
-      <div
-        className="md:col-span-6 min-w-0 cursor-pointer group/title w-full flex flex-col gap-1"
-        onClick={handleEdit}
-      >
-        {/* Metadata Header: ID */}
-        <div className="flex items-center gap-3">
-          <span className="font-mono text-muted-foreground text-[10px] tracking-widest">
-            #{post.id.toString().padStart(3, "0")}
+    <tr>
+      <td>
+        <div className="post-list-title-cell">
+          <span className="post-list-pin">
+            {post.pinnedAt && (
+              <Pin size={18} aria-label={m.admin_posts_pinned()} />
+            )}
           </span>
-        </div>
-
-        {/* Title */}
-        <h3 className="font-serif font-medium text-lg text-foreground tracking-tight group-hover/title:underline underline-offset-4 decoration-border/50 transition-all truncate">
-          {post.title}
-        </h3>
-
-        {/* Summary */}
-        <p className="text-xs text-muted-foreground truncate max-w-3xl font-mono opacity-70">
-          {post.summary || m.admin_posts_no_summary()}
-        </p>
-      </div>
-
-      {/* Middle side: Status */}
-      <div className="md:col-span-3 flex items-center gap-4">
-        <StatusBadge status={post.status} />
-      </div>
-
-      {/* Right Side: Date & Actions (Desktop Split) */}
-      <div className="w-full flex items-center gap-6 mt-2 md:mt-0 md:contents">
-        {/* Smart Date Display */}
-        <div className="md:col-span-2 flex flex-col items-start gap-1 md:justify-self-start">
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
-            <span className="opacity-50">
-              {post.status === "published"
-                ? m.admin_posts_time_published()
-                : m.admin_posts_time_modified()}
-            </span>
-            <ClientOnly fallback={<span>-</span>}>
-              {post.status === "published"
-                ? formatDate(post.publishedAt || post.createdAt)
-                : formatDate(post.updatedAt)}
-            </ClientOnly>
-          </div>
-        </div>
-
-        {/* Actions (Desktop Only) */}
-        <div className="hidden md:flex md:col-span-1 items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 justify-end">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleEdit();
-            }}
-            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-transparent rounded-none"
-            title={m.admin_posts_action_edit()}
+          <Link
+            to="/admin/posts/edit/$id"
+            params={{ id: String(post.id) }}
+            state={editorState}
+            className="post-list-title-link"
           >
-            <Edit3 size={14} strokeWidth={1.5} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-transparent rounded-none"
-            title={m.admin_posts_action_delete()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(post);
-            }}
-          >
-            <Trash2 size={14} strokeWidth={1.5} />
-          </Button>
+            <strong>{title}</strong>
+            <span>{post.slug || m.admin_posts_slug_empty()}</span>
+          </Link>
         </div>
-
-        {/* Mobile Dropdown (Hidden on Desktop) */}
-        <div className="md:hidden ml-auto">
-          <Dropdown
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground rounded-none"
-              >
-                <MoreVertical size={16} />
-              </Button>
-            }
-            items={[
-              {
-                label: m.admin_posts_action_edit_post(),
-                icon: <Edit3 size={14} strokeWidth={1.5} />,
-                onClick: handleEdit,
-              },
-              {
-                label: m.admin_posts_action_delete_post(),
-                icon: <Trash2 size={14} strokeWidth={1.5} />,
-                onClick: () => onDelete(post),
-                danger: true,
-              },
-            ]}
+      </td>
+      <td>
+        <span className={`post-list-status ${post.status}`}>
+          {post.status === "published"
+            ? m.admin_posts_status_published()
+            : m.admin_posts_status_draft()}
+        </span>
+      </td>
+      <td className="post-list-date">
+        <span className="post-list-mobile-date-label">
+          {sortBy === "publishedAt"
+            ? m.admin_posts_time_published()
+            : m.admin_posts_time_modified()}{" "}
+        </span>
+        {date ? (
+          <time dateTime={date.toISOString()}>
+            {sortBy === "publishedAt" ? (
+              formatPublicPostDate(date)
+            ) : (
+              <ClientOnly fallback="—">{formatDate(date)}</ClientOnly>
+            )}
+          </time>
+        ) : (
+          "—"
+        )}
+      </td>
+      <td>
+        <div className="post-list-row-actions">
+          <Link
+            to="/admin/posts/edit/$id"
+            params={{ id: String(post.id) }}
+            state={editorState}
+            aria-label={m.admin_posts_edit_named({ title })}
+          >
+            {m.admin_posts_action_edit()}
+          </Link>
+          <PostRowMenu
+            title={title}
+            onDelete={(trigger) => onDelete(post, trigger)}
           />
         </div>
-      </div>
-    </div>
+      </td>
+    </tr>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function PostRowMenu({
+  title,
+  onDelete,
+}: {
+  title: string;
+  onDelete: (trigger: HTMLButtonElement | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const present = useMotionPresence(open, MOTION.popover);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<CSSProperties | null>(null);
+  useLayoutEffect(() => {
+    if (!present) {
+      setPosition(null);
+      return;
+    }
+    if (!open) return;
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const above = window.innerHeight - rect.bottom < 100;
+    setPosition({
+      right: Math.max(8, window.innerWidth - rect.right),
+      top: above ? undefined : rect.bottom + 4,
+      bottom: above ? window.innerHeight - rect.top + 4 : undefined,
+      transformOrigin: above ? "bottom right" : "top right",
+    });
+    const close = () => setOpen(false);
+    document.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open, present]);
+  useEffect(() => {
+    if (!open) return;
+    menuRef.current
+      ?.querySelector<HTMLElement>('[role="menuitem"]')
+      ?.focus({ preventScroll: true });
+    const outside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        !menuRef.current?.contains(target) &&
+        !triggerRef.current?.contains(target)
+      )
+        setOpen(false);
+    };
+    document.addEventListener("mousedown", outside);
+    return () => document.removeEventListener("mousedown", outside);
+  }, [open, position]);
   return (
-    <Badge
-      variant="outline"
-      className={
-        "text-[9px] px-2 py-0.5 uppercase tracking-widest font-mono font-normal rounded-none border border-border/50 shadow-none bg-transparent " +
-        (status === "published"
-          ? "text-emerald-600 border-emerald-500/30"
-          : status === "draft"
-            ? "text-muted-foreground border-border"
-            : "text-amber-600 border-amber-500/30")
-      }
-    >
-      [{" "}
-      {status === "published"
-        ? m.admin_posts_status_published()
-        : status === "draft"
-          ? m.admin_posts_status_draft()
-          : m.admin_posts_status_pending()}{" "}
-      ]
-    </Badge>
+    <div className="post-list-menu">
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={m.admin_posts_more_named({ title })}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <MoreHorizontal size={18} />
+      </button>
+      {present && position
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              aria-label={m.admin_posts_more_named({ title })}
+              className="post-row-menu fuwari-popover-motion"
+              data-state={open ? "open" : "closing"}
+              inert={!open}
+              aria-hidden={!open}
+              style={position}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setOpen(false);
+                  triggerRef.current?.focus({ preventScroll: true });
+                }
+              }}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onDelete(triggerRef.current);
+                }}
+              >
+                <Trash2 size={15} />
+                {m.admin_posts_action_delete_post()}
+              </button>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
   );
 }

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Turnstile, useTurnstile } from "@/components/common/turnstile";
 import { Button } from "@/components/ui/button";
+import { jsonCommentToPlainText } from "@/features/comments/comment-body";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
 import { useComments } from "@/features/comments/hooks/use-comments";
 import { rootCommentsByPostIdInfiniteQuery } from "@/features/comments/queries";
@@ -25,11 +26,9 @@ interface CommentSectionProps {
 
 export const CommentSection = ({ postId, className }: CommentSectionProps) => {
   const { data: session } = authClient.useSession();
-  const { rootId, highlightCommentId } = routeApi.useSearch();
+  const { comment: highlightCommentId } = routeApi.useSearch();
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery(
-      rootCommentsByPostIdInfiniteQuery(postId, session?.user.id),
-    );
+    useInfiniteQuery(rootCommentsByPostIdInfiniteQuery(postId));
 
   const rootComments = data?.pages.flatMap((page) => page.items) ?? [];
   const totalCount = data?.pages[0]?.total ?? 0;
@@ -66,10 +65,8 @@ export const CommentSection = ({ postId, className }: CommentSectionProps) => {
     requireTurnstile();
     try {
       await createComment({
-        data: {
-          postId,
-          content,
-        },
+        postId,
+        content: jsonCommentToPlainText(content),
       });
     } finally {
       resetTurnstile();
@@ -81,12 +78,10 @@ export const CommentSection = ({ postId, className }: CommentSectionProps) => {
     requireTurnstile();
     try {
       await createComment({
-        data: {
-          postId,
-          content,
-          rootId: replyTarget.rootId,
-          replyToCommentId: replyTarget.commentId,
-        },
+        postId,
+        content: jsonCommentToPlainText(content),
+        rootId: replyTarget.rootId,
+        replyToCommentId: replyTarget.commentId,
       });
       setReplyTarget(null);
     } finally {
@@ -96,7 +91,7 @@ export const CommentSection = ({ postId, className }: CommentSectionProps) => {
 
   const handleDelete = async () => {
     if (commentToDelete) {
-      await deleteComment({ data: { id: commentToDelete } });
+      await deleteComment({ id: commentToDelete });
       setCommentToDelete(null);
     }
   };
@@ -204,7 +199,7 @@ export const CommentSection = ({ postId, className }: CommentSectionProps) => {
         onCancelReply={() => setReplyTarget(null)}
         onSubmitReply={handleCreateReply}
         isSubmittingReply={isCreating}
-        initialExpandedRootId={rootId}
+        initialExpandedRootId={undefined}
         highlightCommentId={highlightCommentId}
       />
 

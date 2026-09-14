@@ -1,44 +1,86 @@
 import type { JSONContent } from "@tiptap/react";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { extractAllImageKeys } from "@/features/posts/utils/content";
-import { MediaTable, PostMediaTable, PostsTable } from "@/lib/db/schema";
+import {
+  MediaTable,
+  PostMediaTable,
+  PostsTable,
+  type PublicPostSnapshot,
+} from "@/lib/db/schema";
 
-export async function syncPostMedia(
-  db: DB,
-  postId: number,
-  contentJson: JSONContent | null,
+export type PostMediaSource = {
+  id: number;
+  contentJson: JSONContent | null;
+  publicSnapshotJson: PublicPostSnapshot | null;
+  coverMediaId: number | null;
+};
+
+function referencedImageKeys(
+  contentJson: JSONContent | null | undefined,
+  snapshotContentJson: JSONContent | null | undefined,
 ) {
-  // 1. 获取文章中使用的图片 key
-  const usedKeys = extractAllImageKeys(contentJson);
+  return [
+    ...new Set([
+      ...extractAllImageKeys(contentJson ?? null),
+      ...extractAllImageKeys(snapshotContentJson ?? null),
+    ]),
+  ];
+}
 
-  // 2. 准备sql语句
-  const batchQueries: Array<BatchItem<"sqlite">> = [];
+function sameMediaIdSet(existing: Array<number>, next: Set<number>) {
+  if (existing.length !== next.size) return false;
+  return existing.every((mediaId) => next.has(mediaId));
+}
 
-  // 2.1 准备删除文章中已有的图片关联语句
-  const deleteQuery = db
-    .delete(PostMediaTable)
-    .where(eq(PostMediaTable.postId, postId));
+export async function syncPostMedia(db: DB, post: PostMediaSource) {
+  const usedKeys = referencedImageKeys(
+    post.contentJson,
+    post.publicSnapshotJson?.contentJson,
+  );
+  const snapshotCoverKey = post.publicSnapshotJson?.cover?.key;
+  if (snapshotCoverKey) usedKeys.push(snapshotCoverKey);
 
-  // 3. 如果有引用的图片，先查询图片是否存在
+  const mediaIds = new Set<number>();
+  if (post.coverMediaId != null) mediaIds.add(post.coverMediaId);
+  if (post.publicSnapshotJson?.cover?.mediaId != null) {
+    mediaIds.add(post.publicSnapshotJson.cover.mediaId);
+  }
+
   if (usedKeys.length > 0) {
     const mediaRecords = await db
       .select({ id: MediaTable.id })
       .from(MediaTable)
       .where(inArray(MediaTable.key, usedKeys));
-
-    if (mediaRecords.length > 0) {
-      const newRelations = mediaRecords.map((media) => ({
-        postId,
-        mediaId: media.id,
-      }));
-
-      batchQueries.push(db.insert(PostMediaTable).values(newRelations));
-    }
+    for (const media of mediaRecords) mediaIds.add(media.id);
   }
 
-  // 4. 执行批量操作
-  await db.batch([deleteQuery, ...batchQueries]);
+  const existing = await db
+    .select({ mediaId: PostMediaTable.mediaId })
+    .from(PostMediaTable)
+    .where(eq(PostMediaTable.postId, post.id));
+  const existingIds = existing.map((row) => row.mediaId);
+  if (sameMediaIdSet(existingIds, mediaIds)) return;
+
+  const statements: Array<BatchItem<"sqlite">> = [];
+  if (existingIds.length > 0) {
+    statements.push(
+      db.delete(PostMediaTable).where(eq(PostMediaTable.postId, post.id)),
+    );
+  }
+  if (mediaIds.size > 0) {
+    statements.push(
+      db.insert(PostMediaTable).values(
+        [...mediaIds].map((mediaId) => ({
+          postId: post.id,
+          mediaId,
+        })),
+      ),
+    );
+  }
+  const [head, ...rest] = statements;
+  if (!head) return;
+  await db.batch([head, ...rest]);
 }
 
 export async function getPostsByMediaKey(db: DB, key: string) {
@@ -46,22 +88,35 @@ export async function getPostsByMediaKey(db: DB, key: string) {
     .select({
       id: PostsTable.id,
       title: PostsTable.title,
-      summary: PostsTable.summary,
-      readTimeInMinutes: PostsTable.readTimeInMinutes,
       slug: PostsTable.slug,
-      coverImage: PostsTable.coverImage,
       status: PostsTable.status,
+      coverMediaId: PostsTable.coverMediaId,
+      snapshotCoverKey: sql<
+        string | null
+      >`json_extract(${PostsTable.publicSnapshotJson}, '$.cover.key')`,
+      snapshotCoverMediaId: sql<
+        number | null
+      >`json_extract(${PostsTable.publicSnapshotJson}, '$.cover.mediaId')`,
+      mediaId: MediaTable.id,
     })
     .from(PostsTable)
     .innerJoin(PostMediaTable, eq(PostsTable.id, PostMediaTable.postId))
     .innerJoin(MediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
     .where(eq(MediaTable.key, key));
-  return posts;
+
+  return posts.map((post) => ({
+    id: post.id,
+    title: post.title,
+    slug: post.slug,
+    status: post.status,
+    isCover:
+      post.coverMediaId === post.mediaId ||
+      post.snapshotCoverKey === key ||
+      (post.snapshotCoverMediaId != null &&
+        Number(post.snapshotCoverMediaId) === post.mediaId),
+  }));
 }
 
-/**
- * 检查媒体是否被文章使用
- */
 export async function isMediaInUse(db: DB, key: string): Promise<boolean> {
   const result = await db
     .select({ id: PostMediaTable.postId })
@@ -73,18 +128,14 @@ export async function isMediaInUse(db: DB, key: string): Promise<boolean> {
   return result.length > 0;
 }
 
-/**
- * 批量检查
- */
 export async function getLinkedMediaKeys(
   db: DB,
   keys: Array<string>,
 ): Promise<Array<string>> {
   if (keys.length === 0) return [];
 
-  // 查询哪些 keys 存在于中间表中
   const results = await db
-    .selectDistinct({ key: MediaTable.key }) // 只需要 key
+    .selectDistinct({ key: MediaTable.key })
     .from(MediaTable)
     .innerJoin(PostMediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
     .where(inArray(MediaTable.key, keys));

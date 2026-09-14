@@ -17,7 +17,7 @@ type ForgotPasswordSchema = z.infer<
   ReturnType<typeof createForgotPasswordSchema>
 >;
 
-export interface UseForgotPasswordFormOptions {
+interface UseForgotPasswordFormOptions {
   turnstileToken: string | null;
   turnstilePending: boolean;
   resetTurnstile: () => void;
@@ -30,28 +30,34 @@ export function useForgotPasswordForm(options: UseForgotPasswordFormOptions) {
   const [sentEmail, setSentEmail] = useState("");
   const forgotPasswordSchema = createForgotPasswordSchema(m);
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const form = useForm<ForgotPasswordSchema>({
     resolver: standardSchemaResolver(forgotPasswordSchema),
   });
 
   const onSubmit = async (data: ForgotPasswordSchema) => {
-    const { error } = await authClient.requestPasswordReset({
-      email: data.email,
-      redirectTo: `${window.location.origin}/reset-link`,
-      fetchOptions: {
-        headers: { "X-Turnstile-Token": turnstileToken || "" },
-      },
-    });
-
-    resetTurnstile();
-
-    if (error) {
-      toast.error(m.forgot_password_toast_failed(), {
-        description:
-          getForgotPasswordAuthErrorMessage(error, m) ??
-          m.auth_error_default_desc(),
+    setSubmitError(null);
+    try {
+      const { error } = await authClient.requestPasswordReset({
+        email: data.email,
+        redirectTo: `${window.location.origin}/reset-link`,
+        fetchOptions: {
+          headers: { "X-Turnstile-Token": turnstileToken || "" },
+        },
       });
+
+      if (error) {
+        setSubmitError(
+          getForgotPasswordAuthErrorMessage(error, m) ??
+            m.auth_error_default_desc(),
+        );
+        return;
+      }
+    } catch {
+      setSubmitError(m.auth_error_default_desc());
       return;
+    } finally {
+      resetTurnstile();
     }
 
     setSentEmail(data.email);
@@ -66,12 +72,9 @@ export function useForgotPasswordForm(options: UseForgotPasswordFormOptions) {
     errors: form.formState.errors,
     handleSubmit: form.handleSubmit(onSubmit),
     isSubmitting: form.formState.isSubmitting,
+    submitError,
     isSent,
     sentEmail,
     turnstilePending,
   };
 }
-
-export type UseForgotPasswordFormReturn = ReturnType<
-  typeof useForgotPasswordForm
->;

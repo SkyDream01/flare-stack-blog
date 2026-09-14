@@ -5,14 +5,14 @@ type ArticleJsonLdInput = {
     slug: string;
     summary?: string | null;
     title: string;
-    coverImage?: string | null;
     publishedAt?: Date | string | null;
     updatedAt: Date | string;
     tags?: Array<{ name: string }> | undefined;
+    image?: string | null;
   };
 };
 
-export function buildCanonicalHref(
+function buildCanonicalHref(
   pathname: string,
   searchParams?: Record<string, string | undefined>,
 ) {
@@ -73,10 +73,6 @@ export function buildArticleJsonLd({
     jsonLd.description = post.summary;
   }
 
-  if (post.coverImage) {
-    jsonLd.image = [post.coverImage];
-  }
-
   if (post.publishedAt) {
     jsonLd.datePublished = new Date(post.publishedAt).toISOString();
   }
@@ -84,6 +80,10 @@ export function buildArticleJsonLd({
   const keywords = post.tags?.map((tag) => tag.name).filter(Boolean);
   if (keywords?.length) {
     jsonLd.keywords = keywords;
+  }
+
+  if (post.image) {
+    jsonLd.image = post.image;
   }
 
   return JSON.stringify(jsonLd);

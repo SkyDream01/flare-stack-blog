@@ -1,8 +1,8 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import theme from "@theme";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
+import { SearchPage } from "@/features/search/components/search-page";
 import {
   searchDocsQueryOptions,
   searchMetaQuery,
@@ -36,63 +36,61 @@ export const Route = createFileRoute("/_public/search")({
 function SearchRoute() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
-
-  const [query, setQuery] = useState(search.q || "");
-
-  useEffect(() => {
-    if (search.q !== undefined && search.q !== query) {
-      setQuery(search.q);
-    }
-  }, [search.q]);
-
+  const urlQuery = search.q || "";
+  const [query, setQuery] = useState(urlQuery);
   const debouncedQuery = useDebounce(query, 300);
+  const [composing, setComposing] = useState(false);
+  const term = debouncedQuery.trim();
 
   useEffect(() => {
-    if (debouncedQuery !== (search.q || "")) {
-      navigate({
-        search: (prev) => ({
-          ...prev,
-          q: debouncedQuery || undefined,
-        }),
-        replace: true,
-      });
+    if (urlQuery !== query && urlQuery !== debouncedQuery) {
+      setQuery(urlQuery);
     }
-  }, [debouncedQuery, navigate, search.q]);
+  }, [urlQuery]);
 
-  const { data: meta } = useQuery({
+  useEffect(() => {
+    if (composing || debouncedQuery === urlQuery) return;
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        q: debouncedQuery || undefined,
+      }),
+      replace: true,
+    });
+  }, [debouncedQuery, navigate, urlQuery, composing]);
+
+  const metaQuery = useQuery({
     ...searchMetaQuery,
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: results, isLoading: isSearching } = useQuery({
-    ...searchDocsQueryOptions(debouncedQuery, meta?.version || "init"),
-    enabled: debouncedQuery.length > 0 && !!meta?.version,
+  const resultQuery = useQuery({
+    ...searchDocsQueryOptions(term, metaQuery.data?.version || "init"),
+    enabled: term.length > 0 && !!metaQuery.data?.version && !composing,
     staleTime: Infinity,
     placeholderData: keepPreviousData,
   });
 
-  const searchResults = useMemo(() => results ?? [], [results]);
-
-  const handleQueryChange = (newQuery: string) => {
-    setQuery(newQuery);
-  };
-
-  const handleSelectPost = (slug: string) => {
-    navigate({ to: "/post/$slug", params: { slug } });
-  };
-
-  const handleBack = () => {
-    navigate({ to: "/" });
-  };
+  const waitingForInput = query.trim() !== term || composing;
+  const hasError =
+    !waitingForInput && (metaQuery.isError || resultQuery.isError);
+  const isSearching =
+    query.trim().length > 0 &&
+    !hasError &&
+    (waitingForInput || metaQuery.isPending || resultQuery.isFetching);
 
   return (
-    <theme.SearchPage
+    <SearchPage
       query={query}
-      results={searchResults}
+      searchedQuery={term}
+      results={resultQuery.data ?? []}
       isSearching={isSearching}
-      onQueryChange={handleQueryChange}
-      onSelectPost={handleSelectPost}
-      onBack={handleBack}
+      hasError={hasError}
+      onQueryChange={setQuery}
+      onCompositionChange={setComposing}
+      onRetry={() => {
+        void (metaQuery.isError ? metaQuery.refetch() : resultQuery.refetch());
+      }}
     />
   );
 }

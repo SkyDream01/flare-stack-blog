@@ -1,7 +1,7 @@
 import katex from "katex";
 import { memo } from "react";
 
-export type MathFormulaMode = "inline" | "block";
+type MathFormulaMode = "inline" | "block";
 
 interface MathFormulaProps {
   latex: string;

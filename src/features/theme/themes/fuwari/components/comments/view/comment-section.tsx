@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Turnstile, useTurnstile } from "@/components/common/turnstile";
 import { Skeleton } from "@/components/ui/skeleton";
+import { jsonCommentToPlainText } from "@/features/comments/comment-body";
 import { useComments } from "@/features/comments/hooks/use-comments";
 import { rootCommentsByPostIdInfiniteQuery } from "@/features/comments/queries";
 import { authClient } from "@/lib/auth/auth.client";
@@ -22,11 +23,9 @@ interface FuwariCommentSectionProps {
 
 export function FuwariCommentSection({ postId }: FuwariCommentSectionProps) {
   const { data: session } = authClient.useSession();
-  const { rootId, highlightCommentId } = routeApi.useSearch();
+  const { comment: highlightCommentId } = routeApi.useSearch();
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery(
-      rootCommentsByPostIdInfiniteQuery(postId, session?.user.id),
-    );
+    useInfiniteQuery(rootCommentsByPostIdInfiniteQuery(postId));
 
   const rootComments = data?.pages.flatMap((page) => page.items) ?? [];
   const totalCount = data?.pages[0]?.total ?? 0;
@@ -62,10 +61,8 @@ export function FuwariCommentSection({ postId }: FuwariCommentSectionProps) {
     requireTurnstile();
     try {
       await createComment({
-        data: {
-          postId,
-          content,
-        },
+        postId,
+        content: jsonCommentToPlainText(content),
       });
     } finally {
       resetTurnstile();
@@ -77,12 +74,10 @@ export function FuwariCommentSection({ postId }: FuwariCommentSectionProps) {
     requireTurnstile();
     try {
       await createComment({
-        data: {
-          postId,
-          content,
-          rootId: replyTarget.rootId,
-          replyToCommentId: replyTarget.commentId,
-        },
+        postId,
+        content: jsonCommentToPlainText(content),
+        rootId: replyTarget.rootId,
+        replyToCommentId: replyTarget.commentId,
       });
       setReplyTarget(null);
     } finally {
@@ -92,7 +87,7 @@ export function FuwariCommentSection({ postId }: FuwariCommentSectionProps) {
 
   const handleDelete = async () => {
     if (commentToDelete) {
-      await deleteComment({ data: { id: commentToDelete } });
+      await deleteComment({ id: commentToDelete });
       setCommentToDelete(null);
     }
   };
@@ -178,7 +173,7 @@ export function FuwariCommentSection({ postId }: FuwariCommentSectionProps) {
         onCancelReply={() => setReplyTarget(null)}
         onSubmitReply={handleCreateReply}
         isSubmittingReply={isCreating}
-        initialExpandedRootId={rootId}
+        initialExpandedRootId={undefined}
         highlightCommentId={highlightCommentId}
       />
 

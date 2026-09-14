@@ -1,178 +1,184 @@
-import { useQuery } from "@tanstack/react-query";
-import { useBlocker } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useBlocker, useNavigate } from "@tanstack/react-router";
 import type { JSONContent, Editor as TiptapEditor } from "@tiptap/react";
-import { History, Loader2 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { useAdminChrome } from "@/components/admin/admin-chrome";
 import { Editor } from "@/components/tiptap-editor";
-import { Button } from "@/components/ui/button";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
 import { extensions } from "@/features/posts/editor/config";
-import type { PostRevisionSnapshot } from "@/features/posts/schema/post-revisions.schema";
-import { tagsAdminQueryOptions } from "@/features/tags/queries";
+import { CodeBlockHighlightProvider } from "@/features/posts/editor/extensions/code-block/code-block-highlight-context";
+import { postRevisionListQuery } from "@/features/posts/queries";
+import { normalizePostContent } from "@/features/posts/utils/normalize-content";
 import { m } from "@/paraglide/messages";
-import { EditorTableOfContents } from "./editor-table-of-contents";
 import { useAutoSave, usePostActions } from "./hooks";
 import { PostEditorHeader } from "./post-editor-header";
-import { PostEditorHistoryPanel } from "./post-editor-history-panel";
 import { PostEditorMetadata } from "./post-editor-metadata";
-import { PostEditorStatusBar } from "./post-editor-status-bar";
+import { PostEditorInfoPanel } from "./post-editor-info-panel";
+import { PostEditorSummary } from "./post-editor-summary";
 import type { PostEditorData, PostEditorProps } from "./types";
 
 export function PostEditor({ initialData, onSave }: PostEditorProps) {
-  // Initialize post state from initialData (always provided)
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { setPrimaryAction, setMobileTitle } = useAdminChrome();
+  const [infoOpen, setInfoOpen] = useState(false);
+  const closeInfo = useCallback(() => setInfoOpen(false), []);
   const [post, setPost] = useState<PostEditorData>(() => ({
     title: initialData.title,
     summary: initialData.summary,
     slug: initialData.slug,
-    coverImage: initialData.coverImage ?? null,
-    status: initialData.status,
-    readTimeInMinutes: initialData.readTimeInMinutes,
-    contentJson: initialData.contentJson ?? null,
+    contentJson: normalizePostContent(initialData.contentJson) ?? null,
     publishedAt: initialData.publishedAt,
     pinnedAt: initialData.pinnedAt,
     tagIds: initialData.tagIds,
-    isSynced: initialData.isSynced,
-    hasPublicCache: initialData.hasPublicCache,
+    categoryId: initialData.categoryId,
+    hasPublicSnapshot: initialData.hasPublicSnapshot,
+    serverToday: initialData.serverToday,
+    coverMediaId: initialData.coverMediaId,
+    cover: initialData.cover,
   }));
-
-  // Sync state when initialData updates (e.g. after background refetch/invalidation)
-  const [prevInitialDataId, setPrevInitialDataId] = useState(initialData.id);
-  const [prevTagIds, setPrevTagIds] = useState(() =>
-    [...initialData.tagIds].sort().join(","),
+  const [editorContent] = useState<JSONContent | null>(
+    () => normalizePostContent(initialData.contentJson) ?? null,
   );
+  const [contentEpoch, setContentEpoch] = useState(0);
+  const [editorRenderKey] = useState(`editor:${initialData.id}`);
 
-  const currentTagIdsStr = [...initialData.tagIds].sort().join(",");
+  const editorRef = useRef<TiptapEditor | null>(null);
+  const editorContentRef = useRef(editorContent);
+  editorContentRef.current = editorContent;
 
-  if (prevInitialDataId !== initialData.id || prevTagIds !== currentTagIdsStr) {
-    setPrevInitialDataId(initialData.id);
-    setPrevTagIds(currentTagIdsStr);
-    setPost((prev) => ({
-      ...prev,
-      tagIds: initialData.tagIds,
-      isSynced: initialData.isSynced,
-    }));
-  }
+  const getContent = useCallback(() => {
+    const editor = editorRef.current;
+    if (editor && !editor.isDestroyed) {
+      return editor.getJSON();
+    }
+    return editorContentRef.current;
+  }, []);
 
-  const [editorInstance, setEditorInstance] = useState<TiptapEditor | null>(
-    null,
-  );
-  const [editorRenderKey, setEditorRenderKey] = useState(
-    `editor:${initialData.id}`,
-  );
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-
-  // Fetch all tags for AI context and matching
-  const { data: allTags = [] } = useQuery(tagsAdminQueryOptions());
-
-  // Auto-save hook
-  const useAutoSaveReturn = useAutoSave({
+  const { saveStatus, lastSaved, setError, flush } = useAutoSave({
     post,
+    getContent,
+    contentEpoch,
     onSave,
   });
 
-  const { saveStatus, lastSaved, setError, markSaved } = useAutoSaveReturn;
-
   const { proceed, reset, status } = useBlocker({
-    shouldBlockFn: () => saveStatus === "SAVING",
+    shouldBlockFn: () => saveStatus !== "SYNCED",
     withResolver: true,
   });
 
-  // Post actions hook
   const {
     isGeneratingSlug,
-    isCalculatingReadTime,
-    isGeneratingSummary,
     handleGenerateSlug,
-    handleCalculateReadTime,
-    handleGenerateSummary,
-    handleProcessData,
+    handlePublish,
+    handleUnpublish,
     processState,
-    isGeneratingTags,
-    handleGenerateTags,
-    isDirty: isPostDirty,
-    contentStats,
+    canPublish,
+    lockSlug,
   } = usePostActions({
     postId: initialData.id,
     post,
-    initialData,
     setPost,
     setError,
-    allTags,
+    flush,
   });
 
-  const handleContentChange = useCallback((json: JSONContent) => {
-    setPost((prev) => ({ ...prev, contentJson: json }));
+  const handleEditorCreated = useCallback((editor: TiptapEditor | null) => {
+    editorRef.current = editor;
   }, []);
 
-  const handlePostChange = useCallback((updates: Partial<PostEditorData>) => {
-    setPost((prev) => ({ ...prev, ...updates }));
+  const handleEditorUpdate = useCallback(() => {
+    setContentEpoch((epoch) => epoch + 1);
   }, []);
 
-  const handleRestoreApplied = useCallback(
-    ({
-      snapshot,
-    }: {
-      snapshot: {
-        title: string;
-        summary: string | null;
-        slug: string;
-        status: PostEditorData["status"];
-        publishedAt: string | null;
-        readTimeInMinutes: number;
-        contentJson: PostEditorData["contentJson"];
-        tagIds: Array<number>;
-      };
-    }) => {
-      const hasPublicCache = post.hasPublicCache;
-      const restoredPost: PostEditorData = {
-        title: snapshot.title,
-        summary: snapshot.summary ?? "",
-        slug: snapshot.slug,
-        coverImage: post.coverImage,
-        status: snapshot.status,
-        readTimeInMinutes: snapshot.readTimeInMinutes,
-        contentJson: snapshot.contentJson,
-        publishedAt: snapshot.publishedAt
-          ? new Date(snapshot.publishedAt)
-          : null,
-        pinnedAt: post.pinnedAt,
-        tagIds: snapshot.tagIds,
-        isSynced: snapshot.status === "draft" ? !hasPublicCache : false,
-        hasPublicCache,
-      };
-
-      setPost(restoredPost);
-      setEditorRenderKey(`editor:${initialData.id}:${Date.now()}`);
-      markSaved(restoredPost);
+  const handlePostChange = useCallback(
+    (updates: Partial<PostEditorData>) => {
+      if (updates.slug !== undefined) {
+        lockSlug();
+      }
+      setPost((prev) => ({ ...prev, ...updates }));
     },
-    [initialData.id, markSaved, post.hasPublicCache],
+    [lockSlug],
   );
 
-  const currentSnapshot = useMemo<PostRevisionSnapshot>(
-    () => ({
-      title: post.title,
-      summary: post.summary.trim() || null,
-      slug: post.slug,
-      status: post.status,
-      publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
-      readTimeInMinutes: post.readTimeInMinutes,
-      contentJson: post.contentJson,
-      tagIds: [...new Set(post.tagIds)].sort((a, b) => a - b),
-    }),
-    [
-      post.contentJson,
-      post.publishedAt,
-      post.readTimeInMinutes,
-      post.slug,
-      post.status,
-      post.summary,
-      post.tagIds,
-      post.title,
-    ],
+  const openHistory = useCallback(async () => {
+    try {
+      await flush();
+    } catch {
+      toast.error(m.editor_status_save_error());
+      return;
+    }
+    const revisions = await queryClient.ensureQueryData(
+      postRevisionListQuery(initialData.id),
+    );
+    const desktop = window.matchMedia("(min-width: 1024px)").matches;
+    if (desktop && revisions[0]) {
+      await navigate({
+        to: "/admin/posts/edit/$id/history/$revisionId",
+        params: {
+          id: String(initialData.id),
+          revisionId: String(revisions[0].id),
+        },
+      });
+      return;
+    }
+    await navigate({
+      to: "/admin/posts/edit/$id/history",
+      params: { id: String(initialData.id) },
+    });
+  }, [flush, initialData.id, navigate, queryClient]);
+
+  const publishRef = useRef(handlePublish);
+  publishRef.current = handlePublish;
+
+  useEffect(() => {
+    if (infoOpen) {
+      setMobileTitle(m.editor_info_title());
+      setPrimaryAction({
+        label: m.editor_info_done(),
+        onClick: () => setInfoOpen(false),
+      });
+    } else {
+      setMobileTitle(post.title.trim() || m.common_untitled());
+      setPrimaryAction({
+        label:
+          processState === "PROCESSING"
+            ? m.editor_header_processing()
+            : m.editor_header_publish(),
+        onClick: () => {
+          void publishRef.current();
+        },
+        disabled: processState !== "IDLE" || !canPublish,
+      });
+    }
+  }, [
+    canPublish,
+    infoOpen,
+    post.title,
+    processState,
+    setMobileTitle,
+    setPrimaryAction,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      setMobileTitle(null);
+      setPrimaryAction(null);
+    };
+  }, [setMobileTitle, setPrimaryAction]);
+
+  const metadata = (
+    <PostEditorMetadata
+      post={post}
+      isGeneratingSlug={isGeneratingSlug}
+      onPostChange={handlePostChange}
+      onGenerateSlug={handleGenerateSlug}
+    />
   );
 
   return (
-    <div className="fixed inset-0 z-80 flex flex-col bg-background overflow-hidden">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <ConfirmationModal
         isOpen={status === "blocked"}
         onClose={() => reset?.()}
@@ -182,111 +188,84 @@ export function PostEditor({ initialData, onSave }: PostEditorProps) {
         confirmLabel={m.editor_leave_confirm()}
       />
 
-      <PostEditorHeader
-        post={post}
-        saveStatus={saveStatus}
-        processState={processState}
-        isPostDirty={isPostDirty}
-        onPreview={() => {
-          if (post.slug) window.open(`/post/${post.slug}`, "_blank");
-        }}
-        onProcess={handleProcessData}
-      />
-
-      <PostEditorHistoryPanel
-        postId={initialData.id}
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        currentSnapshot={currentSnapshot}
-        allTags={allTags}
-        onRestoreApplied={handleRestoreApplied}
-      />
-
-      {/* Main Content Area (Only this scrolls) */}
-      <div
-        id="post-editor-scroll-container"
-        className="flex-1 overflow-y-auto custom-scrollbar relative scroll-smooth animate-in fade-in slide-in-from-bottom-4 duration-1000 fill-mode-both delay-100"
-      >
-        <div className="w-full mx-auto py-20 px-6 md:px-12 grid grid-cols-1 xl:grid-cols-[1fr_240px] 2xl:grid-cols-[1fr_56rem_1fr] gap-12 items-start">
-          <div className="hidden 2xl:block" />
-          <div className="min-w-0 w-full max-w-4xl mx-auto 2xl:mx-0">
-            <div className="mb-6 flex justify-end xl:hidden">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsHistoryOpen(true)}
-                className="rounded-none text-[10px] font-mono uppercase tracking-[0.18em]"
-              >
-                <History size={14} />
-                <span className="ml-2">{m.editor_history_open()}</span>
-              </Button>
-            </div>
-
-            <PostEditorMetadata
-              post={post}
-              isGeneratingSlug={isGeneratingSlug}
-              isCalculatingReadTime={isCalculatingReadTime}
-              isGeneratingSummary={isGeneratingSummary}
-              isGeneratingTags={isGeneratingTags}
-              onPostChange={handlePostChange}
-              onGenerateSlug={handleGenerateSlug}
-              onCalculateReadTime={handleCalculateReadTime}
-              onGenerateSummary={handleGenerateSummary}
-              onGenerateTags={handleGenerateTags}
-            />
-
-            {/* Editor Area */}
-            <div className="min-h-[60vh] pb-32">
-              <Editor
-                key={editorRenderKey}
-                extensions={extensions}
-                content={post.contentJson ?? ""}
-                onChange={handleContentChange}
-                onCreated={setEditorInstance}
-              />
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <aside className="hidden xl:block sticky top-20 h-full max-h-[calc(100vh-10rem)] w-60">
-            <div className="space-y-6">
-              <button
-                type="button"
-                onClick={() => setIsHistoryOpen(true)}
-                className="flex w-full items-center justify-between border border-border/30 px-4 py-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/30"
-              >
-                <div>
-                  <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground/55">
-                    {m.editor_history_eyebrow()}
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {m.editor_history_title()}
-                  </p>
-                </div>
-                {saveStatus === "SAVING" ? (
-                  <Loader2
-                    size={14}
-                    className="animate-spin text-muted-foreground"
+      <section className="post-editor-workspace fuwari-card-base">
+        <PostEditorHeader
+          saveStatus={saveStatus}
+          lastSaved={lastSaved}
+          processState={processState}
+          canPublish={canPublish}
+          hasPublicSnapshot={post.hasPublicSnapshot}
+          onPublish={handlePublish}
+          onUnpublish={handleUnpublish}
+          infoOpen={infoOpen}
+          onOpenInfo={() => setInfoOpen((value) => !value)}
+          onOpenHistory={() => void openHistory()}
+        />
+        <div className="post-editor-body">
+          <CodeBlockHighlightProvider
+            snapshotContent={initialData.publicSnapshotContentJson}
+          >
+            <Editor
+              key={editorRenderKey}
+              className="post-editor-surface"
+              toolbarClassName="post-editor-toolbar"
+              documentClassName="post-editor-document custom-scrollbar"
+              scrollContainerId="post-editor-scroll-container"
+              contentClassName="min-h-50"
+              documentHeader={
+                <>
+                  <TextareaTitle
+                    value={post.title}
+                    onChange={(title) => handlePostChange({ title })}
                   />
-                ) : (
-                  <History size={16} className="text-muted-foreground" />
-                )}
-              </button>
-
-              {editorInstance && (
-                <EditorTableOfContents editor={editorInstance} />
-              )}
-            </div>
-          </aside>
+                  <PostEditorSummary
+                    categoryId={post.categoryId}
+                    tagIds={post.tagIds}
+                    hasCover={Boolean(post.cover)}
+                    onOpenInfo={() => setInfoOpen(true)}
+                  />
+                </>
+              }
+              extensions={extensions}
+              content={editorContent ?? ""}
+              onUpdate={handleEditorUpdate}
+              onCreated={handleEditorCreated}
+            />
+          </CodeBlockHighlightProvider>
         </div>
-      </div>
-
-      <PostEditorStatusBar
-        chars={contentStats.chars}
-        words={contentStats.words}
-        saveStatus={saveStatus}
-        lastSaved={lastSaved}
-      />
+        <PostEditorInfoPanel open={infoOpen} onClose={closeInfo}>
+          {metadata}
+        </PostEditorInfoPanel>
+      </section>
     </div>
+  );
+}
+
+function TextareaTitle({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (title: string) => void;
+}) {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      rows={1}
+      placeholder={m.editor_title_placeholder()}
+      aria-label={m.editor_title_placeholder()}
+      className="post-editor-title w-full resize-none overflow-hidden bg-transparent fuwari-text-90 outline-none placeholder:fuwari-text-30"
+      onInput={(event) => {
+        const el = event.currentTarget;
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+      }}
+      ref={(el) => {
+        if (!el) return;
+        el.style.height = "auto";
+        el.style.height = `${el.scrollHeight}px`;
+      }}
+    />
   );
 }

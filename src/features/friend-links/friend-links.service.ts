@@ -1,8 +1,8 @@
-import * as CacheService from "@/features/cache/cache.service";
+import { invalidate } from "@/features/cache/public-cache";
+import { approvedFriendLinks } from "@/features/friend-links/friend-links.cache";
 import { publishNotificationEvent } from "@/features/notification/service/notification.publisher";
 import { serverEnv } from "@/lib/env/server.env";
 import { err, ok } from "@/lib/errors";
-import { purgeCDNCache } from "@/lib/invalidate";
 import * as FriendLinkRepo from "./data/friend-links.data";
 import type {
   ApproveFriendLinkInput,
@@ -12,10 +12,6 @@ import type {
   RejectFriendLinkInput,
   SubmitFriendLinkInput,
   UpdateFriendLinkInput,
-} from "./friend-links.schema";
-import {
-  ApprovedFriendLinksResponseSchema,
-  FRIEND_LINKS_CACHE_KEYS,
 } from "./friend-links.schema";
 
 // ============ Authed User Methods ============
@@ -28,29 +24,46 @@ export async function submitFriendLink(
     context.db,
     context.session.user.id,
   );
+  const previous =
+    data.id === undefined
+      ? undefined
+      : existing.find((link) => link.id === data.id);
+  if (data.id !== undefined && !previous) return err({ reason: "NOT_FOUND" });
+  if (previous && previous.status !== "rejected")
+    return err({ reason: "INVALID_STATE" });
   const hasDuplicateUrl = existing.some(
-    (link) => link.siteUrl === data.siteUrl && link.status !== "rejected",
+    (link) =>
+      link.id !== data.id &&
+      link.siteUrl === data.siteUrl &&
+      link.status !== "rejected",
   );
   if (hasDuplicateUrl) {
     return err({ reason: "DUPLICATE_URL" });
   }
 
-  const friendLink = await FriendLinkRepo.insertFriendLink(context.db, {
+  const values = {
     siteName: data.siteName,
     siteUrl: data.siteUrl,
-    description: data.description,
-    logoUrl: data.logoUrl,
-    contactEmail: data.contactEmail,
+    description: data.description || "",
+    logoUrl: data.logoUrl || "",
     userId: context.session.user.id,
-    status: "pending",
-  });
+    status: "pending" as const,
+    rejectionReason: null,
+  };
+  const friendLink = previous
+    ? await FriendLinkRepo.resubmitFriendLink(
+        context.db,
+        previous.id,
+        context.session.user.id,
+        values,
+      )
+    : await FriendLinkRepo.insertFriendLink(context.db, values);
+  if (!friendLink) return err({ reason: "INVALID_STATE" });
 
-  // Notify admin via email
-  const { ADMIN_EMAIL, DOMAIN } = serverEnv(context.env);
+  const { DOMAIN } = serverEnv(context.env);
   await publishNotificationEvent(context, {
     type: "friend_link.submitted",
     data: {
-      to: ADMIN_EMAIL,
       siteName: data.siteName,
       siteUrl: data.siteUrl,
       description: data.description || "",
@@ -74,35 +87,13 @@ export async function getMyFriendLinks(context: AuthContext) {
 export async function getApprovedFriendLinks(
   context: DbContext & { executionCtx: ExecutionContext },
 ) {
-  const fetcher = async () =>
-    await FriendLinkRepo.getAllFriendLinks(context.db, {
-      status: "approved",
-      limit: null,
-    });
-
-  return await CacheService.getVersioned(
-    context,
-    "friend-links:list",
-    FRIEND_LINKS_CACHE_KEYS.approvedList,
-    ApprovedFriendLinksResponseSchema,
-    fetcher,
-    { ttl: "7d" },
-  );
+  return approvedFriendLinks.get(context, {});
 }
 
-// ============ Admin Methods ============
-
-function invalidateCache(
+async function invalidateCache(
   context: DbContext & { executionCtx: ExecutionContext },
 ) {
-  context.executionCtx.waitUntil(
-    Promise.all([
-      CacheService.bumpVersion(context, "friend-links:list"),
-      purgeCDNCache(context.env, {
-        urls: ["/friend-links"],
-      }),
-    ]),
-  );
+  await invalidate.friendLinksChanged(context);
 }
 
 export async function createFriendLink(
@@ -114,12 +105,11 @@ export async function createFriendLink(
     siteUrl: data.siteUrl,
     description: data.description,
     logoUrl: data.logoUrl,
-    contactEmail: data.contactEmail,
     userId: null,
     status: "approved",
   });
 
-  invalidateCache(context);
+  await invalidateCache(context);
 
   return friendLink;
 }
@@ -128,18 +118,18 @@ export async function getAllFriendLinks(
   context: DbContext,
   data: GetAllFriendLinksInput,
 ) {
-  const [items, total] = await Promise.all([
+  const [items, counts, total] = await Promise.all([
     FriendLinkRepo.getAllFriendLinks(context.db, {
+      search: data.search,
       offset: data.offset,
       limit: data.limit,
       status: data.status,
     }),
-    FriendLinkRepo.getAllFriendLinksCount(context.db, {
-      status: data.status,
-    }),
+    FriendLinkRepo.getFriendLinkStatusCounts(context.db),
+    FriendLinkRepo.getAllFriendLinksCount(context.db, data),
   ]);
 
-  return { items, total };
+  return { items, total, counts };
 }
 
 export async function approveFriendLink(
@@ -159,19 +149,25 @@ export async function approveFriendLink(
     rejectionReason: null,
   });
 
-  invalidateCache(context);
+  await invalidateCache(context);
 
-  // Notify submitter if contactEmail exists
-  if (friendLink.contactEmail) {
+  const recipient = await FriendLinkRepo.getApplicantEmail(
+    context.db,
+    friendLink.userId,
+  );
+  if (recipient) {
     const { DOMAIN } = serverEnv(context.env);
-    await publishNotificationEvent(context, {
-      type: "friend_link.approved",
-      data: {
-        to: friendLink.contactEmail,
-        siteName: friendLink.siteName,
-        blogUrl: `https://${DOMAIN}`,
+    await publishNotificationEvent(
+      context,
+      {
+        type: "friend_link.approved",
+        data: {
+          siteName: friendLink.siteName,
+          blogUrl: `https://${DOMAIN}`,
+        },
       },
-    });
+      { to: recipient },
+    );
   }
 
   return ok(updated);
@@ -195,19 +191,25 @@ export async function rejectFriendLink(
   });
 
   if (friendLink.status === "approved") {
-    invalidateCache(context);
+    await invalidateCache(context);
   }
 
-  // Notify submitter if contactEmail exists
-  if (friendLink.contactEmail) {
-    await publishNotificationEvent(context, {
-      type: "friend_link.rejected",
-      data: {
-        to: friendLink.contactEmail,
-        siteName: friendLink.siteName,
-        rejectionReason: data.rejectionReason,
+  const recipient = await FriendLinkRepo.getApplicantEmail(
+    context.db,
+    friendLink.userId,
+  );
+  if (recipient) {
+    await publishNotificationEvent(
+      context,
+      {
+        type: "friend_link.rejected",
+        data: {
+          siteName: friendLink.siteName,
+          rejectionReason: data.rejectionReason,
+        },
       },
-    });
+      { to: recipient },
+    );
   }
 
   return ok(updated);
@@ -234,7 +236,7 @@ export async function updateFriendLink(
   );
 
   if (friendLink.status === "approved") {
-    invalidateCache(context);
+    await invalidateCache(context);
   }
 
   return ok(updated);
@@ -255,7 +257,7 @@ export async function deleteFriendLink(
   await FriendLinkRepo.deleteFriendLink(context.db, data.id);
 
   if (friendLink.status === "approved") {
-    invalidateCache(context);
+    await invalidateCache(context);
   }
 
   return ok({ success: true });

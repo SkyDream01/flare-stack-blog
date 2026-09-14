@@ -1,23 +1,36 @@
-import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import {
+  ClientOnly,
   createRootRouteWithContext,
   HeadContent,
   Scripts,
   useRouteContext,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { createIsomorphicFn } from "@tanstack/react-start";
+import { lazy, Suspense, type ComponentType } from "react";
 import theme from "@theme";
 import { ThemeProvider } from "@/components/common/theme-provider";
 import { siteConfigQuery } from "@/features/config/queries";
-import TanStackQueryDevtools from "@/integrations/tanstack-query/devtools";
-import { clientEnv } from "@/lib/env/client.env";
 import { getLocale } from "@/paraglide/runtime";
 import appCss from "@/styles.css?url";
 
 interface MyRouterContext {
   queryClient: QueryClient;
 }
+
+const loadDevtools = createIsomorphicFn()
+  .client(() => import("@/integrations/tanstack-devtools"))
+  .server(() =>
+    Promise.resolve({
+      default: function DevtoolsPlaceholder() {
+        return null;
+      },
+    }),
+  );
+
+const AppDevtools = lazy(
+  () => loadDevtools() as Promise<{ default: ComponentType }>,
+);
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   beforeLoad: async ({ context }) => {
@@ -26,11 +39,12 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     return { siteConfig };
   },
   loader: async ({ context }) => {
-    return { siteConfig: context.siteConfig };
+    return {
+      siteConfig: context.siteConfig,
+      currentYear: new Date().getUTCFullYear(),
+    };
   },
   head: ({ loaderData }) => {
-    const env = clientEnv();
-
     return {
       meta: [
         {
@@ -97,15 +111,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
           href: "/feed.json",
         },
       ],
-      scripts: env.VITE_UMAMI_WEBSITE_ID
-        ? [
-            {
-              src: "/stats.js",
-              defer: true,
-              "data-website-id": env.VITE_UMAMI_WEBSITE_ID,
-            },
-          ]
-        : [],
     };
   },
   shellComponent: RootDocument,
@@ -126,18 +131,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <ThemeProvider>{children}</ThemeProvider>
-        <TanStackDevtools
-          config={{
-            position: "bottom-right",
-          }}
-          plugins={[
-            {
-              name: "Tanstack Router",
-              render: <TanStackRouterDevtoolsPanel />,
-            },
-            TanStackQueryDevtools,
-          ]}
-        />
+        <ClientOnly>
+          <Suspense fallback={null}>
+            <AppDevtools />
+          </Suspense>
+        </ClientOnly>
         <Scripts />
       </body>
     </html>

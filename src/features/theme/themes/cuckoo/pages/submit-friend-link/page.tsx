@@ -151,24 +151,6 @@ export function SubmitFriendLinkPage({
               )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium cuckoo-text-75 mb-1.5 transition-colors">
-                {m.friend_link_field_contact_email()}{" "}
-                <span className="text-red-500">*</span>
-              </label>
-              <input
-                {...form.register("contactEmail")}
-                type="email"
-                className="w-full px-4 py-2.5 rounded-xl border border-(--cuckoo-input-border) bg-(--cuckoo-input-bg) focus:outline-none focus:ring-2 focus:ring-(--cuckoo-primary)/50 focus:border-transparent transition-all"
-                placeholder={m.friend_link_placeholder_contact_email_default()}
-              />
-              {form.errors.contactEmail && (
-                <p className="mt-1.5 text-sm text-red-500">
-                  {form.errors.contactEmail.message}
-                </p>
-              )}
-            </div>
-
             <div className="pt-2">
               <Turnstile {...form.turnstileProps} />
             </div>

@@ -1,39 +1,35 @@
 import type { JSONContent } from "@tiptap/react";
-import type { PostStatus } from "@/lib/db/schema";
+
+export interface PostEditorCover {
+  id: number;
+  key: string;
+  url: string;
+  fileName: string;
+  width: number | null;
+  height: number | null;
+}
 
 export interface PostEditorData {
   title: string;
   summary: string;
   slug: string;
-  coverImage: string | null;
-  status: PostStatus;
-  readTimeInMinutes: number;
   contentJson: JSONContent | null;
   publishedAt: Date | null;
   pinnedAt: Date | null;
   tagIds: Array<number>;
-  isSynced: boolean;
-  hasPublicCache: boolean;
+  categoryId: number | null;
+  hasPublicSnapshot: boolean;
+  serverToday: string;
+  coverMediaId: number | null;
+  cover: PostEditorCover | null;
 }
 
 export interface PostEditorProps {
-  initialData: PostEditorData & { id: number };
+  initialData: PostEditorData & {
+    id: number;
+    publicSnapshotContentJson?: JSONContent | null;
+  };
   onSave: (data: PostEditorData) => Promise<void>;
 }
 
 export type SaveStatus = "SYNCED" | "SAVING" | "PENDING" | "ERROR";
-
-export const defaultPostData: PostEditorData = {
-  title: "",
-  summary: "",
-  slug: "",
-  coverImage: null,
-  status: "draft",
-  readTimeInMinutes: 1,
-  contentJson: null,
-  publishedAt: null,
-  pinnedAt: null,
-  tagIds: [],
-  isSynced: true,
-  hasPublicCache: false,
-};

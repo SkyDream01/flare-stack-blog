@@ -1,17 +1,18 @@
 import path from "node:path";
-import {
-  cloudflareTest,
-  readD1Migrations,
-} from "@cloudflare/vitest-pool-workers";
+import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import { loadEnv } from "vite";
 import viteTsConfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
+import packageJson from "./package.json";
 
 export default defineConfig(async () => {
   const migrationsPath = path.join(__dirname, "migrations");
   const migrations = await readD1Migrations(migrationsPath);
 
   return {
+    define: {
+      __APP_VERSION__: JSON.stringify(packageJson.version),
+    },
     plugins: [
       viteTsConfigPaths({
         projects: ["./tsconfig.json"],
@@ -27,11 +28,8 @@ export default defineConfig(async () => {
             BETTER_AUTH_SECRET:
               "a-very-long-test-secret-that-is-at-least-32-chars-long",
             BETTER_AUTH_URL: "http://localhost:3000",
-            ADMIN_EMAIL: "admin@example.com",
             GITHUB_CLIENT_ID: "test-id",
             GITHUB_CLIENT_SECRET: "test-secret",
-            CLOUDFLARE_ZONE_ID: "test-zone",
-            CLOUDFLARE_PURGE_API_TOKEN: "test-token",
             DOMAIN: "example.com",
             ENVIRONMENT: "test",
           },

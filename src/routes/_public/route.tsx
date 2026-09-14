@@ -1,13 +1,11 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
-import theme from "@theme";
 import { useEffect } from "react";
-import { toast } from "sonner";
-import { AUTH_KEYS } from "@/features/auth/queries";
+import theme from "@theme";
+import { useLogout } from "@/features/auth/hooks/use-logout";
 import { getThemePreloadImages } from "@/features/theme/site-config.helpers";
 import { authClient } from "@/lib/auth/auth.client";
-import { getLogoutAuthErrorMessage } from "@/lib/auth/auth-errors";
 import { CACHE_CONTROL } from "@/lib/constants";
+import { clientEnv } from "@/lib/env/client.env";
 import { m } from "@/paraglide/messages";
 
 export const Route = createFileRoute("/_public")({
@@ -18,47 +16,42 @@ export const Route = createFileRoute("/_public")({
   headers: () => {
     return CACHE_CONTROL.public;
   },
-  head: ({ loaderData }) => ({
-    links: (loaderData?.preloadImages ?? []).map((href) => ({
-      rel: "preload" as const,
-      as: "image",
-      href,
-    })),
-  }),
+  head: ({ loaderData }) => {
+    const env = clientEnv();
+    return {
+      links: (loaderData?.preloadImages ?? []).map((href) => ({
+        rel: "preload" as const,
+        as: "image",
+        href,
+      })),
+      scripts: env.VITE_UMAMI_WEBSITE_ID
+        ? [
+            {
+              src: "/stats.js",
+              defer: true,
+              "data-website-id": env.VITE_UMAMI_WEBSITE_ID,
+            },
+          ]
+        : [],
+    };
+  },
 });
 
 function PublicLayout() {
   const navigate = useNavigate();
   const { data: session, isPending: isSessionPending } =
     authClient.useSession();
-  const queryClient = useQueryClient();
+  const { logout } = useLogout();
 
   const navOptions = [
-    { label: m.nav_home(), to: "/" as const, id: "home" },
-    { label: m.nav_posts(), to: "/posts" as const, id: "posts" },
+    { id: "home", label: m.nav_home(), to: "/" as const },
+    { id: "posts", label: m.nav_posts(), to: "/posts" as const },
     {
+      id: "friend-links",
       label: m.nav_friend_links(),
       to: "/friend-links" as const,
-      id: "friend-links",
     },
   ];
-
-  const logout = async () => {
-    const { error } = await authClient.signOut();
-    if (error) {
-      toast.error(m.auth_logout_failed(), {
-        description:
-          getLogoutAuthErrorMessage(error, m) ?? m.auth_logout_failed_desc(),
-      });
-      return;
-    }
-
-    queryClient.removeQueries({ queryKey: AUTH_KEYS.session });
-
-    toast.success(m.auth_logout_success(), {
-      description: m.auth_logout_success_desc(),
-    });
-  };
 
   // Global shortcut: Cmd/Ctrl + K to navigate to search
   useEffect(() => {

@@ -1,83 +1,96 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, RefreshCw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { forceCheckUpdateFn } from "@/features/version/api/version.api";
-import { VERSION_KEYS } from "@/features/version/queries";
+import { updateCheckQuery } from "@/features/version/queries";
+import { recordUpdateNoticeShown } from "@/features/version/update-notice";
+import { orpcClient } from "@/lib/orpc";
 import { m } from "@/paraglide/messages";
 
 export function VersionMaintenance() {
   const queryClient = useQueryClient();
 
   const checkUpdateMutation = useMutation({
-    mutationFn: forceCheckUpdateFn,
+    mutationFn: () => orpcClient.version.forceCheck(),
     onSuccess: (result) => {
-      queryClient.setQueryData(VERSION_KEYS.updateCheck, result);
-      if (result.error) {
-        toast.error(m.settings_maintenance_version_toast_fail(), {
-          description: m.settings_maintenance_version_toast_fail_desc(),
-        });
-        return;
-      }
-      if (result.data.hasUpdate) {
+      queryClient.setQueryData(updateCheckQuery.queryKey, result);
+      if (result.hasUpdate) {
+        recordUpdateNoticeShown(localStorage, result.latestVersion);
         toast.info(m.settings_maintenance_version_toast_new(), {
           description: m.settings_maintenance_version_toast_new_desc({
-            version: result.data.latestVersion,
+            version: result.latestVersion,
           }),
           action: {
             label: m.settings_maintenance_version_action_view(),
-            onClick: () => window.open(result.data.releaseUrl, "_blank"),
+            onClick: () => window.open(result.releaseUrl, "_blank"),
           },
         });
         return;
       }
       toast.success(m.settings_maintenance_version_toast_latest(), {
         description: m.settings_maintenance_version_toast_latest_desc({
-          version: __APP_VERSION__,
+          version: result.currentVersion,
         }),
+      });
+    },
+    onError: () => {
+      toast.error(m.settings_maintenance_version_toast_fail(), {
+        description: m.settings_maintenance_version_toast_fail_desc(),
       });
     },
   });
 
   return (
-    <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-      <div className="space-y-3">
-        <div className="flex items-center gap-4">
-          <div className="rounded-sm bg-emerald-500/10 p-3">
-            <CheckCircle2 size={20} className="text-emerald-500" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-lg font-serif font-medium text-foreground tracking-tight">
-              {m.settings_maintenance_version_title()}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {m.settings_maintenance_version_desc({
-                version: __APP_VERSION__,
-              })}
-            </p>
-          </div>
-        </div>
+    <div className="flex items-center gap-3 py-4 border-b border-(--fuwari-input-border)">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium fuwari-text-90">
+          {m.settings_maintenance_version_title()}
+        </p>
+        <p className="text-xs fuwari-text-50">
+          {m.settings_maintenance_version_desc({ version: __APP_VERSION__ })}
+        </p>
+        {checkUpdateMutation.isSuccess && checkUpdateMutation.data && (
+          <p role="status" className="settings-operation-result">
+            {checkUpdateMutation.data.hasUpdate ? (
+              <a
+                href={checkUpdateMutation.data.releaseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-(--fuwari-primary)"
+              >
+                {m.settings_maintenance_version_toast_new_desc({
+                  version: checkUpdateMutation.data.latestVersion,
+                })}
+              </a>
+            ) : (
+              m.settings_maintenance_version_toast_latest_desc({
+                version: checkUpdateMutation.data.currentVersion,
+              })
+            )}
+          </p>
+        )}
+        {checkUpdateMutation.isError && (
+          <p
+            role="alert"
+            className="settings-operation-result"
+            data-error="true"
+          >
+            {m.settings_maintenance_version_toast_fail()}
+          </p>
+        )}
       </div>
-
-      <Button
+      <button
         type="button"
-        variant="outline"
-        onClick={() => checkUpdateMutation.mutate({})}
+        onClick={() => checkUpdateMutation.mutate()}
         disabled={checkUpdateMutation.isPending}
-        className="h-10 shrink-0 rounded-none border-border/50 px-6 font-mono text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-background group"
+        className="fuwari-btn-regular rounded-xl h-9 px-3 text-sm font-medium shrink-0 inline-flex items-center gap-1.5 disabled:opacity-50"
       >
-        <RefreshCw
-          size={12}
-          className={
-            checkUpdateMutation.isPending
-              ? "animate-spin mr-3"
-              : "mr-3 group-hover:rotate-180 transition-transform duration-500"
-          }
-        />
+        {checkUpdateMutation.isPending ? (
+          <Loader2 size={14} className="animate-spin" />
+        ) : null}
         {checkUpdateMutation.isPending
           ? m.settings_maintenance_version_checking()
           : m.settings_maintenance_version_check_btn()}
-      </Button>
+      </button>
     </div>
   );
 }

@@ -7,7 +7,6 @@ interface AdminNotificationEmailProps {
   commentUrl: string;
   commenterName: string;
   locale: Locale;
-  mode: "new" | "pending";
   postTitle: string;
 }
 
@@ -16,29 +15,19 @@ export const AdminNotificationEmail = ({
   commentUrl,
   commenterName,
   locale,
-  mode,
   postTitle,
 }: AdminNotificationEmailProps) => {
-  const isPending = mode === "pending";
-
   return (
     <EmailLayout
       locale={locale}
-      previewText={
-        isPending
-          ? m.email_comment_admin_pending_preview(
-              { commenterName, postTitle },
-              { locale },
-            )
-          : m.email_comment_admin_root_preview(
-              { commenterName, postTitle },
-              { locale },
-            )
-      }
+      previewText={m.email_comment_admin_root_preview(
+        { commenterName, postTitle },
+        { locale },
+      )}
     >
       <h1
         style={{
-          fontFamily: '"Playfair Display", "Georgia", serif',
+          fontFamily: '"Noto Serif SC", "Songti SC", Georgia, serif',
           fontSize: "20px",
           fontWeight: "500",
           color: "#1a1a1a",
@@ -46,20 +35,13 @@ export const AdminNotificationEmail = ({
           lineHeight: "1.4",
         }}
       >
-        {isPending
-          ? m.email_comment_admin_pending_title({}, { locale })
-          : m.email_comment_admin_root_title({}, { locale })}
+        {m.email_comment_admin_root_title({}, { locale })}
       </h1>
       <p style={{ fontSize: "14px", color: "#444", lineHeight: "1.6" }}>
-        {isPending
-          ? m.email_comment_admin_pending_intro(
-              { commenterName, postTitle },
-              { locale },
-            )
-          : m.email_comment_admin_root_intro(
-              { commenterName, postTitle },
-              { locale },
-            )}
+        {m.email_comment_admin_root_intro(
+          { commenterName, postTitle },
+          { locale },
+        )}
       </p>
       <blockquote
         style={{
@@ -87,9 +69,7 @@ export const AdminNotificationEmail = ({
             letterSpacing: "0.05em",
           }}
         >
-          {isPending
-            ? m.email_comment_admin_pending_action({}, { locale })
-            : m.email_comment_admin_root_action({}, { locale })}
+          {m.email_comment_admin_root_action({}, { locale })}
         </a>
       </div>
     </EmailLayout>

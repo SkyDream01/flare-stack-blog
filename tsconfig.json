@@ -3,16 +3,16 @@
     "target": "ES2022",
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "baseUrl": ".",
     "module": "ESNext",
+    "resolveJsonModule": true,
     /* Bundler mode */
     "moduleResolution": "bundler",
     "paths": {
       "@/*": ["./src/*"],
-      "@theme": ["./src/features/theme/themes/default"],
-      "@theme/*": ["./src/features/theme/themes/default/*"]
+      "@theme": ["./src/features/theme/themes/default/index.ts"],
+      "tests/*": ["./tests/*"]
     },
-    "types": ["vite/client", "@cloudflare/vitest-pool-workers/types"],
+    "types": ["vite/client", "@cloudflare/vitest-plugin/types"],
     "allowImportingTsExtensions": true,
     "strict": true,
     "noFallthroughCasesInSwitch": true,
@@ -30,5 +30,6 @@
     "**/*.tsx",
     "./worker-configuration.d.ts",
     ".release-it.ts"
-  ]
+  ],
+  "exclude": ["tmp"]
 }

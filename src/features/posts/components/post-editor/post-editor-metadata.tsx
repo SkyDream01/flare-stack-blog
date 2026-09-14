@@ -1,359 +1,141 @@
-import { useMutation } from "@tanstack/react-query";
-import {
-  ImagePlus,
-  Loader2,
-  Pin,
-  PinOff,
-  Sparkles,
-  Trash2,
-} from "lucide-react";
-import { useRef } from "react";
+import { Loader2, RefreshCw } from "lucide-react";
 import TextareaAutosize from "react-textarea-autosize";
-import { toast } from "sonner";
 import DatePicker from "@/components/ui/date-picker";
-import { Input } from "@/components/ui/input";
-import { uploadImageFn } from "@/features/media/api/media.api";
+import { CategorySelect } from "@/features/categories/components/category-select";
 import { TagSelector } from "@/features/tags/components/tag-selector";
-import { POST_STATUSES } from "@/lib/db/schema";
-import { toLocalDateString } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
+import { PostEditorCover } from "./post-editor-cover";
+import { EDITOR_FIELD_CLASS } from "./post-editor-ui";
 import type { PostEditorData } from "./types";
-
-const STATUS_LABELS: Record<PostEditorData["status"], () => string> = {
-  draft: m.editor_status_draft,
-  published: m.editor_status_published,
-};
 
 interface PostEditorMetadataProps {
   post: PostEditorData;
   isGeneratingSlug: boolean;
-  isCalculatingReadTime: boolean;
-  isGeneratingSummary: boolean;
-  isGeneratingTags: boolean;
   onPostChange: (updates: Partial<PostEditorData>) => void;
   onGenerateSlug: () => void;
-  onCalculateReadTime: () => void;
-  onGenerateSummary: () => void;
-  onGenerateTags: () => void;
 }
 
 export function PostEditorMetadata({
   post,
   isGeneratingSlug,
-  isCalculatingReadTime,
-  isGeneratingSummary,
-  isGeneratingTags,
   onPostChange,
   onGenerateSlug,
-  onCalculateReadTime,
-  onGenerateSummary,
-  onGenerateTags,
 }: PostEditorMetadataProps) {
   return (
-    <>
-      <div className="mb-12">
-        <TextareaAutosize
-          value={post.title}
-          onChange={(e) => onPostChange({ title: e.target.value })}
-          minRows={1}
-          placeholder={m.editor_title_placeholder()}
-          className="w-full resize-none overflow-hidden border-none bg-transparent p-0 text-4xl font-medium leading-[1.2] tracking-tight text-foreground transition-all placeholder:text-muted-foreground/20 focus:outline-none md:text-6xl font-serif"
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 custom-scrollbar">
+        <PostEditorCover
+          cover={post.cover}
+          onChange={(next) => onPostChange(next)}
         />
-      </div>
 
-      <div className="mb-16 grid grid-cols-1 gap-x-12 gap-y-8 border-t border-border/30 pt-8 md:grid-cols-3">
-        <div className="space-y-3">
-          <label className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-            {m.editor_meta_status()}
-          </label>
-          <div className="flex items-center gap-4">
-            {POST_STATUSES.map((status) => (
-              <button
-                key={status}
-                onClick={() => onPostChange({ status })}
-                className={`
-                  text-[10px] font-mono uppercase tracking-wider transition-colors
-                  ${
-                    post.status === status
-                      ? "border-b border-foreground font-bold text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }
-                `}
-              >
-                {STATUS_LABELS[status]()}
-              </button>
-            ))}
-          </div>
-        </div>
+        <label className="grid gap-2 text-xs fuwari-text-50">
+          {m.editor_meta_category()}
+          <CategorySelect
+            value={post.categoryId}
+            onChange={(categoryId) => onPostChange({ categoryId })}
+          />
+        </label>
 
-        {post.status === "published" && (
-          <div className="space-y-3">
-            <label className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-              {m.editor_meta_pin()}
-            </label>
-            <div>
-              <button
-                onClick={() =>
-                  onPostChange({
-                    pinnedAt: post.pinnedAt ? null : new Date(),
-                  })
-                }
-                className={`
-                  flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider transition-colors
-                  ${
-                    post.pinnedAt
-                      ? "border-b border-foreground font-bold text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }
-                `}
-              >
-                {post.pinnedAt ? <Pin size={12} /> : <PinOff size={12} />}
-                {post.pinnedAt
-                  ? m.editor_meta_pinned()
-                  : m.editor_meta_unpinned()}
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <label className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-            {m.editor_meta_published_at()}
-          </label>
-          <div className="text-xs font-mono">
-            <DatePicker
-              value={
-                post.publishedAt ? toLocalDateString(post.publishedAt) : ""
-              }
-              onChange={(dateStr) =>
-                onPostChange({
-                  publishedAt: dateStr
-                    ? new Date(`${dateStr}T12:00:00Z`)
-                    : null,
-                })
-              }
-              className="h-auto! border-none! bg-transparent! p-0! text-xs text-foreground font-mono"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <label className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-            {m.editor_meta_read_time()}
-          </label>
-          <div className="group flex items-center gap-2">
-            <Input
-              type="number"
-              value={post.readTimeInMinutes}
-              onChange={(e) =>
-                onPostChange({
-                  readTimeInMinutes: Number.parseInt(e.target.value) || 0,
-                })
-              }
-              className="h-auto w-12 border-none bg-transparent p-0 px-0 text-xs font-mono text-foreground shadow-none focus-visible:ring-0"
-            />
-            <span className="text-[10px] font-mono text-muted-foreground">
-              {m.editor_meta_minutes()}
-            </span>
-            <button
-              onClick={onCalculateReadTime}
-              disabled={isCalculatingReadTime}
-              className="ml-2 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
-            >
-              {isCalculatingReadTime ? (
-                <Loader2 size={10} className="animate-spin" />
-              ) : (
-                <Sparkles size={10} />
-              )}
-            </button>
-          </div>
-        </div>
-
-        <div className="col-span-1 space-y-3 md:col-span-3">
-          <label className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-            {m.editor_meta_slug()}
-          </label>
-          <div className="group flex items-center gap-2">
-            <span className="text-xs font-mono text-muted-foreground">
-              /post/
-            </span>
-            <Input
-              type="text"
-              value={post.slug || ""}
-              onChange={(e) => onPostChange({ slug: e.target.value })}
-              className="h-auto flex-1 border-none bg-transparent p-0 px-0 text-xs font-mono text-foreground shadow-none placeholder:text-muted-foreground/30 focus-visible:ring-0"
-              placeholder="your-post-slug"
-            />
-            <button
-              onClick={onGenerateSlug}
-              disabled={isGeneratingSlug}
-              className="ml-2 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
-            >
-              {isGeneratingSlug ? (
-                <Loader2 size={10} className="animate-spin" />
-              ) : (
-                <Sparkles size={10} />
-              )}
-            </button>
-          </div>
-        </div>
-
-        <div className="col-span-1 space-y-3 md:col-span-3">
-          <div className="flex items-center justify-between">
-            <label className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-              {m.editor_meta_tags()}
-            </label>
-            <button
-              onClick={onGenerateTags}
-              disabled={isGeneratingTags}
-              className="flex items-center gap-1 text-[9px] font-mono text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {isGeneratingTags ? (
-                <Loader2 size={8} className="animate-spin" />
-              ) : (
-                <Sparkles size={8} />
-              )}
-              {m.editor_meta_auto_generate()}
-            </button>
-          </div>
+        <div className="grid gap-2">
+          <p className="text-xs fuwari-text-50">{m.editor_meta_tags()}</p>
           <TagSelector
             value={post.tagIds}
             onChange={(tagIds) => onPostChange({ tagIds })}
           />
         </div>
 
-        <div className="col-span-1 space-y-3 md:col-span-3">
-          <div className="flex items-center justify-between">
-            <label className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-              {m.editor_meta_summary()}
-            </label>
+        <label className="grid gap-2 text-xs fuwari-text-50">
+          {m.editor_meta_link()}
+          <div className="group flex items-center gap-1">
+            <span className="shrink-0 pl-1 text-sm fuwari-text-50">/post/</span>
+            <input
+              type="text"
+              value={post.slug || ""}
+              onChange={(e) => onPostChange({ slug: e.target.value })}
+              className={cn(EDITOR_FIELD_CLASS, "flex-1")}
+              placeholder="your-post-slug"
+            />
             <button
-              onClick={onGenerateSummary}
-              disabled={isGeneratingSummary}
-              className="flex items-center gap-1 text-[9px] font-mono text-muted-foreground transition-colors hover:text-foreground"
+              type="button"
+              onClick={onGenerateSlug}
+              disabled={isGeneratingSlug}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-xl fuwari-text-50 hover:text-(--fuwari-primary) disabled:opacity-50"
+              aria-label={m.editor_meta_auto_generate()}
             >
-              {isGeneratingSummary ? (
-                <Loader2 size={8} className="animate-spin" />
+              {isGeneratingSlug ? (
+                <Loader2 size={14} className="animate-spin" />
               ) : (
-                <Sparkles size={8} />
+                <RefreshCw size={14} />
               )}
-              {m.editor_meta_auto_generate()}
             </button>
           </div>
+        </label>
+
+        <div className="flex items-end gap-3">
+          <label className="grid min-w-0 flex-1 gap-2 text-xs fuwari-text-50">
+            {m.editor_meta_date()}
+            <DatePicker
+              today={post.serverToday}
+              maxDate={post.serverToday}
+              value={
+                post.publishedAt
+                  ? post.publishedAt.toISOString().slice(0, 10)
+                  : ""
+              }
+              onChange={(dateStr) => {
+                if (dateStr && dateStr > post.serverToday) return;
+                onPostChange({
+                  publishedAt: dateStr
+                    ? new Date(`${dateStr}T12:00:00Z`)
+                    : null,
+                });
+              }}
+            />
+          </label>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={Boolean(post.pinnedAt)}
+            onClick={() =>
+              onPostChange({
+                pinnedAt: post.pinnedAt ? null : new Date(),
+              })
+            }
+            className="flex h-10 shrink-0 items-center gap-2 pb-0"
+          >
+            <span className="text-xs fuwari-text-50">
+              {m.editor_meta_pin()}
+            </span>
+            <span
+              className={cn(
+                "relative h-6 w-10 rounded-full transition-colors",
+                post.pinnedAt
+                  ? "bg-(--fuwari-primary)"
+                  : "bg-(--fuwari-btn-regular-bg)",
+              )}
+            >
+              <span
+                className={cn(
+                  "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
+                  post.pinnedAt && "translate-x-4",
+                )}
+              />
+            </span>
+          </button>
+        </div>
+
+        <label className="grid gap-2 text-xs fuwari-text-50">
+          {m.editor_meta_summary()}
           <TextareaAutosize
             value={post.summary || ""}
             onChange={(e) => onPostChange({ summary: e.target.value })}
             placeholder={m.editor_summary_placeholder()}
-            className="w-full resize-none bg-transparent text-xs font-mono leading-relaxed text-foreground placeholder:text-muted-foreground/30 focus:outline-none"
+            minRows={3}
+            className="w-full resize-none rounded-xl bg-(--fuwari-btn-regular-bg) px-3 py-2.5 text-sm leading-relaxed fuwari-text-90 outline-none placeholder:fuwari-text-30"
           />
-        </div>
-
-        <CoverImageField
-          value={post.coverImage}
-          onChange={(coverImage) => onPostChange({ coverImage })}
-        />
-      </div>
-    </>
-  );
-}
-
-const COVER_ACCEPT = "image/png,image/jpeg,image/jpg,image/gif,image/webp";
-
-function CoverImageField({
-  value,
-  onChange,
-}: {
-  value: string | null;
-  onChange: (coverImage: string | null) => void;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("image", file);
-      const result = await uploadImageFn({ data: formData });
-      if (result.error) {
-        throw new Error(m.media_upload_error_db());
-      }
-      return result.data.url;
-    },
-    onSuccess: (url) => {
-      onChange(url);
-      toast.success(m.editor_cover_upload_success());
-    },
-    onError: (err) => {
-      toast.error(m.editor_image_upload_failed(), {
-        description: err instanceof Error ? err.message : undefined,
-      });
-    },
-  });
-
-  return (
-    <div className="col-span-1 space-y-3 md:col-span-3">
-      <label className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-        {m.editor_meta_cover()}
-      </label>
-      <div className="flex items-center gap-3">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={COVER_ACCEPT}
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-              uploadMutation.mutate(file);
-              e.target.value = "";
-            }
-          }}
-        />
-        {value ? (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="h-12 w-20 shrink-0 overflow-hidden rounded border border-border/40"
-            title={m.editor_cover_replace()}
-          >
-            <img
-              src={value}
-              alt={m.editor_meta_cover()}
-              className="h-full w-full object-cover"
-            />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadMutation.isPending}
-            className="flex h-12 w-20 shrink-0 items-center justify-center rounded border border-dashed border-border/40 text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-            title={m.editor_cover_upload()}
-          >
-            {uploadMutation.isPending ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <ImagePlus size={14} />
-            )}
-          </button>
-        )}
-        <Input
-          type="text"
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value || null)}
-          placeholder={m.editor_cover_placeholder()}
-          className="h-auto flex-1 border-none bg-transparent p-0 px-0 text-xs font-mono text-foreground shadow-none placeholder:text-muted-foreground/30 focus-visible:ring-0"
-        />
-        {value && (
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            disabled={uploadMutation.isPending}
-            className="ml-2 text-muted-foreground transition-colors hover:text-foreground"
-            title={m.editor_cover_clear()}
-          >
-            <Trash2 size={12} />
-          </button>
-        )}
+        </label>
       </div>
     </div>
   );

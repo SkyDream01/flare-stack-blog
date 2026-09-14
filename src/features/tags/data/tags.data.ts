@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gt, lte, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { PostsTable, PostTagsTable, TagsTable } from "@/lib/db/schema";
 
@@ -33,7 +33,6 @@ export async function getAllTagsWithCount(
   } = {},
 ) {
   const { sortBy = "name", sortDir = "asc", publicOnly = false } = options;
-
   const query = db
     .select({
       id: TagsTable.id,
@@ -43,21 +42,14 @@ export async function getAllTagsWithCount(
     })
     .from(TagsTable)
     .leftJoin(PostTagsTable, eq(TagsTable.id, PostTagsTable.tagId))
+    .leftJoin(PostsTable, eq(PostsTable.id, PostTagsTable.postId))
+    .where(
+      publicOnly
+        ? sql`${PostsTable.publicSnapshotJson} IS NOT NULL`
+        : undefined,
+    )
     .groupBy(TagsTable.id)
     .$dynamic();
-
-  if (publicOnly) {
-    // Only count published posts
-    query
-      .innerJoin(PostsTable, eq(PostTagsTable.postId, PostsTable.id))
-      .where(
-        and(
-          eq(PostsTable.status, "published"),
-          lte(PostsTable.publishedAt, new Date()),
-        ),
-      )
-      .having(gt(count(PostTagsTable.postId), 0));
-  }
 
   const orderFn = sortDir === "asc" ? asc : desc;
 
@@ -78,15 +70,6 @@ export async function getAllTagsWithCount(
 export async function findTagById(db: DB, id: number) {
   return await db.query.TagsTable.findFirst({
     where: eq(TagsTable.id, id),
-  });
-}
-
-/**
- * Find a tag by name
- */
-export async function findTagByName(db: DB, name: string) {
-  return await db.query.TagsTable.findFirst({
-    where: eq(TagsTable.name, name),
   });
 }
 
@@ -193,28 +176,21 @@ export async function nameExists(
 }
 
 /**
- * Delete all tag associations for a post.
- */
-export async function deletePostTagAssociations(db: DB, postId: number) {
-  await db.delete(PostTagsTable).where(eq(PostTagsTable.postId, postId));
-}
-
-/**
  * Get published posts associated with a tag (for cache invalidation)
  */
 export async function getPublishedPostsByTagId(db: DB, tagId: number) {
   const results = await db
     .select({
       id: PostsTable.id,
-      slug: PostsTable.slug,
+      slug: sql<string>`coalesce(${PostsTable.publicSlug}, ${PostsTable.slug})`.as(
+        "slug",
+      ),
     })
-    .from(PostTagsTable)
-    .innerJoin(PostsTable, eq(PostTagsTable.postId, PostsTable.id))
+    .from(PostsTable)
     .where(
       and(
-        eq(PostTagsTable.tagId, tagId),
-        eq(PostsTable.status, "published"),
-        lte(PostsTable.publishedAt, new Date()),
+        sql`EXISTS (SELECT 1 FROM ${PostTagsTable} WHERE ${PostTagsTable.postId} = ${PostsTable.id} AND ${PostTagsTable.tagId} = ${tagId})`,
+        sql`${PostsTable.publicSnapshotJson} IS NOT NULL`,
       ),
     );
 

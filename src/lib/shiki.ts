@@ -38,14 +38,14 @@ const languageLoaders: Record<
   yaml: () => import("shiki/langs/yaml.mjs"),
 };
 
-export const themes = {
+const themes = {
   light: "vitesse-light",
   dark: "vitesse-dark",
 } as const;
 
 let highlighterPromise: Promise<HighlighterCore> | null = null;
 
-export async function getHighlighter() {
+async function getHighlighter() {
   if (!highlighterPromise) {
     // Customizing the background color of vitesse-dark to remove the greenish tint
     // using Zinc-900 (#18181b) to match the dark mode UI
@@ -75,7 +75,7 @@ const aliases: Record<string, string> = {
   md: "markdown",
 };
 
-export async function loadLanguage(lang: string) {
+async function loadLanguage(lang: string) {
   const normalizedLang = aliases[lang] || lang;
 
   const highlighter = await getHighlighter();
@@ -88,6 +88,14 @@ export async function loadLanguage(lang: string) {
     const langModule = await loader();
     await highlighter.loadLanguage(...langModule.default);
   }
+}
+
+function fallbackHighlightedCode(code: string) {
+  return `<pre><code>${code
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")}</code></pre>`;
 }
 
 export async function highlight(code: string, lang: string) {
@@ -112,26 +120,6 @@ export async function highlight(code: string, lang: string) {
     });
   } catch (e) {
     console.warn(`Failed to highlight language: ${lang}`, e);
-    return `<pre><code>${code}</code></pre>`;
+    return fallbackHighlightedCode(code);
   }
-}
-
-/**
- * Get tokens for ProseMirror decorations with dual-theme support.
- * Loads the language lazily if not already loaded.
- */
-export async function codeToTokens(code: string, lang: string) {
-  await loadLanguage(lang);
-  const highlighter = await getHighlighter();
-
-  const supportedLangs = highlighter.getLoadedLanguages();
-  const safeLang = supportedLangs.includes(lang) ? lang : "plaintext";
-
-  return highlighter.codeToTokens(code, {
-    lang: safeLang,
-    themes: {
-      light: themes.light,
-      dark: themes.dark,
-    },
-  });
 }

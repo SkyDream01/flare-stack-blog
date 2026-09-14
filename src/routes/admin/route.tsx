@@ -1,20 +1,28 @@
 import {
+  ClientOnly,
   createFileRoute,
-  Link,
   Outlet,
   redirect,
+  useLocation,
+  useMatches,
 } from "@tanstack/react-router";
-import { ArrowUpRight, Menu, Settings } from "lucide-react";
-import { useState } from "react";
+import { isAdminWorkspace } from "@/components/admin/content-workspace";
+import "@/components/admin/content-workspace.css";
+import { Menu } from "lucide-react";
+import { useRef, useState } from "react";
+import {
+  AdminChromeProvider,
+  useAdminChrome,
+} from "@/components/admin/admin-chrome";
 import { SideBar } from "@/components/admin/side-bar";
-import { Breadcrumbs } from "@/components/breadcrumbs";
-import Toaster from "@/components/ui/toaster";
+import { PageFade } from "@/components/layout/page-fade";
+import { Toaster } from "@/components/layout/toaster";
 import { sessionQuery } from "@/features/auth/queries";
+import { settingsSectionFromPath } from "@/features/config/components/admin/settings-pages";
+import { useVersionCheck } from "@/features/version/hooks/use-version-check";
 import { CACHE_CONTROL } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
-// 管理后台固定使用 default 主题样式，不随 THEME 变量切换
-import "@/features/theme/themes/default/styles/index.css";
-import "@/styles/admin.css";
 
 export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ context }) => {
@@ -45,67 +53,128 @@ export const Route = createFileRoute("/admin")({
   },
 });
 
+function pageTitleFromMatches(matches: ReturnType<typeof useMatches>): string {
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const title = (matches[i]?.loaderData as { title?: string } | undefined)
+      ?.title;
+    if (typeof title === "string" && title.length > 0) return title;
+  }
+  return "";
+}
+
 function AdminLayout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const closeMobileSidebar = () => setIsMobileSidebarOpen(false);
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const editorWorkspace = isPostEditorPath(pathname);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => editorWorkspace,
+  );
+  useVersionCheck();
 
   return (
-    <div className="h-screen overflow-hidden bg-background text-foreground flex relative font-sans admin-layout">
-      <SideBar
-        isMobileSidebarOpen={isMobileSidebarOpen}
-        closeMobileSidebar={closeMobileSidebar}
-      />
+    <AdminChromeProvider>
+      <div
+        className={cn(
+          "admin-layout h-dvh overflow-hidden bg-(--fuwari-page-bg) text-foreground flex gap-4 p-4 relative font-sans",
+          editorWorkspace && "admin-editor-layout",
+        )}
+      >
+        <SideBar
+          isMobileSidebarOpen={isMobileSidebarOpen}
+          closeMobileSidebar={closeMobileSidebar}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((value) => !value)}
+        />
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 min-h-0">
-        {/* Top Header */}
-        <header className="h-20 border-b border-border/30 bg-background flex items-center justify-between px-6 md:px-10 sticky top-0 z-30 shrink-0">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden p-2 hover:bg-muted/50 rounded-sm transition-colors text-foreground"
-              aria-label={m.admin_layout_open_navigation()}
-            >
-              <Menu size={20} strokeWidth={1.5} />
-            </button>
-            <Breadcrumbs />
-          </div>
+        <main className="flex-1 flex flex-col min-w-0 min-h-0">
+          <MobileTopBar onOpenSidebar={() => setIsMobileSidebarOpen(true)} />
+          <AdminMain />
+        </main>
+        <Toaster />
+      </div>
+    </AdminChromeProvider>
+  );
+}
 
-          <div className="flex items-center gap-6">
-            <Link
-              to="/admin/settings"
-              className="group p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors"
-              title={m.admin_layout_settings()}
-            >
-              <Settings
-                size={18}
-                strokeWidth={1.5}
-                className="group-hover:rotate-45 transition-transform duration-500 ease-in-out"
-              />
-            </Link>
-            <div className="h-4 w-px bg-border/40" />
-            <Link
-              to="/"
-              className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-mono font-medium text-muted-foreground hover:text-foreground transition-colors group"
-            >
-              <span>{m.admin_layout_back_to_site()}</span>
-              <ArrowUpRight
-                size={10}
-                strokeWidth={1.5}
-                className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
-              />
-            </Link>
-          </div>
-        </header>
+function isPostEditorPath(pathname: string) {
+  return /\/admin\/posts\/edit\/[^/]+/.test(pathname);
+}
 
-        {/* Content Scroll */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-6 md:p-12 custom-scrollbar">
-          <div className="max-w-7xl mx-auto">
-            <Outlet />
-          </div>
-        </div>
-      </main>
-      <Toaster />
+function AdminMain() {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const contentWorkspace = isAdminWorkspace(pathname);
+  const fill = isPostEditorPath(pathname) || contentWorkspace;
+
+  return (
+    <div
+      ref={scrollerRef}
+      data-scroll-restoration-id={
+        contentWorkspace ? "admin-content-outer" : undefined
+      }
+      className={cn(
+        "flex-1 min-h-0",
+        contentWorkspace && "admin-list-region",
+        fill
+          ? "flex flex-col overflow-hidden"
+          : "overflow-y-auto custom-scrollbar",
+      )}
+    >
+      <div className={cn("w-full", fill && "flex min-h-0 flex-1 flex-col")}>
+        <PageFade
+          fill={fill}
+          includeSearch={false}
+          pathKey={(path) => {
+            if (settingsSectionFromPath(path)) return "/admin/settings/*";
+            const edit = path.match(/\/admin\/posts\/edit\/([^/]+)/);
+            if (edit) return `/admin/posts/edit/${edit[1]}`;
+            return path;
+          }}
+          onEntered={() => {
+            if (!contentWorkspace) scrollerRef.current?.scrollTo(0, 0);
+          }}
+        >
+          <Outlet />
+        </PageFade>
+      </div>
     </div>
+  );
+}
+
+function MobileTopBar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
+  const matches = useMatches();
+  const pageTitle = pageTitleFromMatches(matches);
+  const { primaryAction, mobileTitle } = useAdminChrome();
+
+  return (
+    <header className="lg:hidden shrink-0 mb-4">
+      <div className="fuwari-card-base flex items-center gap-3 px-3 h-16">
+        <button
+          onClick={onOpenSidebar}
+          className="p-2 rounded-lg fuwari-text-75 hover:text-(--fuwari-primary)"
+          aria-label={m.admin_layout_open_navigation()}
+        >
+          <Menu size={20} strokeWidth={1.5} />
+        </button>
+        <h1 className="flex-1 min-w-0 truncate text-base font-medium fuwari-text-90">
+          <ClientOnly fallback={m.admin_layout_title()}>
+            {mobileTitle ?? pageTitle}
+          </ClientOnly>
+        </h1>
+        {primaryAction ? (
+          <button
+            type="button"
+            onClick={primaryAction.onClick}
+            disabled={primaryAction.disabled}
+            className="fuwari-btn-primary rounded-xl h-9 px-3 text-sm font-medium shrink-0"
+          >
+            {primaryAction.label}
+          </button>
+        ) : (
+          <span className="w-9" />
+        )}
+      </div>
+    </header>
   );
 }

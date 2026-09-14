@@ -5,7 +5,7 @@ import { m } from "@/paraglide/messages";
 import { renderCommentReact } from "./comment-render";
 
 interface ExpandableContentProps {
-  content: JSONContent | null;
+  content: JSONContent | string | null;
   className?: string;
   maxLines?: number; // Default 3
 }

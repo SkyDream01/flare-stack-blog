@@ -1,15 +1,15 @@
 import { Link, useRouteContext } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
-import { Suspense, useEffect } from "react";
+import { useEffect } from "react";
 import type { PostPageProps } from "@/features/theme/contract/pages";
 import { CuckooCommentSection } from "@/features/theme/themes/cuckoo/components/comments/view/comment-section";
 import { ContentRenderer } from "@/features/theme/themes/cuckoo/components/content/content-renderer";
 import { coverBackgroundValue } from "@/features/theme/themes/cuckoo/components/cover";
 import { setSidebarToc } from "@/features/theme/themes/cuckoo/components/toc-store";
 import { authClient } from "@/lib/auth/auth.client";
+import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
 import { m } from "@/paraglide/messages";
 import { PostMeta } from "./components/post-meta";
-import { RelatedPosts, RelatedPostsSkeleton } from "./components/related-posts";
 
 /** 超过 30 天未更新时显示过时提醒(对应原主题 .post-alert) */
 function getOutdatedInfo(
@@ -53,7 +53,7 @@ export function PostPage({ post }: PostPageProps) {
               backgroundImage: coverBackgroundValue(
                 siteConfig,
                 post.slug,
-                post.coverImage,
+                post.cover?.url,
               ),
             }}
           />
@@ -113,9 +113,7 @@ export function PostPage({ post }: PostPageProps) {
       </article>
 
       {/* 相关文章 */}
-      <Suspense fallback={<RelatedPostsSkeleton />}>
-        <RelatedPosts slug={post.slug} />
-      </Suspense>
+      <PostAdjacentNav slug={post.slug} />
 
       {/* 评论区 */}
       <CuckooCommentSection postId={post.id} />

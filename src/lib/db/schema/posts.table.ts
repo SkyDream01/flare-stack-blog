@@ -6,10 +6,38 @@ import {
   primaryKey,
   sqliteTable,
   text,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { createdAt, id, updatedAt } from "./helper";
 
 export const POST_STATUSES = ["draft", "published"] as const;
+
+export type PublicPostCover = {
+  mediaId: number;
+  key: string;
+  url: string;
+  width: number | null;
+  height: number | null;
+};
+
+export type PublicPostSnapshot = {
+  title: string;
+  summary: string | null;
+  slug: string;
+  contentJson: JSONContent | null;
+  // Historical metadata; live Category/Tag assignments use the relations below.
+  tagIds: Array<number>;
+  categoryId: number | null;
+  publishedAt: string;
+  pinnedAt: string | null;
+  cover: PublicPostCover | null;
+};
+
+export const CategoriesTable = sqliteTable("categories", {
+  id,
+  name: text().notNull().unique(),
+  createdAt,
+});
 
 export const PostsTable = sqliteTable(
   "posts",
@@ -17,23 +45,28 @@ export const PostsTable = sqliteTable(
     id,
     title: text().notNull(),
     summary: text(),
-    readTimeInMinutes: integer("read_time_in_minutes").default(1).notNull(),
     slug: text().notNull().unique(),
-    coverImage: text("cover_image"),
-
     contentJson: text("content_json", { mode: "json" }).$type<JSONContent>(),
-    publicContentJson: text("public_content_json", {
+    publicSnapshotJson: text("public_snapshot_json", {
       mode: "json",
-    }).$type<JSONContent>(),
+    }).$type<PublicPostSnapshot>(),
+    publicSlug: text("public_slug"),
     status: text("status", { enum: POST_STATUSES }).notNull().default("draft"),
     publishedAt: integer("published_at", { mode: "timestamp" }),
     pinnedAt: integer("pinned_at", { mode: "timestamp" }),
+    coverMediaId: integer("cover_media_id"),
+    categoryId: integer("category_id").references(() => CategoriesTable.id, {
+      onDelete: "set null",
+    }),
     createdAt,
     updatedAt,
   },
   (table) => [
+    uniqueIndex("posts_public_slug_unique").on(table.publicSlug),
     index("published_at_idx").on(table.publishedAt, table.status),
     index("created_at_idx").on(table.createdAt),
+    index("posts_cover_media_id_idx").on(table.coverMediaId),
+    index("posts_category_id_idx").on(table.categoryId),
   ],
 );
 
@@ -60,8 +93,16 @@ export const PostTagsTable = sqliteTable(
 );
 
 // ==================== relations ====================
-export const postsRelations = relations(PostsTable, ({ many }) => ({
+export const postsRelations = relations(PostsTable, ({ many, one }) => ({
   postTags: many(PostTagsTable),
+  category: one(CategoriesTable, {
+    fields: [PostsTable.categoryId],
+    references: [CategoriesTable.id],
+  }),
+}));
+
+export const categoriesRelations = relations(CategoriesTable, ({ many }) => ({
+  posts: many(PostsTable),
 }));
 
 export const tagsRelations = relations(TagsTable, ({ many }) => ({
@@ -81,5 +122,6 @@ export const postTagsRelations = relations(PostTagsTable, ({ one }) => ({
 
 // ==================== types ====================
 export type Tag = typeof TagsTable.$inferSelect;
+export type Category = typeof CategoriesTable.$inferSelect;
 export type Post = typeof PostsTable.$inferSelect;
 export type PostStatus = (typeof POST_STATUSES)[number];

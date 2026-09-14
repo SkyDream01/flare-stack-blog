@@ -26,6 +26,7 @@ import type React from "react";
 import { m } from "@/paraglide/messages";
 
 interface EditorToolbarProps {
+  className?: string;
   editor: Editor | null;
   onLinkClick: () => void;
   onImageClick: () => void;
@@ -50,12 +51,14 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
   <button
     onClick={onClick}
     className={clsx(
-      "h-8 w-8 flex items-center justify-center transition-colors duration-200 group relative rounded-none",
+      "fuwari-toolbar-button h-8 w-8 flex items-center justify-center group relative rounded-lg",
       isActive
-        ? "bg-foreground text-background"
-        : "text-muted-foreground hover:text-foreground hover:bg-muted/20",
+        ? "bg-(--fuwari-btn-regular-bg) text-(--fuwari-primary)"
+        : "fuwari-text-50 hover:text-(--fuwari-primary) hover:bg-(--fuwari-btn-regular-bg)",
     )}
     title={label}
+    aria-label={label}
+    aria-pressed={isActive}
     type="button"
   >
     <Icon size={14} strokeWidth={isActive ? 2.5 : 2} />
@@ -64,6 +67,7 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({
 
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
+  className,
   onLinkClick,
   onImageClick,
   onFormulaInlineClick,
@@ -139,7 +143,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   };
 
   return (
-    <div className="sticky top-0 z-30 mb-8 py-2 bg-background border-b border-border/50 flex flex-wrap items-center gap-1 px-4">
+    <div
+      className={clsx(
+        "sticky top-0 z-30 mb-6 flex flex-wrap items-center gap-1 border-b border-(--fuwari-input-border) bg-(--fuwari-card-bg) py-2",
+        className,
+      )}
+    >
       {/* Headings */}
       <ToolbarButton
         onClick={() =>
@@ -158,7 +167,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         label={m.editor_toolbar_heading3()}
       />
 
-      <div className="h-4 w-px bg-border/50 mx-2"></div>
+      <div className="mx-2 h-4 w-px bg-(--fuwari-meta-divider)"></div>
 
       {/* Formatting */}
       <ToolbarButton
@@ -210,7 +219,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         label={m.editor_toolbar_formula_block()}
       />
 
-      <div className="h-4 w-px bg-border/50 mx-2"></div>
+      <div className="mx-2 h-4 w-px bg-(--fuwari-meta-divider)"></div>
 
       {/* Lists & Blocks */}
       <ToolbarButton
@@ -244,7 +253,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         label={m.editor_toolbar_table()}
       />
 
-      <div className="h-4 w-px bg-border/50 mx-2"></div>
+      <div className="mx-2 h-4 w-px bg-(--fuwari-meta-divider)"></div>
 
       {/* Inserts */}
       <ToolbarButton

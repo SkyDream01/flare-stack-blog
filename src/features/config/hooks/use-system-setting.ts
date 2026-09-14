@@ -1,25 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { updateSystemConfigFn } from "@/features/config/api/config.api";
-import { CONFIG_KEYS, systemConfigQuery } from "@/features/config/queries";
+import { systemConfigQuery } from "@/features/config/queries";
+import { orpc, orpcClient } from "@/lib/orpc";
+import type { UpdateConfigSection } from "../config.admin.schema";
 
 export function useSystemSetting() {
   const queryClient = useQueryClient();
-
-  const { data, isLoading } = useQuery(systemConfigQuery);
-
-  const saveMutation = useMutation({
-    mutationFn: updateSystemConfigFn,
+  const query = useQuery({ ...systemConfigQuery, refetchOnMount: "always" });
+  const mutation = useMutation({
+    mutationFn: (input: UpdateConfigSection) =>
+      orpcClient.config.admin.update(input),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: CONFIG_KEYS.system }),
-        queryClient.invalidateQueries({ queryKey: CONFIG_KEYS.site }),
+        queryClient.invalidateQueries({
+          queryKey: orpc.config.admin.get.key(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: orpc.config.siteConfig.key(),
+        }),
       ]);
     },
   });
-
   return {
-    settings: data,
-    isLoading,
-    saveSettings: saveMutation.mutateAsync,
+    snapshot: query.data,
+    saveSettings: mutation.mutateAsync,
+    isLoading: query.isPending,
+    reload: query.refetch,
   };
 }

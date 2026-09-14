@@ -1,6 +1,7 @@
+import { SavedSecretInputSchema } from "@/features/config/config.admin.schema";
 import { z } from "zod";
 
-export const TestEmailConnectionSchema = z.object({
+const TestEmailConnectionSchema = z.object({
   host: z.string().min(1),
   port: z.number().int().positive(),
   username: z.string().min(1),
@@ -11,4 +12,13 @@ export const TestEmailConnectionSchema = z.object({
 
 export type TestEmailConnectionInput = z.infer<
   typeof TestEmailConnectionSchema
+>;
+
+export const AdminTestEmailConnectionSchema = TestEmailConnectionSchema.omit({
+  password: true,
+})
+  .extend({ password: SavedSecretInputSchema })
+  .strict();
+export type AdminTestEmailConnectionInput = z.infer<
+  typeof AdminTestEmailConnectionSchema
 >;

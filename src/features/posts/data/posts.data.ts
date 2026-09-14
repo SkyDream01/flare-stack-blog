@@ -1,8 +1,10 @@
 import {
   and,
+  asc,
   count,
   desc,
   eq,
+  gt,
   inArray,
   isNotNull,
   like,
@@ -13,15 +15,63 @@ import {
 } from "drizzle-orm";
 import type { SortDirection, SortField } from "@/features/posts/data/helper";
 import {
+  adminPostTextColumns,
   buildPostOrderByClause,
   buildPostWhereClause,
 } from "@/features/posts/data/helper";
-import type { PostListItem } from "@/features/posts/schema/posts.schema";
-import type { PostStatus, Tag } from "@/lib/db/schema";
-import { PostsTable, PostTagsTable, TagsTable } from "@/lib/db/schema";
+import { mapSnapshotToPublicPost } from "@/features/posts/public-snapshot";
+import type {
+  AdminTaxonomyFilter,
+  PostItem,
+} from "@/features/posts/schema/posts.schema";
+import { HOME_POSTS_PER_PAGE } from "@/features/posts/schema/posts.schema";
+import { isPostBodyEmpty } from "@/features/posts/utils/is-post-body-empty";
+import type { PostStatus, PublicPostSnapshot } from "@/lib/db/schema";
+import {
+  CategoriesTable,
+  PostsTable,
+  PostTagsTable,
+  TagsTable,
+} from "@/lib/db/schema";
 
 const DEFAULT_PAGE_SIZE = 12;
 const DEFAULT_SITEMAP_BATCH_SIZE = 500;
+
+const snapshotPublishedAt = sql<string>`json_extract(${PostsTable.publicSnapshotJson}, '$.publishedAt')`;
+const snapshotPinnedAt = sql<string>`json_extract(${PostsTable.publicSnapshotJson}, '$.pinnedAt')`;
+
+async function hydratePublicPosts(
+  db: DB,
+  rows: Array<{
+    id: number;
+    status: PostStatus;
+    createdAt: Date;
+    updatedAt: Date;
+    publicSnapshotJson: PublicPostSnapshot | null;
+  }>,
+): Promise<Array<PostItem>> {
+  if (rows.length === 0) return [];
+  const assignments = await db.query.PostsTable.findMany({
+    columns: { id: true },
+    where: inArray(
+      PostsTable.id,
+      rows.map((row) => row.id),
+    ),
+    with: { category: true, postTags: { with: { tag: true } } },
+  });
+  const byId = new Map(assignments.map((post) => [post.id, post]));
+  return rows.flatMap((row) => {
+    const assignment = byId.get(row.id);
+    const item = mapSnapshotToPublicPost(
+      row,
+      assignment?.postTags.map(({ tag }) => tag) ?? [],
+      assignment?.category
+        ? { id: assignment.category.id, name: assignment.category.name }
+        : null,
+    );
+    return item ? [item] : [];
+  });
+}
 
 export type SitemapPostRow = {
   id: number;
@@ -44,6 +94,7 @@ export async function getPosts(
     status?: PostStatus;
     publicOnly?: boolean;
     search?: string;
+    taxonomy?: AdminTaxonomyFilter;
     sortDir?: SortDirection;
     sortBy?: SortField;
   } = {},
@@ -56,19 +107,25 @@ export async function getPosts(
     ...filters
   } = options;
   const whereClause = buildPostWhereClause(filters);
-  const orderByClause = buildPostOrderByClause(sortDir, sortBy);
+  const publicScope = filters.taxonomy?.scope === "public";
+  const orderByClause = buildPostOrderByClause(sortDir, sortBy, publicScope);
+  const snapshotDate = (field: "publishedAt" | "pinnedAt") =>
+    sql<
+      string | null
+    >`json_extract(${PostsTable.publicSnapshotJson}, ${`$.${field}`})`.mapWith(
+      (value) => (value == null ? null : new Date(value)),
+    );
 
   const posts = await db
     .select({
       id: PostsTable.id,
-      title: PostsTable.title,
-      summary: PostsTable.summary,
-      readTimeInMinutes: PostsTable.readTimeInMinutes,
-      slug: PostsTable.slug,
-      coverImage: PostsTable.coverImage,
+      ...adminPostTextColumns(filters.taxonomy),
       status: PostsTable.status,
-      publishedAt: PostsTable.publishedAt,
-      pinnedAt: PostsTable.pinnedAt,
+      publishedAt: publicScope
+        ? snapshotDate("publishedAt")
+        : PostsTable.publishedAt,
+      pinnedAt: publicScope ? snapshotDate("pinnedAt") : PostsTable.pinnedAt,
+      categoryId: PostsTable.categoryId,
       createdAt: PostsTable.createdAt,
       updatedAt: PostsTable.updatedAt,
     })
@@ -86,6 +143,7 @@ export async function getPostsCount(
     status?: PostStatus;
     publicOnly?: boolean;
     search?: string;
+    taxonomy?: AdminTaxonomyFilter;
   } = {},
 ) {
   const whereClause = buildPostWhereClause(options);
@@ -94,6 +152,47 @@ export async function getPostsCount(
     .from(PostsTable)
     .where(whereClause);
   return totalNumberofPosts[0].count;
+}
+
+/** Status facets use the same search predicate as the paginated Admin list. */
+export async function getAdminPostStatusCounts(
+  db: DB,
+  options: {
+    publicOnly?: boolean;
+    search?: string;
+    taxonomy?: AdminTaxonomyFilter;
+  } = {},
+) {
+  const rows = await db
+    .select({ status: PostsTable.status, count: count() })
+    .from(PostsTable)
+    .where(buildPostWhereClause(options))
+    .groupBy(PostsTable.status);
+  return {
+    draft: rows.find((row) => row.status === "draft")?.count ?? 0,
+    published: rows.find((row) => row.status === "published")?.count ?? 0,
+  };
+}
+
+export async function findReusableEmptyDraft(db: DB) {
+  const rows = await db
+    .select({
+      id: PostsTable.id,
+      contentJson: PostsTable.contentJson,
+    })
+    .from(PostsTable)
+    .where(
+      and(eq(PostsTable.status, "draft"), sql`trim(${PostsTable.title}) = ''`),
+    )
+    .orderBy(desc(PostsTable.updatedAt))
+    .limit(20);
+
+  for (const row of rows) {
+    if (isPostBodyEmpty(row.contentJson)) {
+      return row;
+    }
+  }
+  return null;
 }
 
 /**
@@ -108,25 +207,26 @@ export async function getPostsCursor(
     limit?: number;
     publicOnly?: boolean;
     tagName?: string;
+    categoryName?: string;
+    uncategorized?: boolean;
     excludePinned?: boolean;
   } = {},
 ): Promise<{
-  items: Array<PostListItem>;
+  items: Array<PostItem>;
   nextCursor: number | null;
 }> {
   const {
     cursor,
     limit = DEFAULT_PAGE_SIZE,
-    publicOnly,
+    publicOnly = true,
     tagName,
+    categoryName,
+    uncategorized,
     excludePinned,
   } = options;
 
-  // Build base conditions from helper
-  const baseConditions = buildPostWhereClause({ publicOnly });
-
-  // Add cursor condition if provided
   const conditions = [];
+  const baseConditions = buildPostWhereClause({ publicOnly });
   if (baseConditions) {
     conditions.push(baseConditions);
   }
@@ -134,97 +234,96 @@ export async function getPostsCursor(
   if (cursor) {
     const reference = await db.query.PostsTable.findFirst({
       where: eq(PostsTable.id, cursor),
-      columns: { publishedAt: true, id: true },
+      columns: { publicSnapshotJson: true, id: true },
     });
+    const referencePublishedAt = reference?.publicSnapshotJson?.publishedAt;
 
-    if (reference?.publishedAt) {
+    if (referencePublishedAt) {
       conditions.push(
         or(
-          lt(PostsTable.publishedAt, reference.publishedAt),
+          lt(snapshotPublishedAt, referencePublishedAt),
           and(
-            eq(PostsTable.publishedAt, reference.publishedAt),
+            eq(snapshotPublishedAt, referencePublishedAt),
             lt(PostsTable.id, reference.id),
           ),
         ),
       );
     } else if (reference) {
-      // Fallback if somehow publishedAt is null (shouldn't happen for published posts)
       conditions.push(lt(PostsTable.id, cursor));
     }
   }
 
   if (tagName) {
-    conditions.push(eq(TagsTable.name, tagName));
+    conditions.push(
+      sql`EXISTS (
+        SELECT 1
+        FROM ${PostTagsTable}
+        JOIN ${TagsTable} ON ${TagsTable.id} = ${PostTagsTable.tagId}
+        WHERE ${PostTagsTable.postId} = ${PostsTable.id} AND ${TagsTable.name} = ${tagName}
+      )`,
+    );
+  }
+
+  if (uncategorized) {
+    conditions.push(sql`${PostsTable.categoryId} IS NULL`);
+  } else if (categoryName) {
+    conditions.push(
+      sql`EXISTS (
+        SELECT 1
+        FROM ${CategoriesTable}
+        WHERE ${CategoriesTable.id} = ${PostsTable.categoryId}
+          AND ${CategoriesTable.name} = ${categoryName}
+      )`,
+    );
   }
 
   if (excludePinned) {
-    conditions.push(sql`${PostsTable.pinnedAt} IS NULL`);
+    conditions.push(sql`${snapshotPinnedAt} IS NULL`);
   }
 
-  let query = db
+  const itemsWithPotentialNext = await db
     .select({
       id: PostsTable.id,
-      title: PostsTable.title,
-      summary: PostsTable.summary,
-      readTimeInMinutes: PostsTable.readTimeInMinutes,
-      slug: PostsTable.slug,
-      coverImage: PostsTable.coverImage,
       status: PostsTable.status,
-      publishedAt: PostsTable.publishedAt,
-      pinnedAt: PostsTable.pinnedAt,
       createdAt: PostsTable.createdAt,
       updatedAt: PostsTable.updatedAt,
+      publicSnapshotJson: PostsTable.publicSnapshotJson,
     })
     .from(PostsTable)
-    .$dynamic();
-
-  if (tagName) {
-    query = query
-      .innerJoin(PostTagsTable, eq(PostsTable.id, PostTagsTable.postId))
-      .innerJoin(TagsTable, eq(PostTagsTable.tagId, TagsTable.id));
-  }
-
-  const itemsWithPotentialNext = await query
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(PostsTable.publishedAt), desc(PostsTable.id))
+    .orderBy(desc(snapshotPublishedAt), desc(PostsTable.id))
     .limit(limit + 1);
 
-  // Check if there's a next page
   const hasMore = itemsWithPotentialNext.length > limit;
-  const items = itemsWithPotentialNext.slice(0, limit) as Array<PostListItem>;
-
-  // Fetch tags for all items
-  if (items.length > 0) {
-    const postIds = items.map((p) => p.id);
-    const tagsResults = await db
-      .select({
-        postId: PostTagsTable.postId,
-        tag: {
-          id: TagsTable.id,
-          name: TagsTable.name,
-          createdAt: TagsTable.createdAt,
-        },
-      })
-      .from(PostTagsTable)
-      .innerJoin(TagsTable, eq(PostTagsTable.tagId, TagsTable.id))
-      .where(inArray(PostTagsTable.postId, postIds));
-
-    // Map tags back to items
-    const tagsByPostId = new Map<number, Array<Tag>>();
-    for (const result of tagsResults) {
-      const existing = tagsByPostId.get(result.postId) ?? [];
-      existing.push(result.tag);
-      tagsByPostId.set(result.postId, existing);
-    }
-
-    items.forEach((item) => {
-      item.tags = tagsByPostId.get(item.id) ?? [];
-    });
-  }
-
+  const rows = itemsWithPotentialNext.slice(0, limit);
+  const items = await hydratePublicPosts(db, rows);
   const nextCursor = hasMore ? (items[items.length - 1]?.id ?? null) : null;
 
   return { items, nextCursor };
+}
+
+export async function getHomePosts(db: DB, requestedPage: number) {
+  const total = await getPostsCount(db, { publicOnly: true });
+  const totalPages = Math.max(1, Math.ceil(total / HOME_POSTS_PER_PAGE));
+  const page = Math.min(requestedPage, totalPages);
+  const rows = await db
+    .select({
+      id: PostsTable.id,
+      status: PostsTable.status,
+      createdAt: PostsTable.createdAt,
+      updatedAt: PostsTable.updatedAt,
+      publicSnapshotJson: PostsTable.publicSnapshotJson,
+    })
+    .from(PostsTable)
+    .where(buildPostWhereClause({ publicOnly: true }))
+    .orderBy(
+      desc(snapshotPinnedAt),
+      desc(snapshotPublishedAt),
+      desc(PostsTable.id),
+    )
+    .limit(HOME_POSTS_PER_PAGE)
+    .offset((page - 1) * HOME_POSTS_PER_PAGE);
+  return { items: await hydratePublicPosts(db, rows), page, totalPages };
 }
 
 export async function getPublishedPostsForSitemapBatch(
@@ -239,33 +338,42 @@ export async function getPublishedPostsForSitemapBatch(
 ): Promise<Array<SitemapPostRow>> {
   const { cursor, limit = DEFAULT_SITEMAP_BATCH_SIZE } = options;
 
-  return await db
+  const cursorPublishedAt = cursor?.publishedAt.toISOString();
+  const rows = await db
     .select({
       id: PostsTable.id,
-      slug: PostsTable.slug,
+      publicSlug: PostsTable.publicSlug,
       createdAt: PostsTable.createdAt,
       updatedAt: PostsTable.updatedAt,
-      publishedAt: PostsTable.publishedAt,
+      publicSnapshotJson: PostsTable.publicSnapshotJson,
     })
     .from(PostsTable)
     .where(
       and(
-        eq(PostsTable.status, "published"),
-        isNotNull(PostsTable.publishedAt),
-        sql`date(${PostsTable.publishedAt}, 'unixepoch') <= date('now')`,
-        cursor
+        isNotNull(PostsTable.publicSnapshotJson),
+        cursor && cursorPublishedAt
           ? or(
-              lt(PostsTable.publishedAt, cursor.publishedAt),
+              lt(snapshotPublishedAt, cursorPublishedAt),
               and(
-                eq(PostsTable.publishedAt, cursor.publishedAt),
+                eq(snapshotPublishedAt, cursorPublishedAt),
                 lt(PostsTable.id, cursor.id),
               ),
             )
           : undefined,
       ),
     )
-    .orderBy(desc(PostsTable.publishedAt), desc(PostsTable.id))
+    .orderBy(desc(snapshotPublishedAt), desc(PostsTable.id))
     .limit(limit);
+
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.publicSlug ?? row.publicSnapshotJson?.slug ?? "",
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    publishedAt: row.publicSnapshotJson
+      ? new Date(row.publicSnapshotJson.publishedAt)
+      : null,
+  }));
 }
 
 export async function findPostById(db: DB, id: number) {
@@ -277,82 +385,58 @@ export async function findPostById(db: DB, id: number) {
           tag: true,
         },
       },
+      category: true,
     },
   });
 
   if (!post) return null;
 
-  // Flatten tags
   const tags = post.postTags.map((pt) => pt.tag);
   const { postTags, ...rest } = post;
   return { ...rest, tags };
 }
 
 export async function findPinnedPosts(db: DB) {
-  const posts = await db.query.PostsTable.findMany({
-    where: and(
-      buildPostWhereClause({ publicOnly: true }),
-      isNotNull(PostsTable.pinnedAt),
-    ),
-    orderBy: [desc(PostsTable.pinnedAt)],
-    columns: {
-      id: true,
-      title: true,
-      summary: true,
-      readTimeInMinutes: true,
-      slug: true,
-      coverImage: true,
-      status: true,
-      publishedAt: true,
-      pinnedAt: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-    with: {
-      postTags: {
-        with: { tag: true },
-      },
-    },
-  });
+  const rows = await db
+    .select({
+      id: PostsTable.id,
+      status: PostsTable.status,
+      createdAt: PostsTable.createdAt,
+      updatedAt: PostsTable.updatedAt,
+      publicSnapshotJson: PostsTable.publicSnapshotJson,
+    })
+    .from(PostsTable)
+    .where(
+      and(
+        isNotNull(PostsTable.publicSnapshotJson),
+        sql`${snapshotPinnedAt} IS NOT NULL`,
+      ),
+    )
+    .orderBy(desc(snapshotPinnedAt));
 
-  return posts.map((p) => ({
-    ...p,
-    tags: p.postTags.map((pt) => pt.tag),
-  }));
+  return hydratePublicPosts(db, rows);
 }
 
-export async function findPostsBySlugs(db: DB, slugs: string[]) {
-  if (slugs.length === 0) return [];
+export async function findPostsByIds(db: DB, ids: number[]) {
+  if (ids.length === 0) return [];
 
-  const posts = await db.query.PostsTable.findMany({
-    where: and(
-      buildPostWhereClause({ publicOnly: true }),
-      inArray(PostsTable.slug, slugs),
-    ),
-    columns: {
-      id: true,
-      title: true,
-      summary: true,
-      readTimeInMinutes: true,
-      slug: true,
-      coverImage: true,
-      status: true,
-      publishedAt: true,
-      pinnedAt: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-    with: {
-      postTags: {
-        with: { tag: true },
-      },
-    },
-  });
+  const rows = await db
+    .select({
+      id: PostsTable.id,
+      status: PostsTable.status,
+      createdAt: PostsTable.createdAt,
+      updatedAt: PostsTable.updatedAt,
+      publicSnapshotJson: PostsTable.publicSnapshotJson,
+    })
+    .from(PostsTable)
+    .where(
+      and(
+        isNotNull(PostsTable.publicSnapshotJson),
+        inArray(PostsTable.id, ids),
+      ),
+    );
 
-  return posts.map((p) => ({
-    ...p,
-    tags: p.postTags.map((pt) => pt.tag),
-  }));
+  return hydratePublicPosts(db, rows);
 }
 
 export async function findPostBySlug(
@@ -362,9 +446,27 @@ export async function findPostBySlug(
 ) {
   const { publicOnly = false } = options;
 
-  const whereClause = buildPostWhereClause({ publicOnly });
+  if (publicOnly) {
+    const row = await db.query.PostsTable.findFirst({
+      where: and(
+        eq(PostsTable.publicSlug, slug),
+        isNotNull(PostsTable.publicSnapshotJson),
+      ),
+    });
+    if (!row?.publicSnapshotJson) return null;
+    const [item] = await hydratePublicPosts(db, [row]);
+    return item
+      ? {
+          ...row,
+          ...item,
+          contentJson: row.publicSnapshotJson.contentJson,
+          tags: item.tags ?? [],
+        }
+      : null;
+  }
+
   const post = await db.query.PostsTable.findFirst({
-    where: and(eq(PostsTable.slug, slug), whereClause),
+    where: eq(PostsTable.slug, slug),
     with: {
       postTags: {
         with: {
@@ -376,7 +478,6 @@ export async function findPostBySlug(
 
   if (!post) return null;
 
-  // Flatten tags
   const tags = post.postTags.map((pt) => pt.tag);
   const { postTags, ...rest } = post;
   return { ...rest, tags };
@@ -392,28 +493,59 @@ export async function updatePost(
 }
 
 export async function touchPostUpdatedAt(db: DB, id: number) {
-  await db
+  const [post] = await db
     .update(PostsTable)
-    .set({
-      updatedAt: new Date(),
-    })
-    .where(eq(PostsTable.id, id));
+    .set({ updatedAt: new Date() })
+    .where(eq(PostsTable.id, id))
+    .returning({ publicSlug: PostsTable.publicSlug });
+  return post;
 }
 
-export async function updatePublicContentSnapshot(
+export async function writePublicSnapshot(
   db: DB,
   id: number,
-  publicContentJson: typeof PostsTable.$inferInsert.publicContentJson,
+  snapshot: PublicPostSnapshot,
 ) {
   await db
     .update(PostsTable)
     .set({
-      publicContentJson,
-      // Snapshot rebuilds should not affect editorial ordering/history.
+      publicSnapshotJson: snapshot,
+      publicSlug: snapshot.slug,
+      status: "published",
       updatedAt: sql`${PostsTable.updatedAt}`,
     })
     .where(eq(PostsTable.id, id));
   return await findPostById(db, id);
+}
+
+export async function clearPublicSnapshot(db: DB, id: number) {
+  await db
+    .update(PostsTable)
+    .set({
+      publicSnapshotJson: null,
+      publicSlug: null,
+      status: "draft",
+      updatedAt: sql`${PostsTable.updatedAt}`,
+    })
+    .where(eq(PostsTable.id, id));
+  return await findPostById(db, id);
+}
+
+export async function publicSlugExists(
+  db: DB,
+  slug: string,
+  options: { excludeId?: number } = {},
+): Promise<boolean> {
+  const conditions = [eq(PostsTable.publicSlug, slug)];
+  if (options.excludeId) {
+    conditions.push(ne(PostsTable.id, options.excludeId));
+  }
+  const results = await db
+    .select({ id: PostsTable.id })
+    .from(PostsTable)
+    .where(and(...conditions))
+    .limit(1);
+  return results.length > 0;
 }
 
 export async function deletePost(db: DB, id: number) {
@@ -466,114 +598,68 @@ export async function findSimilarSlugs(
   return results.map((r) => r.slug);
 }
 
-export async function getRelatedPostIds(
-  db: DB,
-  slug: string,
-  options: { limit?: number } = {},
-) {
-  const { limit = 3 } = options;
-
-  // 1. Get current post ID and its tags
+export async function findAdjacentPublicPosts(db: DB, slug: string) {
   const currentPost = await db.query.PostsTable.findFirst({
-    where: eq(PostsTable.slug, slug),
-    with: {
-      postTags: true,
-    },
-    columns: { id: true },
+    where: and(
+      eq(PostsTable.publicSlug, slug),
+      isNotNull(PostsTable.publicSnapshotJson),
+    ),
+    columns: { id: true, publicSnapshotJson: true },
   });
 
-  if (!currentPost || currentPost.postTags.length === 0) {
-    return [];
+  const publishedAt = currentPost?.publicSnapshotJson?.publishedAt;
+  if (!currentPost || !publishedAt) {
+    return { newer: null, older: null };
   }
 
-  const tagIds = currentPost.postTags.map((pt) => pt.tagId);
+  const snapshotTitle = sql<string>`json_extract(${PostsTable.publicSnapshotJson}, '$.title')`;
 
-  // 2. Find posts that share at least one tag
-  // Return only IDs, ordered by match count
-  const matchingPosts = await db
+  const [newer] = await db
     .select({
-      id: PostsTable.id,
-      matchCount: sql<number>`count(${PostTagsTable.tagId})`.as("match_count"),
+      slug: PostsTable.publicSlug,
+      title: snapshotTitle,
     })
     .from(PostsTable)
-    .innerJoin(PostTagsTable, eq(PostsTable.id, PostTagsTable.postId))
     .where(
       and(
-        ne(PostsTable.id, currentPost.id),
-        eq(PostsTable.status, "published"),
-        inArray(PostTagsTable.tagId, tagIds),
+        isNotNull(PostsTable.publicSnapshotJson),
+        isNotNull(PostsTable.publicSlug),
+        or(
+          gt(snapshotPublishedAt, publishedAt),
+          and(
+            eq(snapshotPublishedAt, publishedAt),
+            gt(PostsTable.id, currentPost.id),
+          ),
+        ),
       ),
     )
-    .groupBy(PostsTable.id)
-    .orderBy(desc(sql`match_count`), desc(PostsTable.publishedAt))
-    .limit(limit);
+    .orderBy(asc(snapshotPublishedAt), asc(PostsTable.id))
+    .limit(1);
 
-  return matchingPosts.map((p) => p.id);
-}
-
-export async function getPublicPostsByIds(db: DB, ids: Array<number>) {
-  if (ids.length === 0) return [];
-
-  const whereClause = buildPostWhereClause({ publicOnly: true });
-
-  const posts = await db
+  const [older] = await db
     .select({
-      id: PostsTable.id,
-      title: PostsTable.title,
-      summary: PostsTable.summary,
-      readTimeInMinutes: PostsTable.readTimeInMinutes,
-      slug: PostsTable.slug,
-      coverImage: PostsTable.coverImage,
-      status: PostsTable.status,
-      publishedAt: PostsTable.publishedAt,
-      pinnedAt: PostsTable.pinnedAt,
-      createdAt: PostsTable.createdAt,
-      updatedAt: PostsTable.updatedAt,
+      slug: PostsTable.publicSlug,
+      title: snapshotTitle,
     })
     .from(PostsTable)
-    .where(and(inArray(PostsTable.id, ids), whereClause));
+    .where(
+      and(
+        isNotNull(PostsTable.publicSnapshotJson),
+        isNotNull(PostsTable.publicSlug),
+        or(
+          lt(snapshotPublishedAt, publishedAt),
+          and(
+            eq(snapshotPublishedAt, publishedAt),
+            lt(PostsTable.id, currentPost.id),
+          ),
+        ),
+      ),
+    )
+    .orderBy(desc(snapshotPublishedAt), desc(PostsTable.id))
+    .limit(1);
 
-  return posts;
-}
-
-/**
- * Fetch full post data (including tags and content) for export or other detailed use cases.
- * Uses Drizzle relational queries for efficiency.
- */
-export async function findFullPosts(
-  db: DB,
-  options: {
-    ids?: Array<number>;
-    status?: PostStatus;
-  } = {},
-) {
-  const { ids, status } = options;
-  const conditions = [];
-
-  if (ids && ids.length > 0) {
-    conditions.push(inArray(PostsTable.id, ids));
-  }
-  if (status) {
-    conditions.push(eq(PostsTable.status, status));
-  }
-
-  const results = await db.query.PostsTable.findMany({
-    where: conditions.length > 0 ? and(...conditions) : undefined,
-    with: {
-      postTags: {
-        with: {
-          tag: true,
-        },
-      },
-    },
-    orderBy: [desc(PostsTable.createdAt)],
-  });
-
-  return results.map((post) => {
-    const { postTags, ...rest } = post;
-    return {
-      ...rest,
-      tags: postTags.map((pt) => pt.tag),
-    };
-  });
+  return {
+    newer: newer?.slug ? { slug: newer.slug, title: newer.title } : null,
+    older: older?.slug ? { slug: older.slug, title: older.title } : null,
+  };
 }

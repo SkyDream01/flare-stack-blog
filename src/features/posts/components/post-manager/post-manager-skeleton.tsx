@@ -1,64 +1,55 @@
-import { memo } from "react";
+import "./post-manager.css";
 
-export const PostRowSkeleton = memo(() => (
-  <div className="px-4 py-4 flex flex-col md:grid md:grid-cols-12 gap-4 items-center border-b border-border/30 animate-pulse">
-    {/* Info Block */}
-    <div className="md:col-span-6 w-full flex flex-col gap-2">
-      <div className="flex items-center gap-3">
-        <div className="h-3 w-8 bg-muted/40 rounded-none"></div>
-      </div>
-      <div className="h-6 w-3/4 bg-muted/60 rounded-none"></div>
-      <div className="h-3 w-1/2 bg-muted/30 rounded-none"></div>
-    </div>
-
-    {/* Status */}
-    <div className="md:col-span-2 w-full">
-      <div className="h-5 w-16 bg-muted/40 rounded-none border border-border/20"></div>
-    </div>
-
-    {/* Date */}
-    <div className="md:col-span-3 w-full space-y-1">
-      <div className="h-3 w-32 bg-muted/30 rounded-none"></div>
-      <div className="h-3 w-28 bg-muted/30 rounded-none"></div>
-    </div>
-
-    {/* Actions */}
-    <div className="md:col-span-1 flex justify-end gap-2 w-full">
-      <div className="h-8 w-8 bg-muted/40 rounded-none"></div>
-      <div className="h-8 w-8 bg-muted/40 rounded-none"></div>
-    </div>
-  </div>
-));
-
-PostRowSkeleton.displayName = "PostRowSkeleton";
+function PostRowSkeleton() {
+  return (
+    <tr aria-hidden="true">
+      <td colSpan={4}>
+        <div className="flex items-center gap-8 animate-pulse py-2">
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-2/3 rounded bg-(--fuwari-btn-regular-bg)" />
+            <div className="h-3 w-1/3 rounded bg-(--fuwari-btn-regular-bg)" />
+          </div>
+          <div className="h-5 w-14 rounded-full bg-(--fuwari-btn-regular-bg)" />
+          <div className="hidden sm:block h-4 w-24 rounded bg-(--fuwari-btn-regular-bg)" />
+        </div>
+      </td>
+    </tr>
+  );
+}
 
 export function PostManagerSkeleton() {
   return (
-    <div className="space-y-8 pb-20">
-      {/* Header Skeleton */}
-      <div className="flex justify-between items-end border-b border-border/30 pb-6">
-        <div className="space-y-2">
-          <div className="h-4 w-48 bg-muted/50 rounded-none"></div>
-          <div className="h-8 w-32 bg-muted/50 rounded-none"></div>
-        </div>
-        <div className="h-10 w-32 bg-muted/50 rounded-none"></div>
-      </div>
+    <>
+      {[1, 2, 3, 4, 5].map((id) => (
+        <PostRowSkeleton key={id} />
+      ))}
+    </>
+  );
+}
 
-      {/* Toolbar Skeleton */}
-      <div className="flex flex-col lg:flex-row gap-4 mb-8 border-b border-border/30 pb-8">
-        <div className="w-full lg:flex-1 h-10 bg-muted/30 rounded-none border border-border/20"></div>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-24 bg-muted/30 rounded-none border border-border/20"></div>
-          <div className="h-10 w-24 bg-muted/30 rounded-none border border-border/20"></div>
-        </div>
+export function PostManagerPageSkeleton() {
+  return (
+    <div className="post-manager fuwari-card-base" aria-busy="true">
+      <div className="post-list-heading animate-pulse">
+        <div className="h-8 w-28 rounded bg-(--fuwari-btn-regular-bg)" />
+        <div className="h-10 w-24 rounded bg-(--fuwari-btn-regular-bg)" />
       </div>
-
-      {/* Rows Skeletons */}
-      <div className="border-t border-border/30">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <PostRowSkeleton key={i} />
+      <div className="flex gap-6 h-12 items-center animate-pulse">
+        {[1, 2, 3].map((id) => (
+          <div
+            key={id}
+            className="h-4 w-16 rounded bg-(--fuwari-btn-regular-bg)"
+          />
         ))}
       </div>
+      <div className="post-list-controls">
+        <div className="h-11 w-80 rounded-lg bg-(--fuwari-btn-regular-bg) animate-pulse" />
+      </div>
+      <table className="post-list-table">
+        <tbody>
+          <PostManagerSkeleton />
+        </tbody>
+      </table>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { useViewCounts } from "@/features/pageview/queries";
 import type { PostItem } from "@/features/posts/schema/posts.schema";
 import type { HomePageProps } from "@/features/theme/contract/pages";
 import { m } from "@/paraglide/messages";
@@ -44,13 +43,6 @@ export function HomePage({ posts, pinnedPosts, popularPosts }: HomePageProps) {
     return result;
   }, [posts, pinnedPosts, popularPosts]);
 
-  const allSlugs = useMemo(
-    () => mergedPosts.map((m) => m.post.slug),
-    [mergedPosts],
-  );
-  const { data: viewCounts, isPending: isPendingViewCounts } =
-    useViewCounts(allSlugs);
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col rounded-(--fuwari-radius-large) bg-(--fuwari-card-bg) py-1 md:py-0 md:bg-transparent md:gap-4">
@@ -66,8 +58,6 @@ export function HomePage({ posts, pinnedPosts, popularPosts }: HomePageProps) {
               post={post}
               pinned={pinned}
               popular={!pinned && popular}
-              views={viewCounts?.[post.slug]}
-              isLoadingViews={isPendingViewCounts}
             />
             <div className="border-t border-dashed mx-6 border-black/10 dark:border-white/15 last:border-t-0 md:hidden" />
           </div>

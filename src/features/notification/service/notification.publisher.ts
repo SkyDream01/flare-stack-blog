@@ -1,13 +1,16 @@
+import { z } from "zod";
+import * as AuthData from "@/features/auth/data/auth.data";
 import * as ConfigService from "@/features/config/service/config.service";
 import { createEmailMessageFromNotification } from "@/features/email/service/email-message.mapper";
-import type { NotificationEvent } from "@/features/notification/notification.schema";
+import type {
+  NotificationDelivery,
+  NotificationEvent,
+} from "@/features/notification/notification.schema";
 import {
   ADMIN_NOTIFICATION_EVENTS,
   notificationEventSchema,
   USER_NOTIFICATION_EVENTS,
 } from "@/features/notification/notification.schema";
-import type { NotificationWebhookEventType } from "@/features/webhook/webhook.schema";
-import { isNotificationWebhookEventType } from "@/features/webhook/webhook.schema";
 import { serverEnv } from "@/lib/env/server.env";
 
 function isAdminNotificationEvent(
@@ -28,24 +31,24 @@ function isUserNotificationEvent(
   return USER_NOTIFICATION_EVENTS.some((type) => type === event.type);
 }
 
-function getMatchedWebhookEndpoints(
+function configuredWebhookEndpoint(
   config: Awaited<ReturnType<typeof ConfigService.getSystemConfig>>,
-  eventType: NotificationWebhookEventType,
 ) {
-  return (
-    config?.notification?.webhooks?.filter(
-      (endpoint) => endpoint.enabled && endpoint.events.includes(eventType),
-    ) ?? []
-  );
+  const url = config?.notification?.webhook?.url?.trim() ?? "";
+  const secret = config?.notification?.webhook?.secret?.trim() ?? "";
+  if (!url || !secret || !z.url().safeParse(url).success) return null;
+  return { url, secret };
 }
 
 async function enqueueEmailNotification(
   context: DbContext,
   event: NotificationEvent,
+  delivery: NotificationDelivery,
 ) {
   const emailMessage = createEmailMessageFromNotification(
     event,
     serverEnv(context.env).LOCALE,
+    delivery,
   );
   await context.env.QUEUE.send({
     type: "EMAIL",
@@ -54,45 +57,41 @@ async function enqueueEmailNotification(
 }
 
 async function enqueueWebhookNotification(
-  context: DbContext & { executionCtx: ExecutionContext },
-  event: Extract<NotificationEvent, { type: NotificationWebhookEventType }>,
-  config: Awaited<ReturnType<typeof ConfigService.getSystemConfig>>,
+  context: DbContext,
+  event: Extract<
+    NotificationEvent,
+    { type: (typeof ADMIN_NOTIFICATION_EVENTS)[number] }
+  >,
+  endpoint: { url: string; secret: string },
 ) {
-  const endpoints = getMatchedWebhookEndpoints(config, event.type);
-
-  await Promise.all(
-    endpoints.map((endpoint) =>
-      context.env.QUEUE.send({
-        type: "WEBHOOK",
-        data: {
-          endpointId: endpoint.id,
-          url: endpoint.url,
-          secret: endpoint.secret,
-          event,
-        },
-      }),
-    ),
-  );
+  await context.env.QUEUE.send({
+    type: "WEBHOOK",
+    data: {
+      url: endpoint.url,
+      secret: endpoint.secret,
+      event,
+    },
+  });
 }
 
 export async function publishNotificationEvent(
   context: DbContext & { executionCtx: ExecutionContext },
   event: NotificationEvent,
+  delivery?: NotificationDelivery,
 ) {
   const parsed = notificationEventSchema.parse(event);
   const config = await ConfigService.getSystemConfig(context);
   const adminEmailEnabled =
     config?.notification?.admin?.channels?.email ?? true;
-  const adminWebhookEnabled =
-    config?.notification?.admin?.channels?.webhook ?? true;
   const userEmailEnabled = config?.notification?.user?.emailEnabled ?? true;
+  const webhookEndpoint = configuredWebhookEndpoint(config);
 
   if (isUserNotificationEvent(parsed)) {
-    if (!userEmailEnabled) {
+    if (!userEmailEnabled || !delivery?.to) {
       return;
     }
 
-    await enqueueEmailNotification(context, parsed);
+    await enqueueEmailNotification(context, parsed, delivery);
     console.log(
       JSON.stringify({
         level: "info",
@@ -106,13 +105,25 @@ export async function publishNotificationEvent(
 
   if (isAdminNotificationEvent(parsed)) {
     const deliveries: Array<Promise<void>> = [];
+    let emailed = false;
 
     if (adminEmailEnabled) {
-      deliveries.push(enqueueEmailNotification(context, parsed));
+      const to = delivery?.to ?? (await AuthData.findAdminEmail(context.db));
+      if (to) {
+        deliveries.push(
+          enqueueEmailNotification(context, parsed, {
+            to,
+            unsubscribeUrl: delivery?.unsubscribeUrl,
+          }),
+        );
+        emailed = true;
+      }
     }
 
-    if (adminWebhookEnabled && isNotificationWebhookEventType(parsed)) {
-      deliveries.push(enqueueWebhookNotification(context, parsed, config));
+    if (webhookEndpoint) {
+      deliveries.push(
+        enqueueWebhookNotification(context, parsed, webhookEndpoint),
+      );
     }
 
     console.log(
@@ -121,8 +132,8 @@ export async function publishNotificationEvent(
         message: "Notification published",
         eventType: parsed.type,
         deliveries: {
-          email: adminEmailEnabled,
-          webhook: adminWebhookEnabled,
+          email: emailed,
+          webhook: Boolean(webhookEndpoint),
         },
       }),
     );

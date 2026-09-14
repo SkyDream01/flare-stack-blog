@@ -1,63 +1,99 @@
-import {
-  createInsertSchema,
-  createSelectSchema,
-  createUpdateSchema,
-} from "drizzle-zod";
+import { createSelectSchema, createUpdateSchema } from "drizzle-zod";
 import { z } from "zod";
+import { PublicCategorySchema } from "@/features/categories/categories.schema";
 import { TagSelectSchema } from "@/features/tags/tags.schema";
-import type { Post, PostStatus, Tag } from "@/lib/db/schema";
-import { POST_STATUSES, PostsTable } from "@/lib/db/schema";
+import type { PostStatus } from "@/lib/db/schema";
+import { PostsTable } from "@/lib/db/schema";
 import { NullableJsonContentSchema } from "./json-content.schema";
 
 // Date fields need to accept both Date objects and ISO strings (for JSON serialization)
 const coercedDate = z.union([z.date(), z.string().pipe(z.coerce.date())]);
 const coercedDateNullable = coercedDate.nullable();
 
-// 封面图:允许清空、站内根路径或 http(s) 外链
-const coverImageSchema = z
-  .string()
-  .trim()
-  .refine(
-    (value) =>
-      value === "" || value.startsWith("/") || z.url().safeParse(value).success,
-  );
+const PublicPostCoverSchema = z.object({
+  key: z.string(),
+  url: z.string(),
+  width: z.number().int().nullable(),
+  height: z.number().int().nullable(),
+});
 
-export const PostSelectSchema = createSelectSchema(PostsTable, {
+const AdminPostCoverSchema = PublicPostCoverSchema.extend({
+  id: z.number().int(),
+  fileName: z.string(),
+});
+
+const PostSelectSchema = createSelectSchema(PostsTable, {
   publishedAt: coercedDateNullable,
   pinnedAt: coercedDateNullable,
   createdAt: coercedDate,
   updatedAt: coercedDate,
 }).omit({
-  publicContentJson: true,
+  publicSnapshotJson: true,
 });
-export const PostInsertSchema = createInsertSchema(PostsTable);
-export const PostUpdateSchema = createUpdateSchema(PostsTable, {
+const PostUpdateSchema = createUpdateSchema(PostsTable, {
   contentJson: NullableJsonContentSchema.optional(),
-  publicContentJson: NullableJsonContentSchema.optional(),
-  coverImage: coverImageSchema.nullable().optional(),
 }).omit({
-  publicContentJson: true,
+  publicSnapshotJson: true,
+  publicSlug: true,
+  status: true,
 });
 
 export const PostItemSchema = PostSelectSchema.omit({
   contentJson: true,
+  publicSlug: true,
+  coverMediaId: true,
+  categoryId: true,
 }).extend({
   tags: z.array(TagSelectSchema).optional(),
+  category: PublicCategorySchema.nullable().catch(null),
+  readTimeInMinutes: z.number().int().min(1),
+  viewCount: z.number().int().nonnegative().optional(),
+  cover: PublicPostCoverSchema.nullable().catch(null),
 });
 export const PostListResponseSchema = z.object({
   items: z.array(PostItemSchema),
   nextCursor: z.number().nullable(),
 });
-export const PostWithTocSchema = PostSelectSchema.extend({
-  tags: z.array(TagSelectSchema).optional(),
-  toc: z.array(
-    z.object({
-      id: z.string(),
-      text: z.string(),
-      level: z.number(),
-    }),
-  ),
-}).nullable();
+export const HOME_POSTS_PER_PAGE = 8;
+export const HomePostsInputSchema = z.object({
+  page: z.number().int().min(1).max(1_000_000).default(1),
+});
+export const HomePostsResponseSchema = z.object({
+  items: z.array(PostItemSchema),
+  page: z.number().int().positive(),
+  totalPages: z.number().int().positive(),
+});
+export const PostWithTocSchema = PostSelectSchema.omit({
+  publicSlug: true,
+  coverMediaId: true,
+  categoryId: true,
+})
+  .extend({
+    tags: z.array(TagSelectSchema).optional(),
+    category: PublicCategorySchema.nullable().catch(null),
+    readTimeInMinutes: z.number().int().min(1),
+    toc: z.array(
+      z.object({
+        id: z.string(),
+        text: z.string(),
+        level: z.number(),
+      }),
+    ),
+    cover: PublicPostCoverSchema.nullable().catch(null),
+  })
+  .nullable();
+
+export const AdminPostSchema = PostSelectSchema.omit({
+  publicSlug: true,
+})
+  .extend({
+    tags: z.array(TagSelectSchema).optional(),
+    hasPublicSnapshot: z.boolean(),
+    publicSnapshotContentJson: NullableJsonContentSchema,
+    serverToday: z.string(),
+    cover: AdminPostCoverSchema.nullable(),
+  })
+  .nullable();
 
 export function normalizePostTagName(
   tagName: string | undefined,
@@ -65,15 +101,28 @@ export function normalizePostTagName(
   return tagName === "" ? undefined : tagName;
 }
 
+export function normalizePostCategoryName(
+  categoryName: string | undefined,
+): string | undefined {
+  return categoryName === "" ? undefined : categoryName;
+}
+
 export const PostTagNameSchema = z
   .string()
   .transform(normalizePostTagName)
+  .optional();
+
+export const PostCategoryNameSchema = z
+  .string()
+  .transform(normalizePostCategoryName)
   .optional();
 
 export const GetPostsCursorInputSchema = z.object({
   cursor: z.number().optional(),
   limit: z.number().optional(),
   tagName: PostTagNameSchema,
+  categoryName: PostCategoryNameSchema,
+  uncategorized: z.boolean().optional(),
   excludePinned: z.boolean().optional(),
 });
 
@@ -81,14 +130,18 @@ export const FindPostBySlugInputSchema = z.object({
   slug: z.string(),
 });
 
-export const FindRelatedPostsInputSchema = z.object({
+const AdjacentPublicPostSchema = z.object({
   slug: z.string(),
-  limit: z.number().optional(),
+  title: z.string(),
+});
+
+export const AdjacentPostsSchema = z.object({
+  newer: AdjacentPublicPostSchema.nullable(),
+  older: AdjacentPublicPostSchema.nullable(),
 });
 
 export type GetPostsCursorInput = z.infer<typeof GetPostsCursorInputSchema>;
 export type FindPostBySlugInput = z.infer<typeof FindPostBySlugInputSchema>;
-export type FindRelatedPostsInput = z.infer<typeof FindRelatedPostsInputSchema>;
 
 // Admin API Schemas
 export const GenerateSlugInputSchema = z.object({
@@ -96,7 +149,26 @@ export const GenerateSlugInputSchema = z.object({
   excludeId: z.number().optional(),
 });
 
+const AdminTaxonomyFilterSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("category"),
+    id: z.number().int().positive(),
+    scope: z.enum(["current", "public"]),
+  }),
+  z.object({
+    kind: z.literal("tag"),
+    id: z.number().int().positive(),
+    scope: z.enum(["current", "public"]),
+  }),
+  z.object({
+    kind: z.literal("uncategorized"),
+    scope: z.enum(["current", "public"]),
+  }),
+]);
+export type AdminTaxonomyFilter = z.infer<typeof AdminTaxonomyFilterSchema>;
+
 export const GetPostsInputSchema = z.object({
+  taxonomy: AdminTaxonomyFilterSchema.optional(),
   offset: z.number().optional(),
   limit: z.number().optional(),
   status: z.custom<PostStatus>().optional(),
@@ -106,10 +178,36 @@ export const GetPostsInputSchema = z.object({
   sortBy: z.enum(["publishedAt", "updatedAt"]).optional(),
 });
 
-export const GetPostsCountInputSchema = GetPostsInputSchema.omit({
+const GetPostsCountInputSchema = GetPostsInputSchema.omit({
   offset: true,
   limit: true,
   sortDir: true,
+});
+
+const AdminPostListItemSchema = z.object({
+  id: z.number().int(),
+  title: z.string(),
+  summary: z.string().nullable(),
+  slug: z.string(),
+  status: z.enum(["draft", "published"]),
+  publishedAt: coercedDateNullable,
+  pinnedAt: coercedDateNullable,
+  createdAt: coercedDate,
+  updatedAt: coercedDate,
+});
+
+const AdminPostStatusCountsSchema = z.object({
+  draft: z.number().int().nonnegative(),
+  published: z.number().int().nonnegative(),
+});
+export type AdminPostStatusCounts = z.infer<typeof AdminPostStatusCountsSchema>;
+
+export const AdminPostListPageSchema = z.object({
+  items: z.array(AdminPostListItemSchema),
+  total: z.number().int().nonnegative(),
+  statusCounts: AdminPostStatusCountsSchema.describe(
+    "Counts matching search, publicOnly and taxonomy scope before status filtering or pagination.",
+  ),
 });
 
 export const FindPostByIdInputSchema = z.object({ id: z.number() });
@@ -121,14 +219,12 @@ export const UpdatePostInputSchema = z.object({
 
 export const DeletePostInputSchema = z.object({ id: z.number() });
 
-export const PreviewSummaryInputSchema = PostSelectSchema.pick({
-  contentJson: true,
+export const PublishPostInputSchema = z.object({
+  id: z.number(),
 });
 
-export const StartPostProcessInputSchema = z.object({
+export const UnpublishPostInputSchema = z.object({
   id: z.number(),
-  status: z.enum(POST_STATUSES),
-  clientToday: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
 export type GenerateSlugInput = z.infer<typeof GenerateSlugInputSchema>;
@@ -137,24 +233,7 @@ export type GetPostsCountInput = z.infer<typeof GetPostsCountInputSchema>;
 export type FindPostByIdInput = z.infer<typeof FindPostByIdInputSchema>;
 export type UpdatePostInput = z.infer<typeof UpdatePostInputSchema>;
 export type DeletePostInput = z.infer<typeof DeletePostInputSchema>;
-export type PreviewSummaryInput = z.infer<typeof PreviewSummaryInputSchema>;
-export type StartPostProcessInput = z.infer<typeof StartPostProcessInputSchema>;
-export type PostListItem = Omit<Post, "contentJson" | "publicContentJson"> & {
-  tags?: Array<Tag>;
-};
-
-export type PostListResponse = z.infer<typeof PostListResponseSchema>;
+export type PublishPostInput = z.infer<typeof PublishPostInputSchema>;
+export type UnpublishPostInput = z.infer<typeof UnpublishPostInputSchema>;
 export type PostItem = z.infer<typeof PostItemSchema>;
 export type PostWithToc = z.infer<typeof PostWithTocSchema>;
-
-export const POSTS_CACHE_KEYS = {
-  list: (version: string, limit: number, cursor: number, tagName?: string) =>
-    tagName === undefined
-      ? (["posts", "list", version, limit, cursor, "all"] as const)
-      : (["posts", "list", version, limit, cursor, "tag", tagName] as const),
-  detail: (version: string, slug: string) => [version, "post", slug] as const,
-  related: (slug: string, limit?: number) =>
-    ["posts", "related-ids", slug, limit] as const,
-  syncHash: (id: number) => `post_hash:${id}` as const,
-  pinned: (version: string) => [version, "posts", "pinned"] as const,
-} as const;

@@ -1,3 +1,5 @@
+import "@fontsource-variable/jetbrains-mono/wght.css";
+import "katex/dist/katex.min.css";
 import type {
   Extensions,
   JSONContent,
@@ -5,6 +7,7 @@ import type {
 } from "@tiptap/react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { normalizeLinkHref } from "@/lib/links/normalize-link-href";
 import { cn } from "@/lib/utils";
 import type { FormulaModalPayload } from "./formula-modal-store";
@@ -18,26 +21,34 @@ import type { FormulaMode } from "./ui/formula-modal";
 import { FormulaModal } from "./ui/formula-modal";
 import type { ModalType } from "./ui/insert-modal";
 import InsertModal from "./ui/insert-modal";
-import { TableBubbleMenu } from "./ui/table-bubble-menu";
+import { TableBubbleMenu, TableMobileBar } from "./ui/table-bubble-menu";
 
 interface EditorProps {
   content?: JSONContent | string;
-  onChange?: (json: JSONContent) => void;
-  onCreated?: (editor: TiptapEditor) => void;
+  onUpdate?: (editor: TiptapEditor) => void;
+  onCreated?: (editor: TiptapEditor | null) => void;
   extensions: Extensions;
   editable?: boolean;
   className?: string;
   contentClassName?: string;
+  documentHeader?: ReactNode;
+  documentClassName?: string;
+  scrollContainerId?: string;
+  toolbarClassName?: string;
 }
 
 export const Editor = memo(function Editor({
   content,
-  onChange,
+  onUpdate,
   onCreated,
   extensions,
   editable = true,
   className,
   contentClassName,
+  documentHeader,
+  documentClassName,
+  scrollContainerId,
+  toolbarClassName,
 }: EditorProps) {
   const formulaOpenerKeyRef = useRef(Symbol("formula-modal-opener"));
   const [modalOpen, setModalOpen] = useState<ModalType>(null);
@@ -57,13 +68,16 @@ export const Editor = memo(function Editor({
       onCreated?.(currentEditor);
     },
     onUpdate: ({ editor: currentEditor }) => {
-      onChange?.(currentEditor.getJSON());
+      onUpdate?.(currentEditor);
+    },
+    onDestroy: () => {
+      onCreated?.(null);
     },
     editorProps: {
       attributes: {
         class: cn(
-          "max-w-none focus:outline-none text-lg leading-relaxed min-h-[500px]",
-          !editable && "min-h-0 text-base leading-7",
+          "prose dark:prose-invert prose-base max-w-none! fuwari-custom-md focus:outline-none min-h-[500px]",
+          !editable && "min-h-0",
           contentClassName,
         ),
       },
@@ -185,6 +199,7 @@ export const Editor = memo(function Editor({
       {editable && (
         <EditorToolbar
           editor={editor}
+          className={toolbarClassName}
           onLinkClick={openLinkModal}
           onImageClick={openImageModal}
           onFormulaInlineClick={() => openFormulaModal("inline")}
@@ -193,17 +208,21 @@ export const Editor = memo(function Editor({
       )}
 
       {editable && <TableBubbleMenu editor={editor} />}
+      {editable && <TableMobileBar editor={editor} />}
 
       <div
-        className="relative min-h-125"
+        id={scrollContainerId}
+        className={cn("relative", documentClassName ?? "min-h-125")}
         onMouseDownCapture={markActiveFormulaOpener}
         onFocusCapture={markActiveFormulaOpener}
       >
+        {documentHeader}
         <EditorContent editor={editor} />
       </div>
 
       {editable && (
         <InsertModal
+          returnFocus={() => editor?.view.dom ?? null}
           type={modalOpen}
           initialUrl={modalInitialUrl}
           onClose={() => setModalOpen(null)}
@@ -213,6 +232,7 @@ export const Editor = memo(function Editor({
 
       {editable && (
         <FormulaModal
+          returnFocus={() => editor?.view.dom ?? null}
           isOpen={formulaModalOpen}
           mode={formulaPayload.mode}
           initialLatex={formulaPayload.initialLatex}

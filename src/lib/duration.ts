@@ -34,10 +34,3 @@ export function ms(d: Duration): number {
     }
   }
 }
-
-/**
- * Convert a human readable duration to seconds
- */
-export function seconds(d: Duration): number {
-  return Math.floor(ms(d) / 1000);
-}

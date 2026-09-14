@@ -1,92 +1,178 @@
 import type {
   CreateCommentInput,
   DeleteCommentInput,
-  GetAllCommentsInput,
   GetCommentsByPostIdInput,
   GetMyCommentsInput,
-  ModerateCommentInput,
-  StartCommentModerationInput,
+  RootCommentWithReplyCount,
 } from "@/features/comments/comments.schema";
+import { publicCommentUrl } from "@/features/comments/comment-url";
 import * as CommentRepo from "@/features/comments/data/comments.data";
 import { sendReplyNotification } from "@/features/comments/workflows/helpers";
 import { publishNotificationEvent } from "@/features/notification/service/notification.publisher";
+import * as MutedUserRepo from "@/features/muted-users/data/muted-users.data";
+import { isMuted } from "@/features/muted-users/muted-users";
 import * as PostService from "@/features/posts/services/posts.service";
-import { convertToPlainText } from "@/features/posts/utils/content";
 import { serverEnv } from "@/lib/env/server.env";
 import { err, ok } from "@/lib/errors";
 
-// ============ Public Service Methods ============
+async function requirePublishedPost(context: DbContext, postId: number) {
+  const post = await PostService.findPostById(context, { id: postId });
+  if (!post || !post.hasPublicSnapshot) {
+    return null;
+  }
+  return post;
+}
+
+async function viewerMuted(
+  context: DbContext & { session?: AuthContext["session"] | null },
+) {
+  const sessionUser = context.session?.user;
+  if (!sessionUser || sessionUser.role === "admin") {
+    return false;
+  }
+  const actor = await MutedUserRepo.findUserById(context.db, sessionUser.id);
+  return isMuted(actor?.mutedAt);
+}
 
 export async function getRootCommentsByPostId(
-  context: DbContext,
-  data: GetCommentsByPostIdInput & { viewerId?: string },
+  context: DbContext & { session?: AuthContext["session"] | null },
+  data: GetCommentsByPostIdInput,
 ) {
-  const [items, total] = await Promise.all([
+  const post = await requirePublishedPost(context, data.postId);
+  if (!post) {
+    return { items: [], total: 0, viewerMuted: false };
+  }
+
+  const [items, total, muted] = await Promise.all([
     CommentRepo.getRootCommentsByPostId(context.db, data.postId, {
       offset: data.offset,
       limit: data.limit,
-      viewerId: data.viewerId,
-      status: data.viewerId ? undefined : ["published", "deleted"],
     }),
-    CommentRepo.getRootCommentsByPostIdCount(context.db, data.postId, {
-      viewerId: data.viewerId,
-      status: data.viewerId ? undefined : ["published", "deleted"],
-    }),
+    CommentRepo.getPublishedCommentsCount(context.db, data.postId),
+    viewerMuted(context),
   ]);
 
-  // Get reply counts for each root comment
-  const itemsWithReplyCount = await Promise.all(
-    items.map(async (item) => {
-      const replyCount = await CommentRepo.getReplyCountByRootId(
-        context.db,
-        data.postId,
-        item.id,
-        {
-          viewerId: data.viewerId,
-          status: data.viewerId ? undefined : ["published", "deleted"],
-        },
-      );
-      return { ...item, replyCount };
-    }),
-  );
+  return {
+    items: await withReplyCountsAndPreviews(context.db, data.postId, items),
+    total,
+    viewerMuted: muted,
+  };
+}
 
-  return { items: itemsWithReplyCount, total };
+async function withReplyCountsAndPreviews(
+  db: DB,
+  postId: number,
+  items: Awaited<ReturnType<typeof CommentRepo.getRootCommentsByPostId>>,
+): Promise<Array<RootCommentWithReplyCount>> {
+  const rootIds = items.map((item) => item.id);
+  const [replyCounts, previews] = await Promise.all([
+    CommentRepo.getPublishedReplyCountsByRootIds(db, postId, rootIds),
+    CommentRepo.getReplyPreviewsByRootIds(db, postId, rootIds),
+  ]);
+
+  return items.map((item) => {
+    const replyCount = replyCounts.get(item.id) ?? 0;
+    return {
+      ...item,
+      replyCount,
+      replies: replyCount === 0 ? [] : (previews.get(item.id) ?? []),
+    };
+  });
+}
+
+export async function getThreadByCommentId(
+  context: DbContext,
+  data: { postId: number; id: number },
+) {
+  const post = await requirePublishedPost(context, data.postId);
+  if (!post) {
+    return err({ reason: "COMMENT_NOT_FOUND" });
+  }
+
+  const comment = await CommentRepo.findCommentById(context.db, data.id);
+  if (!comment || comment.postId !== data.postId) {
+    return err({ reason: "COMMENT_NOT_FOUND" });
+  }
+
+  const rootId = comment.rootId ?? comment.id;
+  const root = await CommentRepo.getVisibleRootById(
+    context.db,
+    data.postId,
+    rootId,
+  );
+  if (!root) {
+    return err({ reason: "COMMENT_NOT_FOUND" });
+  }
+
+  const [thread] = await withReplyCountsAndPreviews(context.db, data.postId, [
+    root,
+  ]);
+  return ok(thread);
 }
 
 export async function getRepliesByRootId(
   context: DbContext,
-  data: { postId: number; rootId: number; offset?: number; limit?: number } & {
-    viewerId?: string;
-  },
+  data: { postId: number; rootId: number; offset?: number; limit?: number },
 ) {
-  const [items, total] = await Promise.all([
-    CommentRepo.getRepliesByRootId(context.db, data.postId, data.rootId, {
+  const post = await requirePublishedPost(context, data.postId);
+  if (!post) {
+    return { items: [], total: 0 };
+  }
+
+  const root = await CommentRepo.findCommentById(context.db, data.rootId);
+  if (!root || root.postId !== data.postId) {
+    return { items: [], total: 0 };
+  }
+
+  const total = await CommentRepo.getReplyCountByRootId(
+    context.db,
+    data.postId,
+    data.rootId,
+    { status: "published" },
+  );
+  if (root.status === "deleted" && total === 0) {
+    return { items: [], total: 0 };
+  }
+
+  const items = await CommentRepo.getRepliesByRootId(
+    context.db,
+    data.postId,
+    data.rootId,
+    {
       offset: data.offset,
       limit: data.limit,
-      viewerId: data.viewerId,
-      status: data.viewerId ? undefined : ["published", "deleted"],
-    }),
-    CommentRepo.getRepliesByRootIdCount(context.db, data.postId, data.rootId, {
-      viewerId: data.viewerId,
-      status: data.viewerId ? undefined : ["published", "deleted"],
-    }),
-  ]);
+    },
+  );
 
   return { items, total };
 }
-
-// ============ Authed User Service Methods ============
 
 export async function createComment(
   context: AuthContext & { executionCtx: ExecutionContext },
   data: CreateCommentInput,
 ) {
-  // Validation: ensure 2-level structure
+  const post = await PostService.findPostById(context, { id: data.postId });
+  if (!post) {
+    return err({ reason: "POST_NOT_FOUND" });
+  }
+  if (!post.hasPublicSnapshot) {
+    return err({ reason: "POST_NOT_PUBLISHED" });
+  }
+
+  if (context.session.user.role !== "admin") {
+    const actor = await MutedUserRepo.findUserById(
+      context.db,
+      context.session.user.id,
+    );
+    if (isMuted(actor?.mutedAt)) {
+      return err({ reason: "USER_MUTED" });
+    }
+  }
+
   let rootId: number | null = null;
   let replyToCommentId: number | null = null;
 
   if (data.rootId) {
-    // Creating a reply - validate rootId exists and is a root comment
     const rootComment = await CommentRepo.findCommentById(
       context.db,
       data.rootId,
@@ -102,7 +188,6 @@ export async function createComment(
     }
     rootId = data.rootId;
 
-    // If replyToCommentId is provided, validate it belongs to the same root
     if (data.replyToCommentId) {
       const replyToComment = await CommentRepo.findCommentById(
         context.db,
@@ -111,21 +196,16 @@ export async function createComment(
       if (!replyToComment) {
         return err({ reason: "REPLY_TO_COMMENT_NOT_FOUND" });
       }
-      // replyToComment must be either the root or a reply under the same root
       const actualRootId = replyToComment.rootId ?? replyToComment.id;
       if (actualRootId !== rootId) {
         return err({ reason: "REPLY_TO_COMMENT_ROOT_MISMATCH" });
       }
       replyToCommentId = data.replyToCommentId;
     } else {
-      // If no replyToCommentId, default to replying to the root
       replyToCommentId = rootId;
     }
-  } else {
-    // Creating a root comment - ensure no replyToCommentId
-    if (data.replyToCommentId) {
-      return err({ reason: "ROOT_COMMENT_CANNOT_HAVE_REPLY_TO" });
-    }
+  } else if (data.replyToCommentId) {
+    return err({ reason: "ROOT_COMMENT_CANNOT_HAVE_REPLY_TO" });
   }
 
   const isAdmin = context.session.user.role === "admin";
@@ -136,55 +216,36 @@ export async function createComment(
     rootId,
     replyToCommentId,
     userId: context.session.user.id,
-    // Admin comments are published immediately, others go through moderation
-    status: isAdmin ? "published" : "verifying",
+    status: "published",
   });
 
-  // Trigger AI moderation workflow only for non-admin users
-  if (!isAdmin) {
-    await startCommentModerationWorkflow(context, { commentId: comment.id });
-  }
-
-  // Send reply notification for admin replies (non-admin replies get notified via moderation workflow)
-  if (isAdmin && replyToCommentId) {
-    const post = await PostService.findPostById(context, {
-      id: data.postId,
+  if (replyToCommentId) {
+    await sendReplyNotification(context, {
+      comment: {
+        id: comment.id,
+        rootId: comment.rootId,
+        replyToCommentId: comment.replyToCommentId,
+        userId: comment.userId,
+        content: data.content,
+      },
+      post: { slug: post.slug, title: post.title },
     });
-    if (post) {
-      await sendReplyNotification(context, {
-        comment: {
-          id: comment.id,
-          rootId: comment.rootId,
-          replyToCommentId: comment.replyToCommentId,
-          userId: comment.userId,
-          content: data.content,
-        },
-        post: { slug: post.slug, title: post.title },
-      });
-    }
   }
 
-  // Notify admin about new root comments from non-admin users only
-  // - Skip if admin is commenting (no need to notify yourself)
-  // - Skip if it's a reply (only root comments trigger admin notification)
   const isRootComment = rootId === null;
   if (!isAdmin && isRootComment) {
-    const post = await PostService.findPostById(context, { id: data.postId });
-    if (post) {
-      const { ADMIN_EMAIL, DOMAIN } = serverEnv(context.env);
-      const commentPreview = convertToPlainText(data.content).slice(0, 100);
-      const commenterName = context.session.user.name;
-      await publishNotificationEvent(context, {
-        type: "comment.admin_root_created",
-        data: {
-          to: ADMIN_EMAIL,
-          postTitle: post.title,
-          commenterName,
-          commentPreview: `${commentPreview}${commentPreview.length >= 100 ? "..." : ""}`,
-          commentUrl: `https://${DOMAIN}/post/${post.slug}?highlightCommentId=${comment.id}&rootId=${comment.id}#comment-${comment.id}`,
-        },
-      });
-    }
+    const { DOMAIN } = serverEnv(context.env);
+    const commentPreview = data.content.slice(0, 100);
+    const commenterName = context.session.user.name;
+    await publishNotificationEvent(context, {
+      type: "comment.admin_root_created",
+      data: {
+        postTitle: post.title,
+        commenterName,
+        commentPreview: `${commentPreview}${commentPreview.length >= 100 ? "..." : ""}`,
+        commentUrl: publicCommentUrl(DOMAIN, post.slug, comment.id),
+      },
+    });
   }
 
   return ok(comment);
@@ -200,13 +261,11 @@ export async function deleteComment(
     return err({ reason: "COMMENT_NOT_FOUND" });
   }
 
-  // Only allow deleting own comments (unless admin)
   const userRole = context.session.user.role;
   if (comment.userId !== context.session.user.id && userRole !== "admin") {
     return err({ reason: "PERMISSION_DENIED" });
   }
 
-  // Soft delete by setting status to deleted
   await CommentRepo.updateComment(context.db, data.id, {
     status: "deleted",
   });
@@ -227,122 +286,4 @@ export async function getMyComments(
       status: data.status,
     },
   );
-}
-
-// ============ Admin Service Methods ============
-
-export async function getAllComments(
-  context: DbContext,
-  data: GetAllCommentsInput,
-) {
-  const [items, total] = await Promise.all([
-    CommentRepo.getAllComments(context.db, {
-      offset: data.offset,
-      limit: data.limit,
-      status: data.status,
-      postId: data.postId,
-      userId: data.userId,
-      userName: data.userName,
-    }),
-    CommentRepo.getAllCommentsCount(context.db, {
-      status: data.status,
-      postId: data.postId,
-      userId: data.userId,
-      userName: data.userName,
-    }),
-  ]);
-
-  return { items, total };
-}
-
-export async function moderateComment(
-  context: DbContext & { executionCtx: ExecutionContext },
-  data: ModerateCommentInput,
-  moderatorUserId?: string,
-) {
-  const comment = await CommentRepo.findCommentById(context.db, data.id);
-
-  if (!comment) {
-    return err({ reason: "COMMENT_NOT_FOUND" });
-  }
-
-  const updatedComment = await CommentRepo.updateComment(context.db, data.id, {
-    status: data.status,
-  });
-
-  // Send reply notification when manually approving a reply comment
-  // Guard: only on first approval (comment.status !== "published") to prevent duplicates
-  if (
-    data.status === "published" &&
-    comment.status !== "published" &&
-    comment.replyToCommentId
-  ) {
-    const post = await PostService.findPostById(context, {
-      id: comment.postId,
-    });
-    if (post) {
-      await sendReplyNotification(context, {
-        comment: {
-          id: comment.id,
-          rootId: comment.rootId,
-          replyToCommentId: comment.replyToCommentId,
-          userId: comment.userId,
-          content: comment.content,
-        },
-        post: { slug: post.slug, title: post.title },
-        skipNotifyUserId: moderatorUserId,
-      });
-    }
-  }
-
-  return ok(updatedComment);
-}
-
-export async function adminDeleteComment(
-  context: DbContext,
-  data: DeleteCommentInput,
-) {
-  const comment = await CommentRepo.findCommentById(context.db, data.id);
-
-  if (!comment) {
-    return err({ reason: "COMMENT_NOT_FOUND" });
-  }
-
-  // Hard delete for admin
-  await CommentRepo.deleteComment(context.db, data.id);
-
-  return ok({ success: true });
-}
-
-// ============ Workflow Methods ============
-
-export async function startCommentModerationWorkflow(
-  context: DbContext,
-  data: StartCommentModerationInput,
-) {
-  await context.env.COMMENT_MODERATION_WORKFLOW.create({
-    params: {
-      commentId: data.commentId,
-    },
-  });
-}
-
-export async function findCommentById(context: DbContext, commentId: number) {
-  return await CommentRepo.findCommentById(context.db, commentId);
-}
-
-export async function updateCommentStatus(
-  context: DbContext,
-  commentId: number,
-  status: "published" | "pending" | "deleted",
-  aiReason?: string,
-) {
-  return await CommentRepo.updateComment(context.db, commentId, {
-    status,
-    aiReason,
-  });
-}
-
-export async function getUserCommentStats(context: DbContext, userId: string) {
-  return await CommentRepo.getUserCommentStats(context.db, userId);
 }

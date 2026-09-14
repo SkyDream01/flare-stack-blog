@@ -1,69 +1,13 @@
 import { runDurableObjectAlarm } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { testRequest } from "tests/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { app } from "@/lib/hono";
+import { handleAuthRequest } from "@/lib/http/handle-auth-request";
 
 vi.mock("@/lib/turnstile", () => ({
   verifyTurnstileToken: vi.fn(() => Promise.resolve({ success: true })),
 }));
 
 describe("Durable Objects Integration", () => {
-  describe("PasswordHasher", () => {
-    function getHasher() {
-      const id = env.PASSWORD_HASHER.idFromName("hasher-0");
-      return env.PASSWORD_HASHER.get(id);
-    }
-
-    it("should hash a password and return salt:key format", async () => {
-      const hasher = getHasher();
-      const hash = await hasher.hash("test-password-123");
-
-      expect(hash).toContain(":");
-      const [salt, key] = hash.split(":");
-      expect(salt).toHaveLength(32);
-      expect(key).toHaveLength(128);
-    });
-
-    it("should verify a correct password", async () => {
-      const hasher = getHasher();
-      const hash = await hasher.hash("my-secure-password");
-
-      const result = await hasher.verify({
-        hash,
-        password: "my-secure-password",
-      });
-      expect(result).toBe(true);
-    });
-
-    it("should reject an incorrect password", async () => {
-      const hasher = getHasher();
-      const hash = await hasher.hash("correct-password");
-
-      const result = await hasher.verify({
-        hash,
-        password: "wrong-password",
-      });
-      expect(result).toBe(false);
-    });
-
-    it("should produce different hashes for the same password (random salt)", async () => {
-      const hasher = getHasher();
-      const hash1 = await hasher.hash("same-password");
-      const hash2 = await hasher.hash("same-password");
-
-      expect(hash1).not.toBe(hash2);
-
-      expect(
-        await hasher.verify({ hash: hash1, password: "same-password" }),
-      ).toBe(true);
-      expect(
-        await hasher.verify({ hash: hash2, password: "same-password" }),
-      ).toBe(true);
-    });
-  });
-
   describe("RateLimiter", () => {
     beforeEach(() => {
       vi.useFakeTimers();
@@ -231,7 +175,7 @@ describe("Durable Objects Integration", () => {
     });
   });
 
-  describe("Hono Integration Test", () => {
+  describe("Auth rate limit", () => {
     beforeEach(() => {
       vi.useFakeTimers();
     });
@@ -249,14 +193,14 @@ describe("Durable Objects Integration", () => {
         },
       };
 
-      const url = "/api/auth/sign-in/email";
+      const url = "http://localhost/api/auth/sign-in/email";
 
       for (let i = 0; i < 5; i++) {
-        const res = await testRequest(app, url, reqInit);
+        const res = await handleAuthRequest(new Request(url, reqInit), env);
         expect(res.status).not.toBe(429);
       }
 
-      const res = await testRequest(app, url, reqInit);
+      const res = await handleAuthRequest(new Request(url, reqInit), env);
       expect(res.status).toBe(429);
       expect(await res.json()).toEqual({
         code: "RATE_LIMITED",
@@ -264,48 +208,6 @@ describe("Durable Objects Integration", () => {
         retryAfterMs: expect.any(Number),
       });
       expect(res.headers.get("Retry-After")).toBeDefined();
-    });
-
-    describe("Security Shield", () => {
-      it("should block malicious extension (.php) with 404", async () => {
-        const res = await testRequest(app, "/index.php");
-        expect(res.status).toBe(404);
-        expect(await res.text()).toBe("Not Found");
-      });
-
-      it("should block suspicious AWS config path with 404", async () => {
-        const res = await testRequest(app, "/.aws/config");
-        expect(res.status).toBe(404);
-      });
-
-      it("should block unknown paths with 404 before triggering loader", async () => {
-        const res = await testRequest(app, "/random-bad-path");
-        expect(res.status).toBe(404);
-        expect(await res.text()).toBe("Not Found");
-      });
-
-      it("should allow home page", async () => {
-        const res = await testRequest(app, "/");
-        expect(res.status).not.toBe(403);
-        expect(res.status).not.toBe(404);
-      });
-
-      it("should allow dynamic post slugs", async () => {
-        const res = await testRequest(app, "/post/hello-world");
-        expect(res.status).not.toBe(403);
-        expect(res.status).not.toBe(404);
-      });
-
-      it("should allow admin paths", async () => {
-        const res = await testRequest(app, "/admin/posts");
-        expect(res.status).not.toBe(403);
-        expect(res.status).not.toBe(404);
-      });
-
-      it("should allow static assets like favicon", async () => {
-        const res = await testRequest(app, "/favicon.ico");
-        expect(res.status).not.toBe(403);
-      });
     });
   });
 });

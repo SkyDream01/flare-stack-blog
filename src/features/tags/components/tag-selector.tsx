@@ -2,11 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Hash, Loader2, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { createTagFn } from "@/features/tags/api/tags.api";
-import { TAGS_KEYS, tagsAdminQueryOptions } from "@/features/tags/queries";
+import { tagsAdminQueryOptions } from "@/features/tags/queries";
+import { orpcClient } from "@/lib/orpc";
 import type { Tag } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
+import { MOTION, useMotionPresence } from "@/hooks/use-motion";
 import { m } from "@/paraglide/messages";
 
 interface TagSelectorProps {
@@ -21,33 +21,37 @@ export function TagSelector({
   disabled,
 }: TagSelectorProps) {
   const [open, setOpen] = useState(false);
+  const present = useMotionPresence(open && !disabled, MOTION.popover);
   const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
   const queryClient = useQueryClient();
+  const adminTagsQuery = tagsAdminQueryOptions();
+  const adminTagsQueryKey = adminTagsQuery.queryKey;
 
   // Use admin query options (Infinity staleTime)
   const {
     data: tags = [],
     isLoading: isTagsLoading,
     isError,
-  } = useQuery(tagsAdminQueryOptions());
+  } = useQuery(adminTagsQuery);
 
   // Strict optimistic update following TanStack Query best practices
   const createTagMutation = useMutation({
-    mutationFn: async (name: string) => createTagFn({ data: { name } }),
+    mutationFn: async (name: string) => orpcClient.tags.admin.create({ name }),
 
     // When mutate is called (BEFORE the request)
     onMutate: async (newTagName) => {
       // 1. Cancel any outgoing refetches (so they don't overwrite our optimistic update)
       await queryClient.cancelQueries({
-        queryKey: TAGS_KEYS.adminList({}),
+        queryKey: adminTagsQueryKey,
       });
 
       // 2. Snapshot the previous value for rollback
-      const previousTags = queryClient.getQueryData<Array<Tag>>(
-        TAGS_KEYS.adminList({}),
-      );
+      const previousTags =
+        queryClient.getQueryData<Array<Tag>>(adminTagsQueryKey);
 
       // 3. Optimistically update the cache with a temporary tag
       const tempId = -Math.round(Math.random() * 1000000); // Random negative ID
@@ -58,7 +62,7 @@ export function TagSelector({
       };
 
       queryClient.setQueryData(
-        TAGS_KEYS.adminList({}),
+        adminTagsQueryKey,
         (old: Array<Tag> | undefined) => {
           if (!old) return [optimisticTag];
           return [...old, optimisticTag].sort((a, b) =>
@@ -69,7 +73,7 @@ export function TagSelector({
 
       // 4. Update selection with optimistic ID immediately
       // This makes it feel instant to the user
-      onChange([...value, optimisticTag.id]);
+      onChange([...valueRef.current, optimisticTag.id]);
       setSearchTerm("");
 
       // Return context with snapshot and tempId
@@ -77,20 +81,10 @@ export function TagSelector({
     },
 
     // If mutation succeeds, we need to swap the optimistic ID with the real ID
-    onSuccess: (result, _variables, context) => {
-      if (result.error) {
-        queryClient.setQueryData(TAGS_KEYS.adminList({}), context.previousTags);
-        onChange(value.filter((id) => id !== context.optimisticTagId));
-        toast.error(m.tag_selector_create_fail(), {
-          description: m.tag_selector_create_fail_desc(),
-        });
-        return;
-      }
-
-      const newTag = result.data;
+    onSuccess: (newTag, _variables, context) => {
       // 1. Update the cache to replace the temp tag with the real one
       queryClient.setQueryData(
-        TAGS_KEYS.adminList({}),
+        adminTagsQueryKey,
         (old: Array<Tag> | undefined) => {
           if (!old) return [newTag];
           return old
@@ -102,27 +96,29 @@ export function TagSelector({
       // 2. Update the parent selection to swap ID
       // This loop is critical to prevent "flicker" or losing selection
       onChange(
-        value.map((id) => (id === context.optimisticTagId ? newTag.id : id)),
+        valueRef.current.map((id) =>
+          id === context.optimisticTagId ? newTag.id : id,
+        ),
       );
     },
 
     // Always refetch after error or success for consistency
-    onSettled: (_data, settledError, _newTagName, context) => {
-      if (settledError) {
-        // If mutation fails, roll back to snapshot
-        if (context?.previousTags) {
-          queryClient.setQueryData(
-            TAGS_KEYS.adminList({}),
-            context.previousTags,
-          );
-        }
-        if (context?.optimisticTagId) {
-          onChange(value.filter((id) => id !== context.optimisticTagId));
-        }
+    onError: (_error, _newTagName, context) => {
+      if (context?.previousTags) {
+        queryClient.setQueryData(adminTagsQueryKey, context.previousTags);
       }
-
+      if (context?.optimisticTagId) {
+        onChange(
+          valueRef.current.filter((id) => id !== context.optimisticTagId),
+        );
+      }
+      toast.error(m.tag_selector_create_fail(), {
+        description: m.tag_selector_create_fail_desc(),
+      });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: TAGS_KEYS.adminList({}),
+        queryKey: adminTagsQueryKey,
       });
     },
   });
@@ -207,40 +203,37 @@ export function TagSelector({
           }
         }}
         className={cn(
-          "min-h-9 w-full rounded-md border border-input bg-transparent px-2 py-1.5 text-sm shadow-sm transition-colors cursor-text",
-          "focus-within:ring-1 focus-within:ring-ring focus-within:border-ring",
+          "min-h-10 w-full rounded-xl bg-(--fuwari-btn-regular-bg) px-2 py-1.5 text-sm cursor-text",
           (disabled || isInitialLoading) && "cursor-not-allowed opacity-50",
           "flex flex-wrap items-center gap-1.5",
         )}
       >
         {/* Selected Tags */}
         {selectedTags.map((tag) => (
-          <Badge
+          <span
             key={tag.id}
-            variant="secondary"
-            className="h-5 px-1.5 gap-1 text-[10px] items-center bg-secondary hover:bg-secondary/80 transition-colors"
+            className="inline-flex h-7 items-center gap-1 rounded-lg bg-(--fuwari-card-bg) px-2 text-sm text-(--fuwari-btn-content)"
           >
-            <Hash size={10} className="text-muted-foreground/50" />
             <span className="truncate max-w-37.5">{tag.name}</span>
-            <div
-              role="button"
-              className="ml-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 p-0.5 cursor-pointer"
+            <button
+              type="button"
+              className="rounded-full p-0.5 hover:bg-black/5 dark:hover:bg-white/10"
               onMouseDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (!disabled) toggleTag(tag.id);
               }}
             >
-              <X size={10} />
-            </div>
-          </Badge>
+              <X size={12} />
+            </button>
+          </span>
         ))}
 
         {/* Input */}
         <input
           ref={inputRef}
           type="text"
-          className="flex-1 min-w-20 bg-transparent outline-none placeholder:text-muted-foreground text-sm h-6"
+          className="h-6 min-w-20 flex-1 bg-transparent text-sm outline-none placeholder:fuwari-text-30"
           placeholder={
             selectedTags.length === 0 ? m.tag_selector_search_placeholder() : ""
           }
@@ -249,22 +242,33 @@ export function TagSelector({
             setSearchTerm(e.target.value);
             setOpen(true);
           }}
-          onKeyDown={handleKeyDown}
+          aria-expanded={open}
+          onKeyDown={(event) => {
+            if (open && event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              setOpen(false);
+            } else handleKeyDown(event);
+          }}
           onFocus={() => !isInitialLoading && setOpen(true)}
           disabled={disabled || isInitialLoading}
         />
 
         {/* Loading Spinner */}
         {(isInitialLoading || createTagMutation.isPending) && (
-          <div className="animate-spin text-muted-foreground mr-1">
+          <div className="mr-1 animate-spin fuwari-text-50">
             <Loader2 size={12} />
           </div>
         )}
       </div>
 
       {/* Dropdown Menu */}
-      {open && !disabled && (
-        <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2">
+      {present && (
+        <div
+          data-state={open && !disabled ? "open" : "closing"}
+          inert={!open || disabled}
+          className="fuwari-popover-motion absolute top-full left-0 z-50 mt-1 w-full rounded-xl bg-(--fuwari-card-bg) shadow-md ring-1 ring-(--fuwari-input-border)"
+        >
           <div className="max-h-50 w-full overflow-y-auto overflow-x-hidden p-1">
             {/* Create Option */}
             {searchTerm &&
@@ -272,21 +276,21 @@ export function TagSelector({
                 (t) => t.name.toLowerCase() === searchTerm.toLowerCase(),
               ) && (
                 <div
-                  className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                  className="relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-sm outline-none fuwari-text-75 hover:bg-(--fuwari-btn-regular-bg)/70 hover:fuwari-text-90"
                   onClick={() => createTagMutation.mutate(searchTerm)}
                 >
-                  <Plus className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <Plus className="mr-2 h-4 w-4 fuwari-text-50" />
                   <span>{m.tag_selector_create_action({ searchTerm })}</span>
                 </div>
               )}
 
             {/* Filtered List */}
             {isError ? (
-              <div className="p-2 text-xs text-destructive text-center">
+              <div className="p-2 text-center text-xs text-(--fuwari-danger-fg)">
                 <p>{m.tag_selector_load_fail()}</p>
               </div>
             ) : availableTags.length === 0 && !searchTerm ? (
-              <p className="p-2 text-xs text-muted-foreground text-center">
+              <p className="p-2 text-center text-xs fuwari-text-50">
                 {searchTerm
                   ? m.tag_selector_no_match()
                   : m.tag_selector_empty()}
@@ -300,14 +304,14 @@ export function TagSelector({
                   <div
                     key={tag.id}
                     className={cn(
-                      "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
+                      "relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-sm outline-none transition-colors",
                       isSelected
-                        ? "bg-accent/50 text-accent-foreground"
-                        : "hover:bg-accent hover:text-accent-foreground",
+                        ? "bg-(--fuwari-btn-regular-bg) text-(--fuwari-primary)"
+                        : "fuwari-text-75 hover:bg-(--fuwari-btn-regular-bg)/70 hover:fuwari-text-90",
                     )}
                     onClick={() => toggleTag(tag.id)}
                   >
-                    <Hash className="mr-2 h-4 w-4 text-muted-foreground/50" />
+                    <Hash className="mr-2 h-4 w-4 fuwari-text-30" />
                     <span className="flex-1 truncate">{tag.name}</span>
                     {isSelected && (
                       <Check className="ml-auto h-4 w-4 opacity-50" />

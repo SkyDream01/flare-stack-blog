@@ -1,8 +1,4 @@
-import {
-  createInsertSchema,
-  createSelectSchema,
-  createUpdateSchema,
-} from "drizzle-zod";
+import { createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 import {
   POST_REVISION_REASONS,
@@ -19,21 +15,14 @@ export const PostRevisionSnapshotSchema = z.object({
   slug: z.string(),
   status: z.enum(POST_STATUSES),
   publishedAt: z.string().nullable(),
-  readTimeInMinutes: z.number().int().min(1),
   contentJson: NullableJsonContentSchema,
   tagIds: z.array(z.number().int()),
+  categoryId: z.number().int().nullable().default(null),
+  coverMediaId: z.number().int().nullable().default(null),
 });
 
 export const PostRevisionSelectSchema = createSelectSchema(PostRevisionsTable, {
   createdAt: coercedDate,
-  snapshotJson: PostRevisionSnapshotSchema,
-});
-
-export const PostRevisionInsertSchema = createInsertSchema(PostRevisionsTable, {
-  snapshotJson: PostRevisionSnapshotSchema,
-});
-
-export const PostRevisionUpdateSchema = createUpdateSchema(PostRevisionsTable, {
   snapshotJson: PostRevisionSnapshotSchema,
 });
 
@@ -46,7 +35,7 @@ export const FindPostRevisionByIdInputSchema = z.object({
   revisionId: z.number(),
 });
 
-export const CreatePostRevisionInputSchema = z.object({
+const CreatePostRevisionInputSchema = z.object({
   postId: z.number(),
   reason: z.enum(POST_REVISION_REASONS).optional(),
 });

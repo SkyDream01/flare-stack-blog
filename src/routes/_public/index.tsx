@@ -1,52 +1,69 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import theme from "@theme";
+import { z } from "zod";
 import { siteDomainQuery } from "@/features/config/queries";
-import {
-  pinnedPostsQuery,
-  popularPostsQuery,
-  recentPostsQuery,
-} from "@/features/posts/queries";
+import { getThemePreloadImages } from "@/features/theme/site-config.helpers";
+import { popularPostsQuery, homePostsQuery } from "@/features/posts/queries";
 import { buildCanonicalUrl, canonicalLink } from "@/lib/seo";
 
-const { recentPostsLimit, popularPostsLimit } = theme.config.home;
-
 export const Route = createFileRoute("/_public/")({
-  loader: async ({ context }) => {
-    const [, domain] = await Promise.all([
-      context.queryClient.ensureQueryData(recentPostsQuery(recentPostsLimit)),
+  validateSearch: z.object({
+    page: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(1_000_000)
+      .optional()
+      .catch(undefined),
+  }),
+  loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
+  loader: async ({ context, deps }) => {
+    const [posts, domain] = await Promise.all([
+      context.queryClient.ensureQueryData(homePostsQuery(deps.page)),
       context.queryClient.ensureQueryData(siteDomainQuery),
-      context.queryClient.ensureQueryData(pinnedPostsQuery),
-      context.queryClient.ensureQueryData(popularPostsQuery(popularPostsLimit)),
+      context.queryClient.ensureQueryData(popularPostsQuery(3)),
     ]);
 
+    if (posts.page !== deps.page) {
+      throw redirect({
+        to: "/",
+        search: { page: posts.page === 1 ? undefined : posts.page },
+        replace: true,
+      });
+    }
     return {
-      canonicalHref: buildCanonicalUrl(domain, "/"),
+      canonicalHref: buildCanonicalUrl(domain, "/", {
+        page: posts.page === 1 ? undefined : String(posts.page),
+      }),
+      preloadImages: getThemePreloadImages(context.siteConfig),
     };
   },
   head: ({ loaderData }) => ({
-    links: [canonicalLink(loaderData?.canonicalHref ?? "/")],
+    links: [
+      canonicalLink(loaderData?.canonicalHref ?? "/"),
+      ...(loaderData?.preloadImages ?? []).map((href) => ({
+        rel: "preload" as const,
+        as: "image",
+        href,
+      })),
+    ],
   }),
-  pendingComponent: HomePageSkeleton,
+  pendingComponent: () => <theme.HomePageSkeleton />,
   component: HomeRoute,
 });
 
 function HomeRoute() {
-  const { data: posts } = useSuspenseQuery(recentPostsQuery(recentPostsLimit));
-  const { data: pinnedPosts } = useSuspenseQuery(pinnedPostsQuery);
-  const { data: popularPosts } = useSuspenseQuery(
-    popularPostsQuery(popularPostsLimit),
-  );
-
+  const { page = 1 } = Route.useSearch();
+  const { data } = useSuspenseQuery(homePostsQuery(page));
+  const { data: popularPosts } = useSuspenseQuery(popularPostsQuery(3));
   return (
     <theme.HomePage
-      posts={posts}
-      pinnedPosts={pinnedPosts}
+      posts={data.items}
+      pinnedPosts={data.items.filter((post) => Boolean(post.pinnedAt))}
       popularPosts={popularPosts}
+      page={data.page}
+      totalPages={data.totalPages}
     />
   );
-}
-
-function HomePageSkeleton() {
-  return <theme.HomePageSkeleton />;
 }

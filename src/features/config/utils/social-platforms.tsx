@@ -20,13 +20,7 @@ export interface SocialLink {
   label?: string; // tooltip, only for "custom"
 }
 
-function DiscordIcon({
-  size = 24,
-  strokeWidth: _strokeWidth,
-}: {
-  size?: number;
-  strokeWidth?: number;
-}) {
+function DiscordIcon({ size = 24 }: { size?: number }) {
   return (
     <svg
       width={size}
@@ -40,13 +34,7 @@ function DiscordIcon({
   );
 }
 
-function BilibiliIcon({
-  size = 24,
-  strokeWidth: _strokeWidth,
-}: {
-  size?: number;
-  strokeWidth?: number;
-}) {
+function BilibiliIcon({ size = 24 }: { size?: number }) {
   return (
     <svg
       width={size}

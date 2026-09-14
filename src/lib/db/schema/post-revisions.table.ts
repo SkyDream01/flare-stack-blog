@@ -17,9 +17,10 @@ export interface PostRevisionSnapshot {
   slug: string;
   status: PostStatus;
   publishedAt: string | null;
-  readTimeInMinutes: number;
   contentJson: JSONContent | null;
   tagIds: Array<number>;
+  categoryId: number | null;
+  coverMediaId: number | null;
 }
 
 export const PostRevisionsTable = sqliteTable(

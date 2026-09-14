@@ -1,214 +1,168 @@
-import { blogConfig } from "@/blog.config";
-import * as CacheService from "@/features/cache/cache.service";
-import type { SiteConfig, SystemConfig } from "@/features/config/config.schema";
+import { ORPCError } from "@orpc/server";
 import {
-  CONFIG_CACHE_KEYS,
-  DEFAULT_CONFIG,
-  SystemConfigSchema,
-} from "@/features/config/config.schema";
+  UpdateConfigSectionSchema,
+  type UpdateConfigSection,
+  type AdminConfigSnapshot,
+  type SecretChange,
+  type SavedSecretInput,
+} from "../config.admin.schema";
+import { invalidate } from "@/features/cache/public-cache";
+import { systemConfig } from "@/features/config/config.cache";
+import {
+  resolveSiteConfig,
+  resolveSystemConfig,
+} from "@/features/config/config.resolve";
+import type { SiteConfig } from "@/features/config/config.schema";
 import * as ConfigRepo from "@/features/config/data/config.data";
-import { FullSiteConfigSchema } from "@/features/config/site-config.schema";
-import type { SocialLink } from "@/features/config/utils/social-platforms";
 import * as Storage from "@/features/media/data/media.storage";
-import { purgeSiteCDNCache } from "@/lib/invalidate";
-
-const DEFAULT_SMTP_PORT = 465;
-const RESEND_SMTP_HOST = "smtp.resend.com";
-const RESEND_SMTP_USERNAME = "resend";
-
-function resolveEmailConfig(config: SystemConfig | null | undefined) {
-  const email = config?.email;
-  const legacyApiKey = email?.apiKey?.trim() || "";
-  const password = email?.password?.trim() || legacyApiKey;
-  const host = email?.host?.trim() || (legacyApiKey ? RESEND_SMTP_HOST : "");
-  const username =
-    email?.username?.trim() || (legacyApiKey ? RESEND_SMTP_USERNAME : "");
-
-  return {
-    host,
-    port: email?.port ?? DEFAULT_SMTP_PORT,
-    username,
-    password,
-    senderName: email?.senderName ?? "",
-    senderAddress: email?.senderAddress ?? "",
-  };
-}
-
-export function resolveSystemConfig(
-  config: SystemConfig | null | undefined,
-): SystemConfig {
-  return {
-    ...DEFAULT_CONFIG,
-    ...config,
-    email: resolveEmailConfig(config),
-    notification: {
-      ...DEFAULT_CONFIG.notification,
-      ...config?.notification,
-      admin: {
-        ...DEFAULT_CONFIG.notification?.admin,
-        ...config?.notification?.admin,
-        channels: {
-          ...DEFAULT_CONFIG.notification?.admin?.channels,
-          ...config?.notification?.admin?.channels,
-        },
-      },
-      user: {
-        ...DEFAULT_CONFIG.notification?.user,
-        ...config?.notification?.user,
-      },
-      webhooks:
-        config?.notification?.webhooks ?? DEFAULT_CONFIG.notification?.webhooks,
-    },
-    site: resolveSiteConfig(config),
-  };
-}
-
-function migrateSocial(social: unknown): SocialLink[] {
-  // New format — already an array
-  if (Array.isArray(social)) return social;
-
-  // Old format — { github?: string, email?: string }
-  if (social && typeof social === "object") {
-    const old = social as { github?: string; email?: string };
-    const migrated: SocialLink[] = [];
-    if (old.github) migrated.push({ platform: "github", url: old.github });
-    if (old.email)
-      migrated.push({ platform: "email", url: `mailto:${old.email}` });
-    return migrated;
-  }
-
-  // Fallback to blogConfig defaults
-  return [...blogConfig.social];
-}
-
-export function resolveSiteConfig(
-  config: SystemConfig | null | undefined,
-): SiteConfig {
-  const configDefaultBackground = config?.site?.theme?.default?.background;
-
-  return FullSiteConfigSchema.parse({
-    title: config?.site?.title ?? blogConfig.title,
-    author: config?.site?.author ?? blogConfig.author,
-    description: config?.site?.description ?? blogConfig.description,
-    social: migrateSocial(config?.site?.social),
-    icons: {
-      faviconSvg:
-        config?.site?.icons?.faviconSvg || blogConfig.icons.faviconSvg,
-      faviconIco:
-        config?.site?.icons?.faviconIco || blogConfig.icons.faviconIco,
-      favicon96: config?.site?.icons?.favicon96 || blogConfig.icons.favicon96,
-      appleTouchIcon:
-        config?.site?.icons?.appleTouchIcon || blogConfig.icons.appleTouchIcon,
-      webApp192: config?.site?.icons?.webApp192 || blogConfig.icons.webApp192,
-      webApp512: config?.site?.icons?.webApp512 || blogConfig.icons.webApp512,
-    },
-    theme: {
-      default: {
-        navBarName:
-          config?.site?.theme?.default?.navBarName ??
-          blogConfig.theme.default.navBarName,
-        background: configDefaultBackground
-          ? {
-              homeImage: configDefaultBackground.homeImage ?? "",
-              globalImage: configDefaultBackground.globalImage ?? "",
-              light: {
-                opacity: configDefaultBackground.light?.opacity ?? 0.15,
-              },
-              dark: {
-                opacity: configDefaultBackground.dark?.opacity ?? 0.1,
-              },
-              backdropBlur: configDefaultBackground.backdropBlur ?? 8,
-              transitionDuration:
-                configDefaultBackground.transitionDuration ?? 600,
-            }
-          : undefined,
-      },
-      fuwari: {
-        homeBg:
-          config?.site?.theme?.fuwari?.homeBg ?? blogConfig.theme.fuwari.homeBg,
-        avatar:
-          config?.site?.theme?.fuwari?.avatar ?? blogConfig.theme.fuwari.avatar,
-        primaryHue:
-          config?.site?.theme?.fuwari?.primaryHue ??
-          blogConfig.theme.fuwari.primaryHue,
-      },
-      cuckoo: {
-        bg: config?.site?.theme?.cuckoo?.bg ?? blogConfig.theme.cuckoo.bg,
-        avatar:
-          config?.site?.theme?.cuckoo?.avatar ?? blogConfig.theme.cuckoo.avatar,
-        sidebarBg:
-          config?.site?.theme?.cuckoo?.sidebarBg ??
-          blogConfig.theme.cuckoo.sidebarBg,
-        primaryHue:
-          config?.site?.theme?.cuckoo?.primaryHue ??
-          blogConfig.theme.cuckoo.primaryHue,
-        defaultCover:
-          config?.site?.theme?.cuckoo?.defaultCover ??
-          blogConfig.theme.cuckoo.defaultCover,
-      },
-    },
-  });
-}
-
-function hasSiteConfigChanged(
-  currentConfig: SystemConfig | null | undefined,
-  nextConfig: SystemConfig | null | undefined,
-) {
-  return (
-    JSON.stringify(resolveSiteConfig(currentConfig)) !==
-    JSON.stringify(resolveSiteConfig(nextConfig))
-  );
-}
 
 export async function getSystemConfig(
   context: DbContext & { executionCtx: ExecutionContext },
 ) {
-  const config = await CacheService.get(
-    context,
-    CONFIG_CACHE_KEYS.system,
-    SystemConfigSchema,
-    async () =>
-      resolveSystemConfig(await ConfigRepo.getSystemConfig(context.db)),
-  );
-
-  const normalizedConfig = resolveSystemConfig(config);
-
-  if (JSON.stringify(config) !== JSON.stringify(normalizedConfig)) {
-    context.executionCtx.waitUntil(
-      CacheService.set(
-        context,
-        CONFIG_CACHE_KEYS.system,
-        JSON.stringify(normalizedConfig),
-        { ttl: "1h" },
-      ),
-    );
-  }
-
-  return normalizedConfig;
+  return systemConfig.get(context, {});
 }
 
 export async function getSiteConfig(
   context: DbContext & { executionCtx: ExecutionContext },
-) {
+): Promise<SiteConfig> {
   const config = await getSystemConfig(context);
   return resolveSiteConfig(config);
 }
 
+export async function getAdminConfig(
+  context: DbContext,
+): Promise<AdminConfigSnapshot> {
+  const snapshot = await ConfigRepo.getConfigSnapshot(context.db);
+  return redactSnapshot(snapshot);
+}
+function redactSnapshot(
+  snapshot: Awaited<ReturnType<typeof ConfigRepo.getConfigSnapshot>>,
+): AdminConfigSnapshot {
+  const config = snapshot.config;
+  return {
+    config: {
+      ...config,
+      email: {
+        host: config.email?.host,
+        port: config.email?.port,
+        username: config.email?.username,
+        senderName: config.email?.senderName,
+        senderAddress: config.email?.senderAddress,
+        password: "",
+      },
+      notification: {
+        ...config.notification,
+        webhook: { url: config.notification?.webhook?.url ?? "", secret: "" },
+      },
+    },
+    revisions: {
+      site: snapshot.siteRevision,
+      notifications: snapshot.notificationRevision,
+    },
+    secrets: {
+      emailPasswordConfigured: !!config.email?.password,
+      webhookSecretConfigured: !!config.notification?.webhook?.secret,
+    },
+    schemaVersion: 1,
+  };
+}
+function changeSecret(current: string | undefined, change: SecretChange) {
+  return change.action === "keep"
+    ? (current ?? "")
+    : change.action === "clear"
+      ? ""
+      : change.value;
+}
 export async function updateSystemConfig(
   context: DbContext & { executionCtx: ExecutionContext },
-  data: SystemConfig,
+  input: UpdateConfigSection,
 ) {
-  const currentConfig = await ConfigRepo.getSystemConfig(context.db);
-  const nextConfig = resolveSystemConfig(data);
-
-  await ConfigRepo.upsertSystemConfig(context.db, nextConfig);
-  await CacheService.deleteKey(context, CONFIG_CACHE_KEYS.system);
-
-  if (hasSiteConfigChanged(currentConfig, nextConfig)) {
-    await purgeSiteCDNCache(context.env);
+  const data = UpdateConfigSectionSchema.parse(input);
+  // Retry only unrelated-section races, always rebuilding from the latest row.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const current = await ConfigRepo.getConfigSnapshot(context.db);
+    const revision =
+      data.section === "site"
+        ? current.siteRevision
+        : current.notificationRevision;
+    if (revision !== data.expectedRevision)
+      throw new ORPCError("CONFIG_CONFLICT", { status: 409 });
+    const nextConfig =
+      data.section === "site"
+        ? resolveSystemConfig({ ...current.config, site: data.site })
+        : resolveSystemConfig({
+            ...current.config,
+            email: {
+              ...data.email,
+              password: changeSecret(
+                current.config.email?.password,
+                data.secrets.emailPassword,
+              ),
+            },
+            notification: {
+              ...data.notification,
+              webhook: {
+                url: data.notification.webhook.url,
+                secret: changeSecret(
+                  current.config.notification?.webhook?.secret,
+                  data.secrets.webhookSecret,
+                ),
+              },
+            },
+          });
+    if (data.section === "notifications") {
+      const email = nextConfig.email!;
+      const endpoint = nextConfig.notification!.webhook!;
+      // A cleared/unconfigured password is allowed; a usable credential requires a complete account.
+      if (
+        email.password &&
+        !(email.host && email.username && email.senderAddress)
+      )
+        throw new ORPCError("CONFIG_INVALID", {
+          status: 400,
+          data: { field: "email" },
+        });
+      if (endpoint.url && !endpoint.secret)
+        throw new ORPCError("CONFIG_INVALID", {
+          status: 400,
+          data: { field: "notification.webhook.secret" },
+        });
+    }
+    if (
+      !(await ConfigRepo.compareAndSetConfig(
+        context.db,
+        current,
+        nextConfig,
+        data.section,
+      ))
+    )
+      continue;
+    await invalidate.siteConfigChanged(context);
+    return redactSnapshot({
+      config: nextConfig,
+      siteRevision: current.siteRevision + (data.section === "site" ? 1 : 0),
+      notificationRevision:
+        current.notificationRevision +
+        (data.section === "notifications" ? 1 : 0),
+    });
   }
-
-  return { success: true };
+  throw new ORPCError("CONFIG_CONFLICT", { status: 409 });
+}
+export async function resolveTestSecret(
+  context: DbContext,
+  kind: "emailPassword" | "webhookSecret",
+  input: SavedSecretInput,
+) {
+  if (input.action === "replace") return input.value;
+  const current = await ConfigRepo.getConfigSnapshot(context.db);
+  if (current.notificationRevision !== input.expectedRevision)
+    throw new ORPCError("CONFIG_CONFLICT", { status: 409 });
+  const value =
+    kind === "emailPassword"
+      ? current.config.email?.password
+      : current.config.notification?.webhook?.secret;
+  if (!value) throw new ORPCError("CONFIG_INVALID", { status: 400 });
+  return value;
 }
 
 export async function uploadSiteAsset(

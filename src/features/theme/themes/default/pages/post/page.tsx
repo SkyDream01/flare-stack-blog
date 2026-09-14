@@ -1,15 +1,15 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUp, Pencil, Share2, Sparkles } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { PostPageProps } from "@/features/theme/contract/pages";
 import { ContentRenderer } from "@/features/theme/themes/default/components/content/content-renderer";
 import { authClient } from "@/lib/auth/auth.client";
+import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
 import { formatDate } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { CommentSection } from "../../components/comments/view/comment-section";
-import { RelatedPosts, RelatedPostsSkeleton } from "./components/related-posts";
 import TableOfContents from "./components/table-of-contents";
 
 export function PostPage({ post }: PostPageProps) {
@@ -157,9 +157,7 @@ export function PostPage({ post }: PostPageProps) {
 
         {/* Related Posts */}
         <div className="pt-24 border-t border-border/40">
-          <Suspense fallback={<RelatedPostsSkeleton />}>
-            <RelatedPosts slug={post.slug} />
-          </Suspense>
+          <PostAdjacentNav slug={post.slug} />
         </div>
 
         {/* Comments Section */}

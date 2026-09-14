@@ -1,4 +1,3 @@
-export { MediaGrid } from "./media-grid";
-export { MediaPreviewModal } from "./media-preview-modal";
+export { MediaDetail } from "./media-detail";
+export { MediaPicker } from "./media-picker";
 export { MediaToolbar } from "./media-toolbar";
-export { UploadModal } from "./upload-modal";

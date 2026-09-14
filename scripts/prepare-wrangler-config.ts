@@ -23,7 +23,7 @@ export function inferZoneName(hostname: string): string {
   if (!zoneName) {
     throw new Error(
       `Could not infer Cloudflare zone name from DOMAIN=${hostname}. ` +
-        "Use a valid hostname such as blog.example.com.",
+        "Use a valid hostname such as blog.example.com, or specify ZONE_NAME explicitly.",
     );
   }
 
@@ -64,15 +64,13 @@ export function buildRoutesBlock(
   return `"routes": ${inner},`;
 }
 
-type PrepareWranglerConfigOptions = {
-  bucketName: string;
-  d1DatabaseId: string;
-  domain: string;
-  kvNamespaceId: string;
-  mode: "custom_domain" | "routes";
-  template: string;
-  zoneNameOverride?: string;
-};
+function requireEnv(env: EnvMap, name: string): string {
+  const value = env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
 
 export function prepareWranglerConfigContent({
   bucketName,
@@ -80,18 +78,31 @@ export function prepareWranglerConfigContent({
   domain,
   kvNamespaceId,
   mode,
+  queueName,
   template,
+  workerName,
   zoneNameOverride,
-}: PrepareWranglerConfigOptions): string {
+}: {
+  bucketName: string;
+  d1DatabaseId: string;
+  domain: string;
+  kvNamespaceId: string;
+  mode: "custom_domain" | "routes";
+  queueName: string;
+  template: string;
+  workerName: string;
+  zoneNameOverride?: string;
+}): string {
   const replacements = {
     D1_DATABASE_ID: d1DatabaseId,
     KV_NAMESPACE_ID: kvNamespaceId,
     DOMAIN_PLACEHOLDER: domain,
     "bucket-name-placeholder": bucketName,
+    "queue-name-placeholder": queueName,
+    "worker-name-placeholder": workerName,
   };
 
   let content = template;
-
   for (const [search, replacement] of Object.entries(replacements)) {
     content = content.replaceAll(search, replacement);
   }
@@ -102,36 +113,32 @@ export function prepareWranglerConfigContent({
   );
 }
 
-export function prepareWranglerConfig(env: EnvMap): "custom_domain" | "routes" {
+export function prepareWranglerConfig(env: EnvMap) {
   const domain = normalizeHostname(requireEnv(env, "DOMAIN"));
   const mode = resolveDeployDomainMode(env);
   const template = readFileSync(examplePath, "utf8");
-
+  const workerName = requireEnv(env, "WORKER_NAME");
+  const queueName = requireEnv(env, "QUEUE_NAME");
   const content = prepareWranglerConfigContent({
     bucketName: requireEnv(env, "BUCKET_NAME"),
     d1DatabaseId: requireEnv(env, "D1_DATABASE_ID"),
     domain,
     kvNamespaceId: requireEnv(env, "KV_NAMESPACE_ID"),
     mode,
+    queueName,
     template,
+    workerName,
     zoneNameOverride: env.ZONE_NAME?.trim(),
   });
-
   writeFileSync(outputPath, content);
-  return mode;
-}
-
-function requireEnv(env: EnvMap, name: string): string {
-  const value = env[name]?.trim();
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
+  return { domain, mode, queueName, workerName };
 }
 
 if (import.meta.main) {
-  const domain = normalizeHostname(requireEnv(process.env, "DOMAIN"));
-  const mode = prepareWranglerConfig(process.env);
-
-  console.log(`Prepared wrangler.jsonc with mode=${mode}, DOMAIN=${domain}`);
+  const { domain, mode, queueName, workerName } = prepareWranglerConfig(
+    process.env,
+  );
+  console.log(
+    `Prepared wrangler.jsonc with mode=${mode}, WORKER_NAME=${workerName}, QUEUE_NAME=${queueName}, DOMAIN=${domain}`,
+  );
 }

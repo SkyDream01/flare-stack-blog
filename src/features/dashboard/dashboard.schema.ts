@@ -1,63 +1,43 @@
 import { z } from "zod";
 
-export const DashboardStatsSchema = z.object({
-  pendingComments: z.number(),
-  publishedPosts: z.number(),
-  drafts: z.number(),
-  mediaSize: z.number(),
+const coercedDate = z.union([z.date(), z.string().pipe(z.coerce.date())]);
+
+const DashboardRecentPostSchema = z.object({
+  id: z.number().int().positive(),
+  title: z.string(),
+  status: z.enum(["draft", "published"]),
+  pinnedAt: coercedDate.nullable(),
+  updatedAt: coercedDate,
 });
 
-export const ActivityLogItemSchema = z.object({
-  type: z.enum(["comment", "post", "user"]),
-  text: z.string(),
-  time: z.date().nullable(),
-  link: z.string().optional(),
-  rootId: z.number().optional(),
+const DashboardPendingFriendLinkSchema = z.object({
+  id: z.number().int().positive(),
+  siteName: z.string(),
+  siteUrl: z.string(),
+  logoUrl: z.string().nullable(),
+  createdAt: coercedDate,
 });
 
-export const TrafficDataSchema = z.object({
-  date: z.number(),
-  views: z.number(),
+const DashboardRecentCommentSchema = z.object({
+  id: z.number().int().positive(),
+  userName: z.string().nullable(),
+  userImage: z.string().nullable(),
+  postTitle: z.string(),
+  postSlug: z.string(),
+  snippet: z.string(),
+  createdAt: coercedDate,
 });
 
-const MetricSchema = z.object({
-  value: z.number(),
-  prev: z.number().optional(),
+export const DashboardOverviewSchema = z.object({
+  popularityAlert: z.enum(["failed", "expired"]).nullable(),
+  adminEmailNeedsSetup: z.boolean(),
+  defaultSiteIdentity: z.boolean(),
+  recentPosts: z.array(DashboardRecentPostSchema),
+  pendingFriendLinks: z.object({
+    items: z.array(DashboardPendingFriendLinkSchema),
+    remainingCount: z.number().int().nonnegative(),
+  }),
+  recentComments: z.array(DashboardRecentCommentSchema),
 });
 
-export const DashboardResponseSchema = z.object({
-  stats: DashboardStatsSchema,
-  activities: z.array(ActivityLogItemSchema),
-  trafficByRange: z
-    .record(
-      z.enum(["24h", "7d", "30d", "90d"]),
-      z.object({
-        traffic: z.array(TrafficDataSchema),
-        overview: z
-          .object({
-            visitors: MetricSchema,
-            pageViews: MetricSchema,
-          })
-          .optional(),
-        topPages: z
-          .array(
-            z.object({
-              slug: z.string(),
-              title: z.string(),
-              views: z.number(),
-            }),
-          )
-          .optional(),
-        lastUpdated: z.number(),
-      }),
-    )
-    .optional(),
-});
-
-export type DashboardStats = z.infer<typeof DashboardStatsSchema>;
-export type ActivityLogItem = z.infer<typeof ActivityLogItemSchema>;
-export type TrafficData = z.infer<typeof TrafficDataSchema>;
-export type DashboardResponse = z.infer<typeof DashboardResponseSchema>;
-export type DashboardRange = "24h" | "7d" | "30d" | "90d";
-
-export const ALL_RANGES: Array<DashboardRange> = ["24h", "7d", "30d", "90d"];
+export type DashboardOverview = z.infer<typeof DashboardOverviewSchema>;

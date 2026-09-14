@@ -1,4 +1,4 @@
-import { type AuthType, WorkerMailer } from "worker-mailer";
+import type { AuthType } from "worker-mailer";
 import * as ConfigService from "@/features/config/service/config.service";
 import * as EmailData from "@/features/email/data/email.data";
 import type { TestEmailConnectionInput } from "@/features/email/email.schema";
@@ -28,7 +28,7 @@ function getSmtpAuthTypes(): AuthType[] {
   return ["plain", "login", "cram-md5"];
 }
 
-function isEmailConfigured(
+export function isEmailConfigured(
   email:
     | {
         host?: string;
@@ -51,14 +51,15 @@ function isEmailConfigured(
 }
 
 export async function testEmailConnection(
-  context: DbContext,
+  context: AuthContext,
   data: TestEmailConnectionInput,
 ) {
   try {
-    const { ADMIN_EMAIL, LOCALE } = serverEnv(context.env);
+    const { LOCALE } = serverEnv(context.env);
     const { host, password, port, senderAddress, senderName, username } = data;
     const security = resolveTransportSecurity(port);
 
+    const { WorkerMailer } = await import("worker-mailer");
     await WorkerMailer.send(
       {
         host,
@@ -75,7 +76,7 @@ export async function testEmailConnection(
           name: senderName,
           email: senderAddress,
         },
-        to: ADMIN_EMAIL,
+        to: context.session.user.email,
         subject: m.settings_email_test_mail_subject({}, { locale: LOCALE }),
         html: `<p>${m.settings_email_test_mail_body({}, { locale: LOCALE })}</p>`,
       },
@@ -136,16 +137,6 @@ export async function getReplyNotificationStatus(
     "reply_notification",
   );
   return { enabled: !unsubscribed };
-}
-
-export async function getNotificationConfig(
-  context: DbContext & { executionCtx: ExecutionContext },
-) {
-  const config = await ConfigService.getSystemConfig(context);
-
-  return {
-    userEmailEnabled: config?.notification?.user?.emailEnabled ?? true,
-  };
 }
 
 export async function toggleReplyNotification(
@@ -213,6 +204,7 @@ export async function sendEmail(
   try {
     const security = resolveTransportSecurity(email.port);
 
+    const { WorkerMailer } = await import("worker-mailer");
     await WorkerMailer.send(
       {
         host: email.host,

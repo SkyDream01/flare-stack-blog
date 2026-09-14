@@ -1,10 +1,12 @@
 import type { JSONContent } from "@tiptap/react";
 import { renderToReactElement } from "@tiptap/static-renderer/pm/react";
 import { getCommentExtensions } from "@/features/comments/components/editor/config";
+import { CommentBody } from "@/features/comments/components/comment-body";
 import { ImageDisplay } from "../../content/image-display";
 
-export function renderCommentReact(content: JSONContent | null) {
+export function renderCommentReact(content: JSONContent | string | null) {
   if (!content) return null;
+  if (typeof content === "string") return <CommentBody content={content} />;
   return renderToReactElement({
     extensions: getCommentExtensions(),
     content,

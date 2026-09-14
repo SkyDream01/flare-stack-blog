@@ -1,5 +1,6 @@
 import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { isAdminWorkspace } from "@/components/admin/content-workspace";
 import { NotFound } from "@/components/common/not-found";
 import { ErrorPage } from "./components/common/error-page";
 import * as TanstackQuery from "./integrations/tanstack-query/root-provider";
@@ -24,8 +25,14 @@ export function getRouter() {
     defaultNotFoundComponent: NotFound,
     defaultErrorComponent: ErrorPage,
     defaultViewTransition: __THEME_CONFIG__.viewTransition,
-    scrollRestoration: true,
+    // These workspaces manage their own inner scroll areas.
+    scrollRestoration: ({ location }) => !isAdminWorkspace(location.pathname),
   });
+
+  // First hydration is not a client navigation. Leaving next=true makes
+  // TanStack Router scrollTo(0) after SSR HTML is already on screen, which
+  // yanks the page back to the top if the reader scrolled during load.
+  router._scroll.next = false;
 
   setupRouterSsrQueryIntegration({
     router,

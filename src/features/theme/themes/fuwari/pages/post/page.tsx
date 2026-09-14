@@ -1,14 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { Clock, FileText, Pencil } from "lucide-react";
-import { Suspense } from "react";
 import type { PostPageProps } from "@/features/theme/contract/pages";
+import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
 import { FuwariCommentSection } from "@/features/theme/themes/fuwari/components/comments/view/comment-section";
 import { ContentRenderer } from "@/features/theme/themes/fuwari/components/content/content-renderer";
 import { authClient } from "@/lib/auth/auth.client";
 import { m } from "@/paraglide/messages";
 import { PostMeta } from "./components/post-meta";
 import { PostSummary } from "./components/post-summary";
-import { RelatedPosts, RelatedPostsSkeleton } from "./components/related-posts";
 import TableOfContents from "./components/table-of-contents";
 
 export function PostPage({ post }: PostPageProps) {
@@ -109,9 +108,7 @@ export function PostPage({ post }: PostPageProps) {
       </div>
 
       {/* Related Posts */}
-      <Suspense fallback={<RelatedPostsSkeleton />}>
-        <RelatedPosts slug={post.slug} />
-      </Suspense>
+      <PostAdjacentNav slug={post.slug} />
 
       {/* Comments Section */}
       <div

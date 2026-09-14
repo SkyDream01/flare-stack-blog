@@ -5,7 +5,6 @@ import {
   resolveSocialHref,
   SOCIAL_PLATFORMS,
 } from "@/features/config/utils/social-platforms";
-import { useViewCounts } from "@/features/pageview/queries";
 import type { HomePageProps } from "@/features/theme/contract/pages";
 import { PostItem } from "@/features/theme/themes/default/components/post-item";
 import { m } from "@/paraglide/messages";
@@ -26,13 +25,6 @@ export function HomePage({ posts, pinnedPosts }: HomePageProps) {
     }
     return merged;
   }, [posts, pinnedPosts]);
-
-  const allSlugs = useMemo(
-    () => displayPosts.map((p) => p.slug),
-    [displayPosts],
-  );
-  const { data: viewCounts, isPending: isPendingViewCounts } =
-    useViewCounts(allSlugs);
 
   return (
     <div className="flex flex-col w-full max-w-3xl mx-auto px-6 md:px-0 py-12 md:py-20 space-y-20">
@@ -96,13 +88,7 @@ export function HomePage({ posts, pinnedPosts }: HomePageProps) {
 
         <div className="space-y-8">
           {displayPosts.map((post) => (
-            <PostItem
-              key={post.id}
-              post={post}
-              pinned={post.isPinned}
-              views={viewCounts?.[post.slug]}
-              isLoadingViews={isPendingViewCounts}
-            />
+            <PostItem key={post.id} post={post} pinned={post.isPinned} />
           ))}
         </div>
 

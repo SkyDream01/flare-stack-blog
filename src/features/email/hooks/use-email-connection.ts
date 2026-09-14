@@ -1,9 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
-import { testEmailConnectionFn } from "@/features/email/api/email.api";
+import { orpcClient } from "@/lib/orpc";
 
 export function useEmailConnection() {
   const mutation = useMutation({
-    mutationFn: testEmailConnectionFn,
+    mutationFn: (
+      input: import("../email.schema").AdminTestEmailConnectionInput,
+    ) => orpcClient.email.testConnection(input),
   });
 
   return {

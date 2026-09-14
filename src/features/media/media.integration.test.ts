@@ -4,7 +4,7 @@ import {
   waitForBackgroundTasks,
 } from "tests/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as PostMediaRepo from "@/features/posts/data/post-media.data";
+import type { JSONContent } from "@tiptap/react";
 import * as PostService from "@/features/posts/services/posts.service";
 import { unwrap } from "@/lib/errors";
 import * as Storage from "./data/media.storage";
@@ -32,11 +32,11 @@ describe("MediaService", () => {
     // We trust the `r2-sanity.test.ts` (or equivalent verification) matches the platform behavior,
     // and here we focus on Service Logic + DB integration.
 
-    vi.spyOn(Storage, "putToR2").mockImplementation(async (_env, file) => {
-      const key = `mocked-${Date.now()}-${file.name}`;
+    vi.spyOn(Storage, "putToR2").mockImplementation(async (_env, file, key) => {
+      const nextKey = key ?? `mocked-${Date.now()}-${file.name}`;
       return {
-        key,
-        url: `/images/${key}`,
+        key: nextKey,
+        url: `/images/${nextKey}`,
         fileName: file.name,
         mimeType: file.type,
         sizeInBytes: file.size,
@@ -218,6 +218,13 @@ describe("MediaService", () => {
       expect(totalSize).toBeGreaterThan(0);
     });
 
+    it("reports library stats including unused count", async () => {
+      const stats = await MediaService.getMediaStats(adminContext);
+      expect(stats.totalCount).toBeGreaterThanOrEqual(5);
+      expect(stats.unusedCount).toBe(stats.totalCount);
+      expect(stats.totalBytes).toBeGreaterThan(0);
+    });
+
     it("should update media filename", async () => {
       const file = new File(["rename me"], "original-name.png", {
         type: "image/png",
@@ -238,36 +245,51 @@ describe("MediaService", () => {
     });
   });
 
+  function imageDoc(...keys: Array<string>): JSONContent {
+    return {
+      type: "doc",
+      content: keys.map((key) => ({
+        type: "image",
+        attrs: { src: `/images/${key}` },
+      })),
+    };
+  }
+
+  async function setPostContent(postId: number, contentJson: JSONContent) {
+    unwrap(
+      await PostService.updatePost(adminContext, {
+        id: postId,
+        data: { contentJson },
+      }),
+    );
+  }
+
+  async function publishPost(postId: number) {
+    unwrap(
+      await PostService.updatePost(adminContext, {
+        id: postId,
+        data: { publishedAt: new Date() },
+      }),
+    );
+    unwrap(await PostService.publishPost(adminContext, { id: postId }));
+  }
+
   // ============================================
   // 文章-媒体关联 (Post-Media Relationships)
   // ============================================
   describe("Post-Media Relationships", () => {
     it("should track media usage in posts", async () => {
-      // Upload media
       const file = new File(["linked image"], "linked-image.png", {
         type: "image/png",
       });
       const media = unwrap(await MediaService.upload(adminContext, { file }));
-
-      // Create a post
       const { id: postId } = await PostService.createEmptyPost(adminContext);
 
-      // Sync post-media relationship
-      await PostMediaRepo.syncPostMedia(adminContext.db, postId, {
-        type: "doc",
-        content: [
-          {
-            type: "image",
-            attrs: { src: `/images/${media.key}` },
-          },
-        ],
-      });
+      await setPostContent(postId, imageDoc(media.key));
 
-      // Check if media is in use
       const isInUse = await MediaService.isMediaInUse(adminContext, media.key);
       expect(isInUse).toBe(true);
 
-      // Get linked posts
       const linkedPosts = await MediaService.getLinkedPosts(
         adminContext,
         media.key,
@@ -286,7 +308,6 @@ describe("MediaService", () => {
     });
 
     it("should batch check linked media keys", async () => {
-      // Upload multiple media files
       const files = ["batch-1.png", "batch-2.png", "batch-3.png"];
       const mediaKeys: Array<string> = [];
 
@@ -296,17 +317,9 @@ describe("MediaService", () => {
         mediaKeys.push(media.key);
       }
 
-      // Link only first two to a post
       const { id: postId } = await PostService.createEmptyPost(adminContext);
-      await PostMediaRepo.syncPostMedia(adminContext.db, postId, {
-        type: "doc",
-        content: [
-          { type: "image", attrs: { src: `/images/${mediaKeys[0]}` } },
-          { type: "image", attrs: { src: `/images/${mediaKeys[1]}` } },
-        ],
-      });
+      await setPostContent(postId, imageDoc(mediaKeys[0], mediaKeys[1]));
 
-      // Batch check
       const linkedKeys = await MediaService.getLinkedMediaKeys(
         adminContext,
         mediaKeys,
@@ -316,6 +329,191 @@ describe("MediaService", () => {
       expect(linkedKeys).toContain(mediaKeys[0]);
       expect(linkedKeys).toContain(mediaKeys[1]);
       expect(linkedKeys).not.toContain(mediaKeys[2]);
+    });
+
+    it("keeps published snapshot images locked after they leave the draft", async () => {
+      const file = new File(["published image"], "published-image.png", {
+        type: "image/png",
+      });
+      const media = unwrap(await MediaService.upload(adminContext, { file }));
+      const { id: postId } = await PostService.createEmptyPost(adminContext);
+
+      await setPostContent(postId, imageDoc(media.key));
+      await publishPost(postId);
+      await setPostContent(postId, { type: "doc", content: [] });
+
+      expect(await MediaService.isMediaInUse(adminContext, media.key)).toBe(
+        true,
+      );
+      expect(
+        (await MediaService.deleteImage(adminContext, media.key)).error?.reason,
+      ).toBe("MEDIA_IN_USE");
+
+      const unused = await MediaService.getMediaList(adminContext, {
+        unusedOnly: true,
+      });
+      expect(unused.items.some((item) => item.key === media.key)).toBe(false);
+    });
+
+    it("locks a Post Cover on the draft and on the public snapshot", async () => {
+      const file = new File(["cover image"], "cover-image.png", {
+        type: "image/png",
+      });
+      const media = unwrap(await MediaService.upload(adminContext, { file }));
+      const { id: postId } = await PostService.createEmptyPost(adminContext);
+
+      unwrap(
+        await PostService.updatePost(adminContext, {
+          id: postId,
+          data: { coverMediaId: media.id },
+        }),
+      );
+
+      expect(await MediaService.isMediaInUse(adminContext, media.key)).toBe(
+        true,
+      );
+
+      await publishPost(postId);
+      unwrap(
+        await PostService.updatePost(adminContext, {
+          id: postId,
+          data: { coverMediaId: null },
+        }),
+      );
+
+      expect(await MediaService.isMediaInUse(adminContext, media.key)).toBe(
+        true,
+      );
+      expect(
+        (await MediaService.deleteImage(adminContext, media.key)).error?.reason,
+      ).toBe("MEDIA_IN_USE");
+
+      const listed = await MediaService.getMediaList(adminContext, {});
+      expect(listed.items.find((item) => item.key === media.key)?.isCover).toBe(
+        true,
+      );
+      const linked = await MediaService.getLinkedPosts(adminContext, media.key);
+      expect(linked).toHaveLength(1);
+      expect(linked[0].isCover).toBe(true);
+
+      unwrap(await PostService.unpublishPost(adminContext, { id: postId }));
+      expect(await MediaService.isMediaInUse(adminContext, media.key)).toBe(
+        false,
+      );
+    });
+
+    it("unlocks snapshot-only images after unpublish if the draft no longer uses them", async () => {
+      const file = new File(["unpublish image"], "unpublish-image.png", {
+        type: "image/png",
+      });
+      const media = unwrap(await MediaService.upload(adminContext, { file }));
+      const { id: postId } = await PostService.createEmptyPost(adminContext);
+
+      await setPostContent(postId, imageDoc(media.key));
+      await publishPost(postId);
+      await setPostContent(postId, { type: "doc", content: [] });
+      unwrap(await PostService.unpublishPost(adminContext, { id: postId }));
+
+      expect(await MediaService.isMediaInUse(adminContext, media.key)).toBe(
+        false,
+      );
+      unwrap(await MediaService.deleteImage(adminContext, media.key));
+    });
+
+    it("marks a Post Cover on linked posts", async () => {
+      const file = new File(["cover"], "cover-flag.png", {
+        type: "image/png",
+      });
+      const media = unwrap(await MediaService.upload(adminContext, { file }));
+      const { id: postId } = await PostService.createEmptyPost(adminContext);
+      unwrap(
+        await PostService.updatePost(adminContext, {
+          id: postId,
+          data: { coverMediaId: media.id },
+        }),
+      );
+
+      const linked = await MediaService.getLinkedPosts(adminContext, media.key);
+      expect(linked).toHaveLength(1);
+      expect(linked[0].isCover).toBe(true);
+    });
+  });
+
+  describe("Replace and import", () => {
+    it("replaces the file at the same key", async () => {
+      const original = new File(["old"], "old.png", { type: "image/png" });
+      const uploaded = unwrap(
+        await MediaService.upload(adminContext, { file: original }),
+      );
+      const next = new File(["new-bytes"], "new.jpg", { type: "image/jpeg" });
+      const replaced = unwrap(
+        await MediaService.replaceImage(adminContext, {
+          key: uploaded.key,
+          file: next,
+        }),
+      );
+
+      expect(replaced.key).toBe(uploaded.key);
+      expect(replaced.fileName).toBe("new.jpg");
+      expect(replaced.mimeType).toBe("image/jpeg");
+      expect(replaced.sizeInBytes).toBe(next.size);
+      expect(Storage.putToR2).toHaveBeenCalledWith(
+        adminContext.env,
+        next,
+        uploaded.key,
+      );
+    });
+
+    it("imports a public image URL into Media", async () => {
+      const bytes = new Uint8Array([1, 2, 3, 4]);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response(bytes, {
+            status: 200,
+            headers: { "content-type": "image/png" },
+          }),
+        ),
+      );
+
+      const result = unwrap(
+        await MediaService.importFromUrl(adminContext, {
+          url: "https://example.com/photos/sunset.png",
+        }),
+      );
+
+      expect(result.fileName).toBe("sunset.png");
+      expect(result.mimeType).toBe("image/png");
+      vi.unstubAllGlobals();
+    });
+
+    it("rejects a private import URL", async () => {
+      const result = await MediaService.importFromUrl(adminContext, {
+        url: "http://127.0.0.1/secret.png",
+      });
+      expect(result.error?.reason).toBe("MEDIA_INVALID_URL");
+    });
+
+    it("deletes unused media in one pass", async () => {
+      const unused = unwrap(
+        await MediaService.upload(adminContext, {
+          file: new File(["a"], "unused-batch.png", { type: "image/png" }),
+        }),
+      );
+      const used = unwrap(
+        await MediaService.upload(adminContext, {
+          file: new File(["b"], "used-batch.png", { type: "image/png" }),
+        }),
+      );
+      const { id: postId } = await PostService.createEmptyPost(adminContext);
+      await setPostContent(postId, imageDoc(used.key));
+
+      const deleted = unwrap(await MediaService.deleteUnused(adminContext));
+      expect(deleted.count).toBeGreaterThanOrEqual(1);
+
+      const list = await MediaService.getMediaList(adminContext, {});
+      expect(list.items.some((item) => item.key === unused.key)).toBe(false);
+      expect(list.items.some((item) => item.key === used.key)).toBe(true);
     });
   });
 });

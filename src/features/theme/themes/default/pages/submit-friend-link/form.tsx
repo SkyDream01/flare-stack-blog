@@ -83,22 +83,6 @@ export function FriendLinkSubmitForm({ form }: FriendLinkSubmitFormProps) {
             </span>
           )}
         </div>
-
-        <div className="space-y-2 group">
-          <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider group-focus-within:text-foreground transition-colors">
-            {m.friend_link_field_contact_email()} *
-          </label>
-          <Input
-            {...register("contactEmail")}
-            className={monoInputClassName}
-            placeholder={m.friend_link_placeholder_contact_email_default()}
-          />
-          {errors.contactEmail && (
-            <span className="text-[10px] text-destructive font-mono">
-              {errors.contactEmail.message}
-            </span>
-          )}
-        </div>
       </div>
 
       <div className="flex justify-start">

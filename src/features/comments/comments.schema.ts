@@ -1,10 +1,5 @@
-import {
-  createInsertSchema,
-  createSelectSchema,
-  createUpdateSchema,
-} from "drizzle-zod";
+import { createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
-import { JsonContentSchema } from "@/features/posts/schema/json-content.schema";
 import type { CommentStatus } from "@/lib/db/schema";
 import { CommentsTable } from "@/lib/db/schema";
 
@@ -15,18 +10,17 @@ export const CommentSelectSchema = createSelectSchema(CommentsTable, {
   createdAt: coercedDate,
   updatedAt: coercedDate,
 });
-export const CommentInsertSchema = createInsertSchema(CommentsTable);
-export const CommentUpdateSchema = createUpdateSchema(CommentsTable);
 
 // User info schema for joined queries
-export const CommentUserSchema = z.object({
+const CommentUserSchema = z.object({
   id: z.string().nullable(),
   name: z.string().nullable(),
   image: z.string().nullable(),
   role: z.string().nullable(),
+  mutedAt: coercedDate.nullable(),
 });
 
-export const CommentWithUserSchema = CommentSelectSchema.extend({
+const CommentWithUserSchema = CommentSelectSchema.extend({
   user: CommentUserSchema.nullable(),
   post: z
     .object({
@@ -44,26 +38,11 @@ export const CommentWithUserSchema = CommentSelectSchema.extend({
     .optional(),
 });
 
-export const UserStatsSchema = z.object({
-  totalComments: z.number(),
-  rejectedComments: z.number(),
-  registeredAt: z.date(),
-});
-
-export const GetUserStatsInputSchema = z.object({
-  userId: z.string(),
-});
-
 // Public API Schemas
 export const GetCommentsByPostIdInputSchema = z.object({
   postId: z.number(),
   offset: z.number().optional(),
   limit: z.number().optional(),
-});
-
-export const GetCommentsResponseSchema = z.object({
-  items: z.array(CommentWithUserSchema),
-  total: z.number(),
 });
 
 export const GetRepliesByRootIdInputSchema = z.object({
@@ -73,7 +52,7 @@ export const GetRepliesByRootIdInputSchema = z.object({
   limit: z.number().optional(),
 });
 
-export const ReplyWithUserAndReplyToSchema = CommentWithUserSchema.extend({
+const ReplyWithUserAndReplyToSchema = CommentWithUserSchema.extend({
   replyTo: z
     .object({
       id: z.string().nullable(),
@@ -89,27 +68,35 @@ export const GetRepliesResponseSchema = z.object({
 
 export const RootCommentWithReplyCountSchema = CommentWithUserSchema.extend({
   replyCount: z.number(),
+  replies: z.array(ReplyWithUserAndReplyToSchema),
 });
 
 export const GetRootCommentsResponseSchema = z.object({
   items: z.array(RootCommentWithReplyCountSchema),
-  total: z.number(),
+  total: z
+    .number()
+    .describe(
+      "Total published comments on this post, including roots and replies but excluding deleted placeholders. This is not the number of paginated root threads.",
+    ),
+  viewerMuted: z.boolean(),
 });
 
 // Authed User API Schemas
+const CommentBodySchema = z.string().trim().min(1);
+
 export const CreateCommentInputSchema = z.object({
   postId: z.number(),
-  content: JsonContentSchema,
+  content: CommentBodySchema,
   rootId: z.number().optional(),
   replyToCommentId: z.number().optional(),
 });
 
-export const UpdateCommentInputSchema = z.object({
+export const DeleteCommentInputSchema = z.object({
   id: z.number(),
-  content: JsonContentSchema,
 });
 
-export const DeleteCommentInputSchema = z.object({
+export const GetThreadByCommentIdInputSchema = z.object({
+  postId: z.number(),
   id: z.number(),
 });
 
@@ -119,38 +106,13 @@ export const GetMyCommentsInputSchema = z.object({
   status: z.custom<CommentStatus>().optional(),
 });
 
-// Admin API Schemas
-export const GetAllCommentsInputSchema = z.object({
-  offset: z.number().optional(),
-  limit: z.number().optional(),
-  status: z.custom<CommentStatus>().optional(),
-  postId: z.number().optional(),
-  userId: z.string().optional(),
-  userName: z.string().optional(),
-});
-
-export const ModerateCommentInputSchema = z.object({
-  id: z.number(),
-  status: z.enum(["published", "deleted", "pending"]),
-});
-
-export const StartCommentModerationInputSchema = z.object({
-  commentId: z.number(),
-});
-
 // Types
 export type GetCommentsByPostIdInput = z.infer<
   typeof GetCommentsByPostIdInputSchema
 >;
 export type CreateCommentInput = z.infer<typeof CreateCommentInputSchema>;
-export type UpdateCommentInput = z.infer<typeof UpdateCommentInputSchema>;
 export type DeleteCommentInput = z.infer<typeof DeleteCommentInputSchema>;
 export type GetMyCommentsInput = z.infer<typeof GetMyCommentsInputSchema>;
-export type GetAllCommentsInput = z.infer<typeof GetAllCommentsInputSchema>;
-export type ModerateCommentInput = z.infer<typeof ModerateCommentInputSchema>;
-export type StartCommentModerationInput = z.infer<
-  typeof StartCommentModerationInputSchema
->;
 export type RootCommentWithReplyCount = z.infer<
   typeof RootCommentWithReplyCountSchema
 >;

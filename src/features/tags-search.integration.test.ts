@@ -1,4 +1,3 @@
-import { remove } from "@orama/orama";
 import {
   createAdminTestContext,
   createTestContext,
@@ -6,11 +5,8 @@ import {
   waitForBackgroundTasks,
 } from "tests/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
-import * as CacheService from "@/features/cache/cache.service";
 import * as PostService from "@/features/posts/services/posts.service";
-import { getOramaDb, persistOramaDb } from "@/features/search/model/store";
 import * as SearchService from "@/features/search/service/search.service";
-import { TAGS_CACHE_KEYS } from "@/features/tags/tags.schema";
 import * as TagService from "@/features/tags/tags.service";
 import { PostsTable, PostTagsTable, TagsTable } from "@/lib/db/schema";
 import { unwrap } from "@/lib/errors";
@@ -59,7 +55,6 @@ describe("Tags & Search Integration", () => {
             data: {
               title: "Post 1",
               slug: "post-1",
-              status: "published",
               publishedAt: new Date(Date.now() - 10000),
             },
           }),
@@ -101,7 +96,6 @@ describe("Tags & Search Integration", () => {
             data: {
               title: "Post 1",
               slug: "post-1",
-              status: "published",
               publishedAt: new Date(Date.now() - 10000),
             },
           }),
@@ -110,6 +104,7 @@ describe("Tags & Search Integration", () => {
           postId: post1.id,
           tagIds: [tag1.id],
         });
+        unwrap(await PostService.publishPost(adminContext, { id: post1.id }));
 
         const post2 = await PostService.createEmptyPost(adminContext);
         await TagService.setPostTags(adminContext, {
@@ -147,7 +142,6 @@ describe("Tags & Search Integration", () => {
             data: {
               title: "Post",
               slug: "post",
-              status: "published",
               publishedAt: new Date(Date.now() - 10000),
             },
           }),
@@ -156,16 +150,14 @@ describe("Tags & Search Integration", () => {
           postId: post.id,
           tagIds: [tag.id],
         });
+        unwrap(await PostService.publishPost(adminContext, { id: post.id }));
 
         const result1 = await TagService.getPublicTags(adminContext);
         expect(result1).toHaveLength(1);
 
         await waitForBackgroundTasks(adminContext.executionCtx);
 
-        const cached = await CacheService.getRaw(
-          adminContext,
-          TAGS_CACHE_KEYS.publicList,
-        );
+        const cached = await adminContext.env.KV.get("public:tags:list");
         expect(cached).not.toBeNull();
 
         const result2 = await TagService.getPublicTags(adminContext);
@@ -197,10 +189,7 @@ describe("Tags & Search Integration", () => {
         );
         await waitForBackgroundTasks(adminContext.executionCtx);
 
-        const cached = await CacheService.getRaw(
-          adminContext,
-          TAGS_CACHE_KEYS.publicList,
-        );
+        const cached = await adminContext.env.KV.get("public:tags:list");
         expect(cached).toBeNull();
 
         const updated = await TagService.getTags(adminContext);
@@ -217,10 +206,7 @@ describe("Tags & Search Integration", () => {
         await TagService.deleteTag(adminContext, { id: tag.id });
         await waitForBackgroundTasks(adminContext.executionCtx);
 
-        const cached = await CacheService.getRaw(
-          adminContext,
-          TAGS_CACHE_KEYS.publicList,
-        );
+        const cached = await adminContext.env.KV.get("public:tags:list");
         expect(cached).toBeNull();
 
         const result = await TagService.getTags(adminContext);
@@ -291,7 +277,7 @@ describe("Tags & Search Integration", () => {
       expect(results).toHaveLength(0);
     });
 
-    it("should rebuild index from database", async () => {
+    it("should rebuild index using current tags even when the public snapshot has none", async () => {
       const context = createAdminTestContext();
       await seedUser(context.db, context.session.user);
 
@@ -303,7 +289,18 @@ describe("Tags & Search Integration", () => {
         contentJson: { type: "doc", content: [] },
         publishedAt: new Date(),
         status: "published" as const,
-        readTimeInMinutes: 1,
+        publicSlug: "db-post",
+        publicSnapshotJson: {
+          title: "Database Post",
+          summary: "From DB",
+          slug: "db-post",
+          contentJson: { type: "doc", content: [] },
+          tagIds: [],
+          categoryId: null,
+          publishedAt: new Date().toISOString(),
+          pinnedAt: null,
+          cover: null,
+        },
       };
 
       await context.db.insert(PostsTable).values(postData);
@@ -319,12 +316,7 @@ describe("Tags & Search Integration", () => {
         tagId: tagData.id,
       });
 
-      const db = await getOramaDb(context.env);
-      try {
-        await remove(db, postData.id.toString());
-        await persistOramaDb(context.env, db);
-      } catch {}
-
+      await SearchService.deleteIndex(context, { id: postData.id });
       await SearchService.rebuildIndex(context);
 
       const results = await SearchService.search(context, {
@@ -335,6 +327,34 @@ describe("Tags & Search Integration", () => {
       expect(results).toHaveLength(1);
       expect(results[0].post.title).toBe(postData.title);
       expect(results[0].post.tags).toContain("dbtag");
+    });
+
+    it("matches Chinese title terms", async () => {
+      const context = createAdminTestContext();
+      await SearchService.upsert(context, {
+        id: 4,
+        slug: "dark-mode",
+        title: "暗色模式的正确打开方式",
+        summary: "避免主题闪烁",
+        contentJson: {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "用 class 切换主题。" }],
+            },
+          ],
+        },
+        tags: [],
+      });
+
+      const results = await SearchService.search(context, {
+        q: "暗色",
+        v: "1",
+        limit: 10,
+      });
+      expect(results).toHaveLength(1);
+      expect(results[0].post.slug).toBe("dark-mode");
     });
   });
 });
