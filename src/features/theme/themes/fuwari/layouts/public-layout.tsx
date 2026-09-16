@@ -50,7 +50,7 @@ export function PublicLayout({
 
       {/* Banner - full width background */}
       <div
-        className="absolute left-0 right-0 top-0 z-10 overflow-hidden transition-[height] duration-300 ease-in-out"
+        className="fuwari-banner absolute left-0 right-0 top-0 z-10 overflow-hidden transition-[height] duration-300 ease-in-out"
         style={{ height: `${bannerHeightVh}vh` }}
       >
         <img

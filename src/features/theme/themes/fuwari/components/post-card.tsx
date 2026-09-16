@@ -36,6 +36,17 @@ export function PostCard({
         pinned ? "border-2 border-(--fuwari-primary)/20 shadow-sm" : ""
       }`}
     >
+      {post.cover?.url && (
+        <Link
+          to="/post/$slug"
+          params={{ slug: post.slug }}
+          tabIndex={-1}
+          aria-hidden="true"
+          className="fuwari-post-cover block overflow-hidden"
+        >
+          <img src={post.cover.url} alt="" loading="lazy" decoding="async" />
+        </Link>
+      )}
       {pinned && (
         <div className="absolute top-0 right-0 w-32 h-32 bg-(--fuwari-primary) opacity-5 rounded-bl-[100px] -z-10 pointer-events-none" />
       )}
@@ -159,7 +170,7 @@ export function PostCard({
         to="/post/$slug"
         params={{ slug: post.slug }}
         aria-label={post.title}
-        className="hidden md:flex fuwari-btn-regular w-13 absolute right-3 top-3 bottom-3 rounded-xl active:scale-95"
+        className={`fuwari-post-enter hidden md:flex fuwari-btn-regular w-13 absolute right-3 bottom-3 rounded-xl active:scale-95 ${post.cover?.url ? "h-13" : "top-3"}`}
       >
         <ChevronRight
           className="text-(--fuwari-primary) text-4xl mx-auto"

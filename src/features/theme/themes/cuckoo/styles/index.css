@@ -418,3 +418,108 @@
     transform: none;
   }
 }
+
+/* Frosted surfaces and a fine accent line frame Cuckoo's photographic cards. */
+@layer components {
+  .cuckoo-public {
+    isolation: isolate;
+    --cuckoo-radius: 14px;
+    --cuckoo-glass-edge: rgb(255 255 255 / 0.38);
+    --cuckoo-shadow-2: 0 4px 16px rgb(20 16 30 / 0.1);
+    --cuckoo-shadow-6: 0 16px 36px rgb(20 16 30 / 0.2);
+  }
+
+  .dark .cuckoo-public {
+    --cuckoo-glass-edge: rgb(255 255 255 / 0.1);
+    --cuckoo-card-bg: rgb(35 34 42 / 0.88);
+    --cuckoo-card-bg-hover: rgb(42 40 49 / 0.95);
+  }
+
+  .cuckoo-public .cuckoo-card-base {
+    border: 1px solid var(--cuckoo-glass-edge);
+    backdrop-filter: blur(16px);
+  }
+
+  .cuckoo-public .cuckoo-post-card {
+    position: relative;
+    backdrop-filter: none;
+  }
+
+  .cuckoo-post-enter {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    color: white;
+    border: 1px solid rgb(255 255 255 / 0.4);
+    background: rgb(0 0 0 / 0.2);
+    backdrop-filter: blur(8px);
+    transition:
+      background-color 250ms,
+      rotate 350ms;
+  }
+
+  .cuckoo-post-caption::before {
+    content: "";
+    display: block;
+    width: 2rem;
+    height: 3px;
+    margin-bottom: 1rem;
+    border-radius: 2px;
+    background: var(--cuckoo-accent);
+    transition: width 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .cuckoo-public .cuckoo-chip {
+    border: 1px solid var(--cuckoo-divider);
+    border-radius: 999px;
+    font-size: 0.8125rem;
+  }
+
+  .cuckoo-public .cuckoo-highlight-title::before {
+    width: 70%;
+    border-radius: 3px;
+    background: color-mix(in oklch, var(--cuckoo-accent) 23%, transparent);
+  }
+
+  .cuckoo-public .cuckoo-appbar-solid {
+    border-bottom: 1px solid var(--cuckoo-glass-edge);
+    backdrop-filter: blur(20px);
+  }
+
+  .cuckoo-public :is(.cuckoo-btn-primary, .cuckoo-btn-regular) {
+    transition:
+      background-color 200ms,
+      box-shadow 200ms,
+      scale 200ms;
+  }
+
+  .cuckoo-public :is(.cuckoo-btn-primary, .cuckoo-btn-regular):active {
+    scale: 0.96;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cuckoo-onload-animation {
+    animation-duration: 600ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .cuckoo-post-cover {
+    transition-duration: 650ms;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .cuckoo-post-card:hover .cuckoo-post-caption::before {
+    width: 4rem;
+  }
+  .cuckoo-post-card:hover .cuckoo-post-enter {
+    background: var(--cuckoo-primary);
+    rotate: 45deg;
+  }
+}

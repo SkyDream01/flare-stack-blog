@@ -1,5 +1,5 @@
 import { ClientOnly, Link, useRouteContext } from "@tanstack/react-router";
-import { Calendar, Tag } from "lucide-react";
+import { ArrowUpRight, Calendar, Tag } from "lucide-react";
 import type { PostItem } from "@/features/posts/schema/posts.schema";
 import { coverBackgroundValue } from "@/features/theme/themes/cuckoo/components/cover";
 import { formatDate } from "@/lib/utils";
@@ -40,9 +40,12 @@ export function PostCard({ post, pinned }: PostCardProps) {
         <div className="cuckoo-post-filter absolute inset-0 transition-[backdrop-filter] duration-300" />
         {/* 底部渐变压暗(对应原主题 .mdui-card-media-covered) */}
         <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/45 to-black/10" />
+        <span className="cuckoo-post-enter" aria-hidden="true">
+          <ArrowUpRight size={20} strokeWidth={1.5} />
+        </span>
 
         {/* 文字区随内容自然增高，避免长标题被裁切 */}
-        <div className="relative w-full min-w-0 p-5 text-white sm:p-7">
+        <div className="cuckoo-post-caption relative w-full min-w-0 p-5 text-white sm:p-7">
           <h2 className="text-xl leading-snug font-medium wrap-anywhere text-balance sm:text-2xl [text-shadow:1px_1px_2px_rgb(0_0_0/0.4)]">
             {pinned && (
               <span className="mr-2 align-middle text-sm font-bold text-(--cuckoo-accent)">
