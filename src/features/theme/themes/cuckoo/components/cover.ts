@@ -20,7 +20,8 @@ function gradientCoverFor(slug: string): string {
 }
 
 /**
- * 封面背景样式值:文章封面图 > 兜底图源(支持 {slug} 占位,按文章稳定取图) > slug 渐变。
+ * 封面背景样式值:文章封面图 > 兜底图源 > slug 渐变。
+ * 外部图源按 slug 区分请求，避免浏览器为所有文章复用同一张随机图。
  */
 export function coverBackgroundValue(
   siteConfig: SiteConfig,
@@ -33,9 +34,22 @@ export function coverBackgroundValue(
 
   const source = siteConfig.theme.cuckoo.defaultCover;
   if (source) {
-    const url = source.includes("{slug}")
+    let url = source.includes("{slug}")
       ? source.replaceAll("{slug}", encodeURIComponent(slug))
       : source;
+    if (!source.includes("{slug}") && /^https?:\/\//i.test(source)) {
+      // Preserve source parameters verbatim and put the cache key before the fragment.
+      const fragmentIndex = source.indexOf("#");
+      const base =
+        fragmentIndex === -1 ? source : source.slice(0, fragmentIndex);
+      const fragment = fragmentIndex === -1 ? "" : source.slice(fragmentIndex);
+      const separator = base.includes("?")
+        ? /[?&]$/.test(base)
+          ? ""
+          : "&"
+        : "?";
+      url = `${base}${separator}_post=${encodeURIComponent(slug)}${fragment}`;
+    }
     return `url("${url}")`;
   }
 
