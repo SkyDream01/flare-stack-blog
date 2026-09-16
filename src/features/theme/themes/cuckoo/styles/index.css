@@ -276,8 +276,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
     border-radius: 50%;
     transition: background-color 0.2s;
   }
@@ -368,5 +369,52 @@
   .cuckoo-toc-scrollbar::-webkit-scrollbar-thumb {
     border-radius: 9999px;
     background-color: var(--cuckoo-divider);
+  }
+}
+
+@layer components {
+  .cuckoo-public :where(a, button, input, textarea, select):focus-visible {
+    outline: 2px solid var(--cuckoo-accent);
+    outline-offset: 3px;
+  }
+
+  .cuckoo-post-card:focus-visible {
+    outline: 3px solid var(--cuckoo-accent);
+    outline-offset: 4px;
+  }
+}
+
+/* Cover effects belong to precise pointers; touch readers see all content. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .cuckoo-post-card:hover .cuckoo-post-cover {
+    transform: scale(1.04);
+  }
+  .cuckoo-post-card:hover .cuckoo-post-filter {
+    backdrop-filter: blur(3px);
+  }
+}
+
+@media (hover: none) {
+  .cuckoo-card-hoverable:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .cuckoo-public *,
+  .cuckoo-public *::before,
+  .cuckoo-public *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .cuckoo-card-hoverable:hover {
+    transform: none;
   }
 }

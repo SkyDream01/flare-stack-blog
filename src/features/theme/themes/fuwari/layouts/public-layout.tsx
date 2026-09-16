@@ -26,7 +26,7 @@ export function PublicLayout({
   const bannerHeightVh = isHomePage ? BANNER_HEIGHT_HOME : BANNER_HEIGHT_PAGE;
 
   return (
-    <div className="relative min-h-screen bg-(--fuwari-page-bg) transition-colors">
+    <div className="fuwari-public relative min-h-screen bg-(--fuwari-page-bg) transition-colors">
       <MobileMenu
         navOptions={navOptions}
         isOpen={isMenuOpen}
@@ -55,7 +55,7 @@ export function PublicLayout({
       >
         <img
           src={siteConfig.theme.fuwari.homeBg}
-          alt="banner"
+          alt=""
           fetchPriority="high"
           className="w-full h-full object-cover object-center"
         />
@@ -69,7 +69,7 @@ export function PublicLayout({
         }}
       >
         <div
-          className="relative mx-auto px-0 md:px-4 pb-8 grid grid-cols-1 lg:grid-cols-[17.5rem_1fr] gap-4"
+          className="relative mx-auto px-3 md:px-4 pb-8 grid grid-cols-1 lg:grid-cols-[17.5rem_1fr] gap-4"
           style={{ maxWidth: "var(--fuwari-page-width)" }}
         >
           {/* Sidebar Column */}

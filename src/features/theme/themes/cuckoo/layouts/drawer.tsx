@@ -45,7 +45,7 @@ export function Drawer({
       {/* 遮罩 */}
       <div
         className={cn(
-          "fixed inset-0 z-40 bg-black/40 transition-opacity duration-300",
+          "fixed inset-0 z-55 bg-black/40 transition-opacity duration-300",
           isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={onClose}
@@ -53,11 +53,12 @@ export function Drawer({
 
       <aside
         className={cn(
-          "fixed top-0 bottom-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col transition-transform duration-300 ease-out",
+          "fixed top-0 bottom-0 left-0 z-60 flex w-72 max-w-[85vw] flex-col transition-transform duration-300 ease-out",
           isOpen ? "translate-x-0 shadow-xl" : "-translate-x-full",
         )}
         style={{ backgroundColor: "var(--cuckoo-drawer-bg)" }}
         aria-hidden={!isOpen}
+        inert={!isOpen}
       >
         {/* 头像(对应原主题 .drawer-img) */}
         <div className="flex justify-center pt-6">
@@ -90,7 +91,7 @@ export function Drawer({
         />
 
         {/* 导航列表(对应原主题 .drawer-list) */}
-        <nav className="flex-1 overflow-y-auto px-3 py-3">
+        <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3">
           {navOptions.map((option) => {
             const Icon = NAV_ICONS[option.id] ?? FileText;
             return (
@@ -147,7 +148,7 @@ export function Drawer({
 
         {/* 底部信息(对应原主题 .drawer-bottom) */}
         <div
-          className="cuckoo-text-50 border-t px-6 py-3 text-center text-xs"
+          className="cuckoo-text-50 shrink-0 border-t px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-center text-xs"
           style={{ borderColor: "var(--cuckoo-divider)" }}
         >
           <a

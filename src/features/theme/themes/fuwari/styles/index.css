@@ -150,6 +150,7 @@
   .fuwari-meta-icon {
     width: 2rem;
     height: 2rem;
+    flex-shrink: 0;
     border-radius: 0.375rem;
     display: flex;
     align-items: center;
@@ -309,4 +310,37 @@
 
 .dark ::-webkit-scrollbar-thumb:active {
   background-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Keep reading cards quiet, with a clear edge in both color schemes. */
+@layer components {
+  .fuwari-post-card {
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.025);
+    border: 1px solid var(--fuwari-meta-divider);
+  }
+
+  .fuwari-public :where(a, button, input, textarea, select):focus-visible {
+    outline: 2px solid var(--fuwari-btn-content);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .fuwari-onload-animation {
+    animation: none;
+    opacity: 1;
+  }
+
+  .fuwari-public *,
+  .fuwari-public *::before,
+  .fuwari-public *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

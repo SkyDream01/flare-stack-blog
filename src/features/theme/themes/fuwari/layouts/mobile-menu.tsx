@@ -32,8 +32,10 @@ export function MobileMenu({
 
       {/* Floating Menu Panel */}
       <div
+        inert={!isOpen}
+        aria-hidden={!isOpen}
         className={cn(
-          "fixed top-20 right-4 z-50 w-64 origin-top-right transition-all duration-300 ease-out transform",
+          "fixed top-20 right-4 z-50 w-72 max-w-[calc(100vw-2rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain origin-top-right transition-all duration-300 ease-out transform",
           isOpen
             ? "scale-100 opacity-100 translate-y-0"
             : "scale-95 opacity-0 -translate-y-2 pointer-events-none",
@@ -47,7 +49,7 @@ export function MobileMenu({
                 key={item.id}
                 to={item.to}
                 onClick={onClose}
-                className="flex items-center w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-colors fuwari-text-75 hover:bg-(--fuwari-btn-regular-bg) hover:text-(--fuwari-primary) active:scale-[0.98]"
+                className="flex items-center w-full min-h-11 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors fuwari-text-75 hover:bg-(--fuwari-btn-regular-bg) hover:text-(--fuwari-primary) active:scale-[0.98]"
                 activeProps={{
                   className:
                     "!bg-[var(--fuwari-btn-regular-bg)] !text-[var(--fuwari-primary)]",
@@ -61,7 +63,7 @@ export function MobileMenu({
               <Link
                 to="/admin"
                 onClick={onClose}
-                className="flex items-center w-full px-4 py-2.5 text-sm font-medium rounded-lg transition-colors fuwari-text-75 hover:bg-(--fuwari-btn-regular-bg) hover:text-(--fuwari-primary) active:scale-[0.98]"
+                className="flex items-center w-full min-h-11 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors fuwari-text-75 hover:bg-(--fuwari-btn-regular-bg) hover:text-(--fuwari-primary) active:scale-[0.98]"
               >
                 <Settings className="w-4 h-4 mr-3" />
                 {m.profile_admin_dashboard_fuwari()}
@@ -106,7 +108,7 @@ export function MobileMenu({
                     await logout();
                     onClose();
                   }}
-                  className="p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-red-500 hover:text-red-600 transition-colors"
+                  className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-red-500 hover:text-red-600 transition-colors"
                   aria-label={m.profile_logout_fuwari()}
                 >
                   <LogOut size={16} strokeWidth={1.5} />
@@ -118,7 +120,7 @@ export function MobileMenu({
               <Link
                 to="/login"
                 onClick={onClose}
-                className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-(--fuwari-btn-regular-bg) text-(--fuwari-btn-content) hover:bg-(--fuwari-btn-regular-bg-hover) active:bg-(--fuwari-btn-regular-bg-active)"
+                className="flex items-center justify-center w-full min-h-11 px-4 py-2 text-sm font-medium rounded-lg transition-colors bg-(--fuwari-btn-regular-bg) text-(--fuwari-btn-content) hover:bg-(--fuwari-btn-regular-bg-hover) active:bg-(--fuwari-btn-regular-bg-active)"
               >
                 <UserIcon size={16} className="mr-2" strokeWidth={1.5} />
                 {m.nav_login_register()}

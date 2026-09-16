@@ -24,7 +24,7 @@ export function PublicLayout({
   const bg = siteConfig.theme.cuckoo.bg;
 
   return (
-    <div className="relative flex min-h-screen flex-col">
+    <div className="cuckoo-public relative flex min-h-screen flex-col">
       {/* 固定全屏背景(对应原主题 .background) */}
       <div
         className="cuckoo-background"

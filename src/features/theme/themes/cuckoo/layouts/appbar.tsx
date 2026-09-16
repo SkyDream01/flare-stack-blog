@@ -81,7 +81,7 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
         {isSearchOpen ? (
           <form
             onSubmit={submitSearch}
-            className="cuckoo-appbar-search flex items-center gap-1"
+            className="cuckoo-appbar-search absolute inset-x-3 top-full flex items-center gap-1 rounded-(--cuckoo-radius) bg-(--cuckoo-drawer-bg) p-2 text-(--cuckoo-text-90) shadow-lg [text-shadow:none] md:static md:bg-transparent md:p-0 md:text-inherit md:shadow-none"
           >
             <input
               ref={inputRef}
@@ -92,7 +92,7 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
                 if (!query) setIsSearchOpen(false);
               }}
               placeholder={m.nav_search_cuckoo()}
-              className="w-36 rounded-none px-2 py-1 text-sm md:w-56"
+              className="min-w-0 flex-1 rounded-none px-2 py-2 text-base md:w-56 md:text-sm"
               aria-label={m.nav_search()}
             />
             <button
