@@ -1,7 +1,11 @@
+import { PostCover } from "@/features/theme/components/post-cover";
 import { ClientOnly, Link, useRouteContext } from "@tanstack/react-router";
 import { ArrowUpRight, Calendar, Tag } from "lucide-react";
 import type { PostItem } from "@/features/posts/schema/posts.schema";
-import { coverBackgroundValue } from "@/features/theme/themes/cuckoo/components/cover";
+import {
+  coverImageSource,
+  gradientCoverFor,
+} from "@/features/theme/themes/cuckoo/components/cover";
 import { formatDate } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 
@@ -26,15 +30,11 @@ export function PostCard({ post, pinned }: PostCardProps) {
     >
       <div className="relative flex min-h-72 w-full items-end overflow-hidden rounded-(--cuckoo-radius) sm:min-h-87.5">
         {/* 封面层(封面图 > 兜底图源 > slug 渐变) */}
-        <div
-          className="cuckoo-post-cover absolute inset-0 bg-cover bg-center transition-transform duration-300"
-          style={{
-            backgroundImage: coverBackgroundValue(
-              siteConfig,
-              post.slug,
-              post.cover?.url,
-            ),
-          }}
+        <PostCover
+          className="cuckoo-post-cover absolute inset-0 transition-transform duration-300"
+          src={coverImageSource(siteConfig, post.slug, post.cover?.url)}
+          fallback={gradientCoverFor(post.slug)}
+          loading="lazy"
         />
         {/* 悬停毛玻璃(对应原主题 .index-card-filter) */}
         <div className="cuckoo-post-filter absolute inset-0 transition-[backdrop-filter] duration-300" />

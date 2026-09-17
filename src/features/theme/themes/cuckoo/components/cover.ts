@@ -10,7 +10,7 @@ const COVER_GRADIENTS = [
   "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)",
 ];
 
-function gradientCoverFor(slug: string): string {
+export function gradientCoverFor(slug: string): string {
   let hash = 5381;
   for (let i = 0; i < slug.length; i++) {
     hash = ((hash << 5) + hash + slug.charCodeAt(i)) >>> 0;
@@ -20,16 +20,16 @@ function gradientCoverFor(slug: string): string {
 }
 
 /**
- * 封面背景样式值:文章封面图 > 兜底图源 > slug 渐变。
+ * Post Cover 图片地址：文章封面优先，其次为配置的兜底图源。
  * 外部图源按 slug 区分请求，避免浏览器为所有文章复用同一张随机图。
  */
-export function coverBackgroundValue(
+export function coverImageSource(
   siteConfig: SiteConfig,
   slug: string,
   coverImage: string | null | undefined,
-): string {
+): string | undefined {
   if (coverImage) {
-    return `url("${coverImage}")`;
+    return coverImage;
   }
 
   const source = siteConfig.theme.cuckoo.defaultCover;
@@ -50,8 +50,17 @@ export function coverBackgroundValue(
         : "?";
       url = `${base}${separator}_post=${encodeURIComponent(slug)}${fragment}`;
     }
-    return `url("${url}")`;
+    return url;
   }
 
-  return gradientCoverFor(slug);
+  return undefined;
+}
+
+export function coverBackgroundValue(
+  siteConfig: SiteConfig,
+  slug: string,
+  coverImage: string | null | undefined,
+): string {
+  const src = coverImageSource(siteConfig, slug, coverImage);
+  return src ? `url("${src}")` : gradientCoverFor(slug);
 }

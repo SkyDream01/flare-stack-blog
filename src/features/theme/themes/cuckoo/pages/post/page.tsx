@@ -1,10 +1,14 @@
+import { PostCover } from "@/features/theme/components/post-cover";
 import { Link, useRouteContext } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 import { useEffect } from "react";
 import type { PostPageProps } from "@/features/theme/contract/pages";
 import { CuckooCommentSection } from "@/features/theme/themes/cuckoo/components/comments/view/comment-section";
 import { ContentRenderer } from "@/features/theme/themes/cuckoo/components/content/content-renderer";
-import { coverBackgroundValue } from "@/features/theme/themes/cuckoo/components/cover";
+import {
+  coverImageSource,
+  gradientCoverFor,
+} from "@/features/theme/themes/cuckoo/components/cover";
 import { setSidebarToc } from "@/features/theme/themes/cuckoo/components/toc-store";
 import { authClient } from "@/lib/auth/auth.client";
 import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
@@ -47,15 +51,11 @@ export function PostPage({ post }: PostPageProps) {
       <article className="cuckoo-card-base cuckoo-card-hoverable cuckoo-onload-animation mt-5">
         {/* 封面标题区(对应原主题 .post-card-media) */}
         <div className="relative h-67.5 overflow-hidden md:h-[350px]">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: coverBackgroundValue(
-                siteConfig,
-                post.slug,
-                post.cover?.url,
-              ),
-            }}
+          <PostCover
+            className="absolute inset-0"
+            src={coverImageSource(siteConfig, post.slug, post.cover?.url)}
+            fallback={gradientCoverFor(post.slug)}
+            loading="eager"
           />
           <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
           <div className="absolute right-0 bottom-0 left-0 p-6 text-white">

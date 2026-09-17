@@ -1,3 +1,4 @@
+import { PostCover } from "@/features/theme/components/post-cover";
 import { ClientOnly, Link } from "@tanstack/react-router";
 import {
   Calendar,
@@ -44,7 +45,7 @@ export function PostCard({
           aria-hidden="true"
           className="fuwari-post-cover block overflow-hidden"
         >
-          <img src={post.cover.url} alt="" loading="lazy" decoding="async" />
+          <PostCover src={post.cover.url} />
         </Link>
       )}
       {pinned && (
