@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import {
   useCallback,
   useEffect,
@@ -26,6 +27,7 @@ export default function TableOfContents({
 }: {
   headers: Array<TableOfContentsItem>;
 }) {
+  const navigate = useNavigate();
   const visibleHeaders = useMemo(() => {
     if (headers.length === 0) return [];
     let minDepth = 10;
@@ -193,7 +195,8 @@ export default function TableOfContents({
   const toc = (
     <nav
       className={cn(
-        "hidden 2xl:block fixed top-14 z-20 pl-4 transition duration-300",
+        // The portal must sit above the full-width public content wrapper (z-30).
+        "hidden 2xl:block fixed top-14 z-40 pl-4 transition duration-300",
         isVisible && isReady ? "opacity-100" : "opacity-0 pointer-events-none",
       )}
       style={{
@@ -215,15 +218,38 @@ export default function TableOfContents({
             <a
               key={heading.id}
               href={`#${heading.id}`}
-              onClick={(e) => {
+              onClick={async (e) => {
+                if (
+                  e.button !== 0 ||
+                  e.metaKey ||
+                  e.ctrlKey ||
+                  e.shiftKey ||
+                  e.altKey
+                )
+                  return;
                 e.preventDefault();
                 const element = document.getElementById(heading.id);
                 if (!element) return;
                 anchorTarget.current = heading.id;
+                await navigate({
+                  hash: heading.id,
+                  replace: true,
+                  resetScroll: false,
+                  hashScrollIntoView: false,
+                  state: (previous) => previous,
+                });
+                if (anchorTarget.current !== heading.id || !element.isConnected)
+                  return;
                 const top =
                   element.getBoundingClientRect().top + window.scrollY - 80;
-                window.scrollTo({ top, behavior: "smooth" });
-                history.replaceState(null, "", `#${heading.id}`);
+                window.scrollTo({
+                  top,
+                  behavior: window.matchMedia(
+                    "(prefers-reduced-motion: reduce)",
+                  ).matches
+                    ? "instant"
+                    : "smooth",
+                });
                 window.setTimeout(() => {
                   if (anchorTarget.current === heading.id) {
                     anchorTarget.current = null;

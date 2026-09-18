@@ -4,6 +4,7 @@ import {
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import { vi } from "vitest";
+import { getAuth } from "@/lib/auth/auth.server";
 import { getDb } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 
@@ -160,4 +161,19 @@ export async function seedUser(
         role: userRecord.role,
       },
     });
+}
+
+/**
+ * 创建一个可用于 `x-api-key` 的 Admin API Key，
+ * 用于模拟外部编辑器（脚本、agent、桌面客户端）调用 Admin HTTP API。
+ */
+export async function seedAdminApiKey(name = "external-editor") {
+  const db = createTestDb();
+  const admin = createMockAdminSession().user;
+  await seedUser(db, admin);
+  const auth = getAuth({ db, env });
+  const created = await auth.api.createApiKey({
+    body: { name, userId: admin.id },
+  });
+  return created.key;
 }

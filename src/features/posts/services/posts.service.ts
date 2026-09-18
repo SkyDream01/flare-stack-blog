@@ -11,6 +11,7 @@ import {
   postsList,
 } from "@/features/posts/posts.cache";
 import type {
+  CreatePostData,
   DeletePostInput,
   FindPostByIdInput,
   FindPostBySlugInput,
@@ -225,6 +226,71 @@ export async function generateSlug(
   return { slug: `${baseSlug}-${maxSuffix + 1}` };
 }
 
+const SLUG_CONFLICT_PATTERN = /UNIQUE constraint failed:\s*posts\.slug/i;
+const SLUG_INSERT_ATTEMPTS = 5;
+const SLUG_DERIVED_ATTEMPTS = 2;
+
+function isSlugConflict(error: unknown) {
+  for (let current = error; current instanceof Error; current = current.cause) {
+    if (SLUG_CONFLICT_PATTERN.test(current.message)) return true;
+  }
+  return false;
+}
+
+function randomSlugSuffix() {
+  return Math.random().toString(36).slice(2, 8);
+}
+
+/**
+ * Inserts a draft, deriving its slug from the title and retrying when a
+ * concurrent insert claimed that slug first.
+ *
+ * `generateSlug` reads the existing slugs before the row is written, so two
+ * creates racing on the same title derive the same slug and one of them hits
+ * the unique index. Retrying the derived slug clears a single straggler, but
+ * a whole batch racing at once keeps re-deriving the same next suffix, so
+ * after `SLUG_DERIVED_ATTEMPTS` the losers take a random suffix instead. Only
+ * a contended batch ever sees one, so ordinary creates keep a readable slug.
+ */
+async function insertDraftWithGeneratedSlug(
+  context: DbContext,
+  title: string,
+  values: Omit<Parameters<typeof PostRepo.insertPost>[1], "slug">,
+) {
+  for (let attempt = 1; ; attempt += 1) {
+    const { slug } = await generateSlug(context, { title });
+    const candidate =
+      attempt <= SLUG_DERIVED_ATTEMPTS ? slug : `${slug}-${randomSlugSuffix()}`;
+    try {
+      return await PostRepo.insertPost(context.db, {
+        ...values,
+        slug: candidate,
+      });
+    } catch (error) {
+      if (attempt >= SLUG_INSERT_ATTEMPTS || !isSlugConflict(error))
+        throw error;
+    }
+  }
+}
+
+/**
+ * Creates a brand new draft carrying the given content. Unlike
+ * `createEmptyPost`, it never reuses an existing empty draft, so a client can
+ * safely retry a failed create or create several posts in a row.
+ */
+export async function createDraft(context: DbContext, data: CreatePostData) {
+  const post = await insertDraftWithGeneratedSlug(context, data.title, {
+    title: data.title,
+    summary: data.summary ?? null,
+    status: "draft",
+    contentJson: normalizePostContent(data.contentJson ?? null),
+  });
+
+  await syncPostMedia(context.db, post);
+
+  return { id: post.id };
+}
+
 export async function createEmptyPost(context: DbContext) {
   try {
     const existing = await PostRepo.findReusableEmptyDraft(context.db);
@@ -240,11 +306,8 @@ export async function createEmptyPost(context: DbContext) {
     );
   }
 
-  const { slug } = await generateSlug(context, { title: "" });
-
-  const post = await PostRepo.insertPost(context.db, {
+  const post = await insertDraftWithGeneratedSlug(context, "", {
     title: "",
-    slug,
     summary: "",
     status: "draft",
     contentJson: null,
@@ -286,6 +349,7 @@ export async function getPosts(context: DbContext, data: GetPostsInput) {
     taxonomy: data.taxonomy,
     sortDir: data.sortDir,
     sortBy: data.sortBy,
+    includeContent: data.includeContent,
   });
 }
 
