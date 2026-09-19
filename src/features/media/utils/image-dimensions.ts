@@ -1,5 +1,5 @@
 /**
- * 从图片二进制数据的头部解析宽高，支持 JPEG/PNG/WebP/GIF。
+ * 从图片二进制数据的头部解析宽高，支持 JPEG/PNG/WebP/GIF/SVG。
  * 纯 Uint8Array 操作，无 Node.js 依赖，可在 Cloudflare Workers 中运行。
  */
 export function getImageDimensions(
@@ -53,7 +53,47 @@ export function getImageDimensions(
     return parseWebpDimensions(bytes);
   }
 
-  return null;
+  return parseSvgDimensions(bytes);
+}
+
+/**
+ * SVG 是文本，宽高写在根元素上。优先读 width/height，只认无单位或 px 的
+ * 绝对值——百分比宽高描述的是容器占比，不是图片尺寸。两者缺失时退回
+ * viewBox 的宽高。
+ */
+function parseSvgDimensions(
+  bytes: Uint8Array,
+): { width: number; height: number } | null {
+  const head = new TextDecoder("utf-8", { fatal: false }).decode(
+    bytes.subarray(0, 2048),
+  );
+  const svgTag = /<svg\b[^>]*>/i.exec(head)?.[0];
+  if (!svgTag) return null;
+
+  const absolute = (name: string) => {
+    const raw = new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, "i").exec(
+      svgTag,
+    )?.[1];
+    if (!raw) return null;
+    const match = /^\s*([0-9]*\.?[0-9]+)\s*(px)?\s*$/i.exec(raw);
+    return match ? Number(match[1]) : null;
+  };
+
+  const width = absolute("width");
+  const height = absolute("height");
+  if (width && height)
+    return { width: Math.round(width), height: Math.round(height) };
+
+  const viewBox = /\bviewBox\s*=\s*["']([^"']+)["']/i.exec(svgTag)?.[1];
+  if (!viewBox) return null;
+  const parts = viewBox
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number);
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [, , vbWidth, vbHeight] = parts;
+  if (vbWidth <= 0 || vbHeight <= 0) return null;
+  return { width: Math.round(vbWidth), height: Math.round(vbHeight) };
 }
 
 function readUint16BE(bytes: Uint8Array, offset: number): number {

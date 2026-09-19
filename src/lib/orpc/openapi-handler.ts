@@ -37,7 +37,7 @@ export const openAPIHandler = new OpenAPIHandler(router, {
       specGenerateOptions: {
         info: {
           title: "Flare Stack Blog API",
-          version: "1.0.0",
+          version: __APP_VERSION__,
           description:
             "Admin routes require a browser session cookie or an Admin API Key in the x-api-key header.",
         },

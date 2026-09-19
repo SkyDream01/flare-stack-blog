@@ -12,6 +12,23 @@ import {
 const listing = { siteName: "My site", siteUrl: "https://example.com" };
 
 describe("Friend Link input schemas", () => {
+  it("refuses an admin update that tries to approve or reassign", () => {
+    const base = { id: 1, ...listing };
+    expect(UpdateFriendLinkInputSchema.safeParse(base).success).toBe(true);
+
+    // Approval goes through /approve and /reject. Stripping these keys instead
+    // of rejecting them answered 200 and left the application untouched.
+    for (const smuggled of [
+      { status: "approved" },
+      { rejectionReason: "nope" },
+      { userId: "someone-else" },
+    ]) {
+      expect(
+        UpdateFriendLinkInputSchema.safeParse({ ...base, ...smuggled }).success,
+      ).toBe(false);
+    }
+  });
+
   it.each([
     ["submit", SubmitFriendLinkInputSchema],
     ["create", CreateFriendLinkInputSchema],

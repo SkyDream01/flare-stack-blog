@@ -89,13 +89,21 @@ export const RejectFriendLinkInputSchema = z.object({
   rejectionReason: z.string().max(500).optional(),
 });
 
-export const UpdateFriendLinkInputSchema = z.object({
-  id: z.number(),
-  siteName: friendLinkFields.siteName.optional(),
-  siteUrl: friendLinkFields.siteUrl.optional(),
-  description: friendLinkFields.description,
-  logoUrl: friendLinkFields.logoUrl,
-});
+/**
+ * Strict on purpose. Approval state and ownership are not editable here, and a
+ * plain object would silently strip them: a client that PATCHed
+ * `{ status: "approved" }` got a 200 back and an application still pending.
+ * Use POST /admin/friend-links/{id}/approve and /reject instead.
+ */
+export const UpdateFriendLinkInputSchema = z
+  .object({
+    id: z.number(),
+    siteName: friendLinkFields.siteName.optional(),
+    siteUrl: friendLinkFields.siteUrl.optional(),
+    description: friendLinkFields.description,
+    logoUrl: friendLinkFields.logoUrl,
+  })
+  .strict();
 
 export const DeleteFriendLinkInputSchema = z.object({
   id: z.number(),
