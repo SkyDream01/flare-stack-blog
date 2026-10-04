@@ -53,9 +53,9 @@ const config = defineConfig(({ mode }) => {
           ],
         },
         build: {
-          rollupOptions: {
+          rolldownOptions: {
             output: {
-              inlineDynamicImports: true,
+              codeSplitting: false,
             },
           },
         },
@@ -69,6 +69,7 @@ const config = defineConfig(({ mode }) => {
         cookieName: "LOCALE",
       }),
       cloudflare({
+        experimental: { newConfig: true },
         viteEnvironment: {
           name: "ssr",
         },

@@ -7,6 +7,7 @@ import {
   createRouter,
   Outlet,
   RouterProvider,
+  type ErrorComponentProps,
   type RouteComponent,
 } from "@tanstack/react-router";
 import { act, cleanup, render, screen } from "@testing-library/react";
@@ -81,7 +82,7 @@ function FormRoute() {
 it.each(["site", "notifications"])(
   "keeps form context while leaving and reentering %s through the directory",
   async (section) => {
-    const caught: Array<Error> = [];
+    const caught: Array<unknown> = [];
     const root = createRootRoute({
       component: () =>
         createElement(
@@ -116,9 +117,13 @@ it.each(["site", "notifications"])(
         initialEntries: [`/admin/settings/${section}`],
       }),
       context: { queryClient: new QueryClient() },
-      defaultErrorComponent: ({ error }) => {
+      defaultErrorComponent: ({ error }: ErrorComponentProps) => {
         caught.push(error);
-        return createElement("p", null, error.message);
+        return createElement(
+          "p",
+          null,
+          error instanceof Error ? error.message : String(error),
+        );
       },
     });
     render(createElement(RouterProvider, { router }));

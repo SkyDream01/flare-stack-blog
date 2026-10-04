@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths-ignore:
       - "**.md"
       - ".agent/**"
@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: .node-version
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -39,9 +39,6 @@ jobs:
       - name: Install dependencies
         run: bun ci
 
-      - name: Setup Wrangler Config
-        run: cp wrangler.example.jsonc wrangler.jsonc
-
       - name: Lint Check
         run: bun lint
 
@@ -50,6 +47,10 @@ jobs:
 
       - name: Type Check
         run: bun typecheck
+
+      # Same command Workers Builds runs to deploy, so a broken build fails here first.
+      - name: Build
+        run: bun run build
 
       - name: Run Node Tests
         run: bun run test:node

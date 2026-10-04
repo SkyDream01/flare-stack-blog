@@ -29,10 +29,10 @@ export function getRouter() {
     scrollRestoration: ({ location }) => !isAdminWorkspace(location.pathname),
   });
 
-  // First hydration is not a client navigation. Leaving next=true makes
+  // First hydration is not a client navigation. Leaving n=true makes
   // TanStack Router scrollTo(0) after SSR HTML is already on screen, which
   // yanks the page back to the top if the reader scrolled during load.
-  router._scroll.next = false;
+  router._scroll.n = false;
 
   setupRouterSsrQueryIntegration({
     router,

@@ -2,7 +2,7 @@ name: Deploy to Cloudflare Workers
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 on:
   push:
@@ -41,12 +41,12 @@ jobs:
       VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY || secrets.VITE_TURNSTILE_SITE_KEY }}
       VITE_UMAMI_WEBSITE_ID: ${{ vars.VITE_UMAMI_WEBSITE_ID || secrets.VITE_UMAMI_WEBSITE_ID }}
 
-      # Runtime values are synced to Worker secrets when supplied. Existing
-      # Cloudflare variables remain intact because wrangler.jsonc uses
-      # keep_vars: true.
+      # Supplied runtime values override existing values. Legacy plain-text
+      # Worker variables are carried into the deployment as secrets.
       BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
       BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL || secrets.BETTER_AUTH_URL }}
       ENVIRONMENT: ${{ vars.ENVIRONMENT || secrets.ENVIRONMENT }}
+      LOCALE: ${{ vars.LOCALE || secrets.LOCALE }}
       GITHUB_CLIENT_ID: ${{ vars.GITHUB_CLIENT_ID || secrets.GITHUB_CLIENT_ID || secrets.GH_CLIENT_ID }}
       GITHUB_CLIENT_SECRET: ${{ secrets.GITHUB_CLIENT_SECRET || secrets.GH_CLIENT_SECRET }}
       UMAMI_WEBSITE_ID: ${{ vars.UMAMI_WEBSITE_ID || secrets.UMAMI_WEBSITE_ID }}
@@ -65,7 +65,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version-file: .node-version
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -81,54 +81,19 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Prepare Wrangler config
-        run: bun run wrangler:prepare
+        run: bun ci
 
       - name: Build application
         run: bun run build
 
-      - name: Sync runtime secrets
-        shell: bash
-        run: |
-          node --input-type=module <<'NODE'
-          import { writeFileSync } from "node:fs";
-
-          const names = [
-            "BETTER_AUTH_SECRET",
-            "BETTER_AUTH_URL",
-            "DOMAIN",
-            "ENVIRONMENT",
-            "GITHUB_CLIENT_ID",
-            "GITHUB_CLIENT_SECRET",
-            "UMAMI_WEBSITE_ID",
-            "UMAMI_SRC",
-            "UMAMI_API_URL",
-            "UMAMI_API_KEY",
-            "UMAMI_USERNAME",
-            "UMAMI_PASSWORD",
-            "TURNSTILE_SECRET_KEY",
-            "GITHUB_TOKEN",
-          ];
-          const values = Object.fromEntries(
-            names.flatMap((name) => {
-              const value = process.env[name];
-              return value ? [[name, value]] : [];
-            }),
-          );
-          writeFileSync("secrets.json", JSON.stringify(values));
-          NODE
-
-          if [ "$(node -e 'console.log(Object.keys(JSON.parse(require("fs").readFileSync("secrets.json"))).length)')" -gt 0 ]; then
-            bunx wrangler secret bulk secrets.json
-          else
-            echo "No runtime secrets supplied by GitHub; keeping existing Worker variables."
-          fi
+      - name: Prepare runtime secrets and migrate legacy variables
+        run: bun scripts/prepare-worker-secrets.ts "$RUNNER_TEMP/flare-stack-blog-secrets.json"
 
       - name: Deploy Worker and apply D1 migrations
-        run: bun run deploy
+        run: |
+          bun run db:migrate
+          bunx cf deploy --prebuilt --secrets-file "$RUNNER_TEMP/flare-stack-blog-secrets.json"
 
       - name: Remove temporary secrets file
         if: always()
-        run: rm -f secrets.json
+        run: rm -f "$RUNNER_TEMP/flare-stack-blog-secrets.json"

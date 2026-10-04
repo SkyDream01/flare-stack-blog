@@ -1,10 +1,15 @@
-import { Link, useLocation, useRouter } from "@tanstack/react-router";
+import {
+  Link,
+  useLocation,
+  useRouter,
+  type ErrorComponentProps,
+} from "@tanstack/react-router";
 import { Home, LayoutDashboard, Loader2, RotateCw } from "lucide-react";
 import { useRef, useState } from "react";
 import { StatusPage } from "@/components/common/status-page";
 import { m } from "@/paraglide/messages";
 
-export function ErrorPage({ reset }: { error?: Error; reset?: () => void }) {
+export function ErrorPage({ reset }: Partial<ErrorComponentProps>) {
   const router = useRouter();
   const pathname = useLocation({ select: (location) => location.pathname });
   const admin = /^\/admin(?:\/|$)/.test(pathname);

@@ -16,9 +16,12 @@ drizzle
 tmp/
 test.http
 .secrets
+# Legacy local configuration is no longer read by v3.
 wrangler.jsonc
 docs/superpowers/
 .cache/
 *.tsbuildinfo
 .fallow
 .scratch
+# cf build output
+.cloudflare
