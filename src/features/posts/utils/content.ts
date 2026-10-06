@@ -62,18 +62,6 @@ export function extractAllImageKeys(doc: JSONContent | null): Array<string> {
   return Array.from(new Set(keys)); // 去重
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
-export function fallbackCodeHtml(code: string) {
-  return `<pre><code>${escapeHtml(code)}</code></pre>`;
-}
-
 export function convertToPlainText(doc: JSONContent | null): string {
   if (!doc) return "";
   const textParts: Array<string> = [];

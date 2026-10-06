@@ -1,5 +1,20 @@
 @reference "tailwindcss";
 
+/* Mermaid uses the code card's fixed dark palette in this theme. */
+.cuckoo-code-mermaid {
+  --fuwari-code-bg: #21252b;
+  --fuwari-btn-regular-bg: #2c313a;
+  --fuwari-fg: #abb2bf;
+  --fuwari-primary: #61afef;
+  --fuwari-selection-bg: #3e4451;
+  --fuwari-page-bg: #21252b;
+  --fuwari-btn-content: #abb2bf;
+  --fuwari-warning-bg: #3e3427;
+  --fuwari-warning: #e5c07b;
+  --fuwari-danger-bg: #3e272c;
+  --fuwari-danger-fg: #e06c75;
+}
+
 /* Cuckoo 正文排版:对应原主题 .mdui-typo 的风格 */
 .cuckoo-custom-md {
   --tw-prose-body: var(--cuckoo-text-90);

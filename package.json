@@ -1,6 +1,6 @@
 {
   "name": "flare-stack-blog",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
   "license": "GPL-3.0-only",
   "author": {
@@ -33,11 +33,13 @@
     "auth:generate-schema": "bunx @better-auth/cli generate --yes --config auth-cli.ts --output src/lib/db/schema/auth.table.ts",
     "release": "export GITHUB_TOKEN=$(gh auth token) && release-it",
     "release:beta": "export GITHUB_TOKEN=$(gh auth token) && release-it --preRelease=beta",
+    "postinstall": "bun run i18n:compile && cf workers types",
     "prepare": "husky"
   },
   "dependencies": {
     "@better-auth/api-key": "1.7.6",
     "@better-auth/core": "1.7.6",
+    "@floating-ui/dom": "^1.8.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource/roboto": "^5.3.0",
     "@hookform/resolvers": "^5.9.1",
@@ -70,10 +72,12 @@
     "@tiptap/extension-table-cell": "^3.20.0",
     "@tiptap/extension-table-header": "^3.20.0",
     "@tiptap/extension-table-row": "^3.20.0",
+    "@tiptap/markdown": "^3.31.4",
     "@tiptap/pm": "^3.20.0",
     "@tiptap/react": "^3.20.0",
     "@tiptap/starter-kit": "^3.20.0",
     "@tiptap/static-renderer": "^3.20.0",
+    "@tiptap/suggestion": "^3.31.4",
     "better-auth": "1.7.6",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.3",
@@ -81,6 +85,8 @@
     "feed": "^5.2.1",
     "katex": "^0.16.47",
     "lucide-react": "^1.48.0",
+    "marked": "^17.0.6",
+    "mermaid": "^12.1.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-hook-form": "^7.89.0",
@@ -121,10 +127,12 @@
     "tldts": "^7.4.11",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
-    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=24"
+  },
+  "patchedDependencies": {
+    "cf@1.0.0-beta.5": "patches/cf@1.0.0-beta.5.patch"
   }
 }

@@ -1,6 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { Editor } from "@/components/tiptap-editor";
-import { inspectExtensions } from "@/features/posts/editor/config";
+import { editorSchema } from "@/features/posts/editor/config";
 import { CodeBlockHighlightProvider } from "@/features/posts/editor/extensions/code-block/code-block-highlight-context";
 import { normalizePostContent } from "@/features/posts/utils/normalize-content";
 import type { PostRevisionSnapshot } from "@/features/posts/schema/post-revisions.schema";
@@ -55,7 +55,7 @@ export function PostEditorHistoryDocument({
           </>
         }
         contentClassName="min-h-0"
-        extensions={inspectExtensions}
+        extensions={editorSchema}
         content={normalizePostContent(snapshot.contentJson) ?? ""}
         editable={false}
       />

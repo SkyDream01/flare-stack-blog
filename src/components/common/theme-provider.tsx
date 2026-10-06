@@ -8,7 +8,8 @@ const UserThemeSchema = z.enum(["light", "dark", "system"]).catch("system");
 const _AppThemeSchema = z.enum(["light", "dark"]).catch("light");
 
 export type UserTheme = z.infer<typeof UserThemeSchema>;
-type AppTheme = z.infer<typeof _AppThemeSchema>;
+/** The theme actually shown: a "system" preference resolved to light or dark. */
+export type AppTheme = z.infer<typeof _AppThemeSchema>;
 
 const themeStorageKey = "ui-theme";
 
@@ -32,26 +33,29 @@ const getSystemTheme = createIsomorphicFn()
       : "light";
   });
 
-const handleThemeChange = createClientOnlyFn((userTheme: UserTheme) => {
-  const validatedTheme = UserThemeSchema.parse(userTheme);
+const handleThemeChange = createClientOnlyFn(
+  (userTheme: UserTheme, systemTheme: AppTheme) => {
+    const validatedTheme = UserThemeSchema.parse(userTheme);
 
-  const root = document.documentElement;
-  root.classList.remove("light", "dark", "system");
+    const root = document.documentElement;
+    root.classList.remove("light", "dark", "system");
 
-  if (validatedTheme === "system") {
-    const systemTheme = getSystemTheme();
-    root.classList.add(systemTheme, "system");
-  } else {
-    root.classList.add(validatedTheme);
-  }
-});
+    if (validatedTheme === "system") {
+      root.classList.add(systemTheme, "system");
+    } else {
+      root.classList.add(validatedTheme);
+    }
+  },
+);
 
-const setupPreferredListener = createClientOnlyFn(() => {
-  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-  const handler = () => handleThemeChange("system");
-  mediaQuery.addEventListener("change", handler);
-  return () => mediaQuery.removeEventListener("change", handler);
-});
+const setupPreferredListener = createClientOnlyFn(
+  (onChange: (systemTheme: AppTheme) => void) => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => onChange(mediaQuery.matches ? "dark" : "light");
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  },
+);
 
 const themeScript = (() => {
   function themeFn() {
@@ -93,19 +97,26 @@ interface ThemeProviderProps {
 }
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [userTheme, setUserTheme] = useState<UserTheme>(getStoredUserTheme);
+  const [systemTheme, setSystemTheme] = useState<AppTheme>(getSystemTheme);
 
   useEffect(() => {
     if (userTheme !== "system") return;
-    return setupPreferredListener();
+    return setupPreferredListener((nextSystemTheme) => {
+      setSystemTheme(nextSystemTheme);
+      handleThemeChange("system", nextSystemTheme);
+    });
   }, [userTheme]);
 
-  const appTheme = userTheme === "system" ? getSystemTheme() : userTheme;
+  const appTheme = userTheme === "system" ? systemTheme : userTheme;
 
   const setTheme = (newUserTheme: UserTheme) => {
     const validatedTheme = UserThemeSchema.parse(newUserTheme);
+    // The OS scheme is only watched while the theme is "system"; re-read it.
+    const currentSystemTheme = getSystemTheme();
     setUserTheme(validatedTheme);
+    setSystemTheme(currentSystemTheme);
     setStoredTheme(validatedTheme);
-    handleThemeChange(validatedTheme);
+    handleThemeChange(validatedTheme, currentSystemTheme);
   };
 
   return (

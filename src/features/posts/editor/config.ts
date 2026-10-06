@@ -1,15 +1,15 @@
 import FileHandler from "@tiptap/extension-file-handler";
-import Mathematics from "@tiptap/extension-mathematics";
 import Placeholder from "@tiptap/extension-placeholder";
 import type { Editor as TiptapEditor } from "@tiptap/react";
 import { toast } from "sonner";
-import {
-  getActiveFormulaModalOpenerKey,
-  openFormulaModalForEdit,
-} from "@/components/tiptap-editor/formula-modal-store";
 import { CodeBlockExtension } from "@/features/posts/editor/extensions/code-block";
 import { ImageExtension } from "@/features/posts/editor/extensions/images";
+import { ImagePlaceholder } from "@/features/posts/editor/extensions/image-placeholder";
+import { MarkdownPaste } from "@/features/posts/editor/extensions/markdown-paste";
+import { MathEditing } from "@/features/posts/editor/extensions/math-editing";
 import { createSchemaExtensions } from "@/features/posts/editor/schema";
+import { LinkEditing } from "@/features/posts/editor/extensions/link-editing";
+import { SlashMenu } from "@/features/posts/editor/extensions/slash-menu";
 import type { ImageUploadResult } from "@/features/posts/editor/extensions/upload-image";
 import { ImageUpload } from "@/features/posts/editor/extensions/upload-image";
 import { orpcClient } from "@/lib/orpc";
@@ -50,46 +50,15 @@ function handleFilePaste(editor: TiptapEditor, files: Array<File>) {
   });
 }
 
-function createEditorSchema(mathClick: boolean) {
-  return createSchemaExtensions({
-    codeBlock: CodeBlockExtension,
-    image: ImageExtension,
-    mathematics: [
-      Mathematics.configure({
-        katexOptions: { throwOnError: false },
-        ...(mathClick
-          ? {
-              inlineOptions: {
-                onClick: (node, pos) => {
-                  openFormulaModalForEdit({
-                    latex: node.attrs.latex ?? "",
-                    pos,
-                    type: "inline",
-                    instanceKey: getActiveFormulaModalOpenerKey() ?? undefined,
-                  });
-                },
-              },
-              blockOptions: {
-                onClick: (node, pos) => {
-                  openFormulaModalForEdit({
-                    latex: node.attrs.latex ?? "",
-                    pos,
-                    type: "block",
-                    instanceKey: getActiveFormulaModalOpenerKey() ?? undefined,
-                  });
-                },
-              },
-            }
-          : {}),
-      }),
-    ],
-  });
-}
-
-export const inspectExtensions = createEditorSchema(false);
+/** The post schema, which the read-only revision view renders with alone. */
+export const editorSchema = createSchemaExtensions({
+  codeBlock: CodeBlockExtension,
+  image: ImageExtension,
+  mathematics: [MathEditing],
+});
 
 export const extensions = [
-  ...createEditorSchema(true),
+  ...editorSchema,
   Placeholder.configure({
     placeholder: m.editor_content_placeholder(),
     emptyEditorClass: "is-editor-empty",
@@ -102,9 +71,17 @@ export const extensions = [
       });
     },
   }),
+  ImagePlaceholder,
   FileHandler.configure({
     allowedMimeTypes: ALLOWED_IMAGE_MIME_TYPES,
     onDrop: handleFileDrop,
     onPaste: handleFilePaste,
+  }),
+  SlashMenu,
+  LinkEditing,
+  MarkdownPaste.configure({
+    onLocalImages: (count) => {
+      toast.warning(m.editor_markdown_paste_local_images({ count }));
+    },
   }),
 ];

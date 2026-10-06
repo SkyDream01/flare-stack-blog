@@ -8,6 +8,7 @@ import { Editor } from "@/components/tiptap-editor";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
 import { extensions } from "@/features/posts/editor/config";
 import { CodeBlockHighlightProvider } from "@/features/posts/editor/extensions/code-block/code-block-highlight-context";
+import { postContentOf } from "@/features/posts/editor/extensions/image-placeholder";
 import { postRevisionListQuery } from "@/features/posts/queries";
 import { normalizePostContent } from "@/features/posts/utils/normalize-content";
 import { m } from "@/paraglide/messages";
@@ -51,7 +52,8 @@ export function PostEditor({ initialData, onSave }: PostEditorProps) {
   const getContent = useCallback(() => {
     const editor = editorRef.current;
     if (editor && !editor.isDestroyed) {
-      return editor.getJSON();
+      // Autosave and publish both save this.
+      return postContentOf(editor.state.doc);
     }
     return editorContentRef.current;
   }, []);

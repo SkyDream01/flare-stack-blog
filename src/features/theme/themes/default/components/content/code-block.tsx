@@ -1,36 +1,9 @@
 import { Check, Copy } from "lucide-react";
 import { memo, useState } from "react";
 import { m } from "@/paraglide/messages";
-
-// Map short codes to display labels
-const LANGUAGE_MAP: Record<string, string> = {
-  ts: "TypeScript",
-  typescript: "TypeScript",
-  js: "JavaScript",
-  javascript: "JavaScript",
-  jsx: "JSX",
-  tsx: "TSX",
-  py: "Python",
-  python: "Python",
-  rb: "Ruby",
-  ruby: "Ruby",
-  go: "Go",
-  rs: "Rust",
-  rust: "Rust",
-  java: "Java",
-  cpp: "C++",
-  c: "C",
-  php: "PHP",
-  css: "CSS",
-  html: "HTML",
-  json: "JSON",
-  yaml: "YAML",
-  xml: "XML",
-  sql: "SQL",
-  sh: "Shell",
-  bash: "Bash",
-  md: "Markdown",
-};
+import { CodeBlockContent } from "@/features/theme/components/code-block-content";
+import { isPlainTextLanguage, resolveCodeLanguage } from "@/lib/code-languages";
+import { plainCodeHtml } from "@/lib/plain-code-html";
 
 interface CodeBlockProps {
   code: string;
@@ -40,18 +13,14 @@ interface CodeBlockProps {
 
 export const CodeBlock = memo(
   ({ code, language, highlightedHtml }: CodeBlockProps) => {
-    const fallback = `<pre class="shiki font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground bg-transparent! p-0 m-0 border-0"><code>${code}</code></pre>`;
-    const html = highlightedHtml || fallback;
+    const html = highlightedHtml || plainCodeHtml(code);
 
     const [copied, setCopied] = useState(false);
 
     // Helper to get display label
-    const normalizedLanguage = language?.toLowerCase();
-    const displayLanguage = normalizedLanguage
-      ? normalizedLanguage === "text" || normalizedLanguage === "txt"
-        ? m.common_plain_text()
-        : LANGUAGE_MAP[normalizedLanguage] || language
-      : m.common_plain_text();
+    const displayLanguage = isPlainTextLanguage(language)
+      ? m.common_plain_text()
+      : resolveCodeLanguage(language)?.label || language;
 
     const handleCopy = () => {
       navigator.clipboard.writeText(code);
@@ -89,9 +58,11 @@ export const CodeBlock = memo(
           {/* Code Area */}
           <div className="relative p-0 overflow-x-auto custom-scrollbar rounded-b-sm">
             <div className="text-sm font-mono leading-relaxed transition-opacity duration-300">
-              <div
+              <CodeBlockContent
+                code={code}
+                language={language}
+                highlightedHtml={html}
                 className="[&>pre]:p-6 [&>pre]:m-0 [&>pre]:min-w-full [&>pre]:w-fit [&>pre]:rounded-b-sm [&>pre>code]:p-0"
-                dangerouslySetInnerHTML={{ __html: html }}
               />
             </div>
           </div>

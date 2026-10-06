@@ -1,7 +1,9 @@
 import type { JSONContent } from "@tiptap/react";
+import { PLAIN_TEXT, resolveCodeLanguage } from "@/lib/code-languages";
+import { isPlainCodeHtml } from "@/lib/plain-code-html";
 
 export function codeBlockHighlightKey(language: unknown, code: string) {
-  return `${String(language || "text")}\0${code}`;
+  return `${String(language || PLAIN_TEXT)}\0${code}`;
 }
 
 function codeBlockText(node: JSONContent) {
@@ -9,11 +11,17 @@ function codeBlockText(node: JSONContent) {
 }
 
 function codeBlockLang(node: JSONContent) {
-  return String(node.attrs?.language || "text");
+  return String(node.attrs?.language || PLAIN_TEXT);
 }
 
 function codeBlockKey(node: JSONContent) {
   return codeBlockHighlightKey(codeBlockLang(node), codeBlockText(node));
+}
+
+// HTML rendered as plain text because the language had no grammar then must
+// not outlive the language gaining one.
+function isReusable(node: JSONContent, html: string) {
+  return !(isPlainCodeHtml(html) && resolveCodeLanguage(codeBlockLang(node)));
 }
 
 function collectHighlightedHtml(doc: JSONContent | null | undefined) {
@@ -22,7 +30,11 @@ function collectHighlightedHtml(doc: JSONContent | null | undefined) {
   function walk(node: JSONContent) {
     if (node.type === "codeBlock") {
       const html = node.attrs?.highlightedHtml;
-      if (typeof html === "string" && html.length > 0) {
+      if (
+        typeof html === "string" &&
+        html.length > 0 &&
+        isReusable(node, html)
+      ) {
         const key = codeBlockKey(node);
         const list = map.get(key) ?? [];
         list.push(html);

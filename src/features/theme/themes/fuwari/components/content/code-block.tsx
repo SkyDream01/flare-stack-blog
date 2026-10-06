@@ -2,36 +2,13 @@ import { Check, ChevronDown, Copy } from "lucide-react";
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
-
-// Map short codes to display labels
-const LANGUAGE_MAP: Record<string, string> = {
-  ts: "TypeScript",
-  typescript: "TypeScript",
-  js: "JavaScript",
-  javascript: "JavaScript",
-  jsx: "JSX",
-  tsx: "TSX",
-  py: "Python",
-  python: "Python",
-  rb: "Ruby",
-  ruby: "Ruby",
-  go: "Go",
-  rs: "Rust",
-  rust: "Rust",
-  java: "Java",
-  cpp: "C++",
-  c: "C",
-  php: "PHP",
-  css: "CSS",
-  html: "HTML",
-  json: "JSON",
-  yaml: "YAML",
-  xml: "XML",
-  sql: "SQL",
-  sh: "sh",
-  bash: "bash",
-  md: "Markdown",
-};
+import { CodeBlockContent } from "@/features/theme/components/code-block-content";
+import {
+  isMermaidLanguage,
+  isPlainTextLanguage,
+  resolveCodeLanguage,
+} from "@/lib/code-languages";
+import { plainCodeHtml } from "@/lib/plain-code-html";
 
 interface CodeBlockProps {
   code: string;
@@ -43,8 +20,8 @@ const FOLD_THRESHOLD = 400;
 
 export const CodeBlock = memo(
   ({ code, language, highlightedHtml }: CodeBlockProps) => {
-    const fallback = `<pre class="shiki font-mono text-sm leading-relaxed whitespace-pre text-(--fuwari-btn-content) bg-transparent! p-0 m-0 border-0"><code>${code}</code></pre>`;
-    const html = highlightedHtml || fallback;
+    const html = highlightedHtml || plainCodeHtml(code);
+    const diagram = isMermaidLanguage(language);
 
     const [copied, setCopied] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(true);
@@ -53,6 +30,10 @@ export const CodeBlock = memo(
     const contentRef = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
+      if (diagram) {
+        setNeedsFolding(false);
+        return;
+      }
       if (contentRef.current) {
         // If the content is taller than our threshold, enable folding
         const scrollHeight = contentRef.current.scrollHeight;
@@ -61,15 +42,12 @@ export const CodeBlock = memo(
           setContentHeight(scrollHeight);
         }
       }
-    }, [html]);
+    }, [html, diagram]);
 
     // Helper to get display label (following expressive-code language badge logic)
-    const normalizedLanguage = language?.toLowerCase();
-    const displayLanguage = normalizedLanguage
-      ? normalizedLanguage === "text" || normalizedLanguage === "txt"
-        ? m.common_plain_text()
-        : LANGUAGE_MAP[normalizedLanguage] || normalizedLanguage
-      : m.common_plain_text();
+    const displayLanguage = isPlainTextLanguage(language)
+      ? m.common_plain_text()
+      : resolveCodeLanguage(language)?.label || language;
 
     const handleCopy = () => {
       navigator.clipboard.writeText(code);
@@ -121,7 +99,7 @@ export const CodeBlock = memo(
           <div
             className={cn("fuwari-code-folding-wrapper custom-scrollbar")}
             style={
-              needsFolding
+              needsFolding && !diagram
                 ? { maxHeight: isCollapsed ? FOLD_THRESHOLD : contentHeight }
                 : undefined
             }
@@ -130,13 +108,15 @@ export const CodeBlock = memo(
               ref={contentRef}
               className="text-sm font-mono leading-relaxed transition-opacity duration-300"
             >
-              <div
+              <CodeBlockContent
+                code={code}
+                language={language}
+                highlightedHtml={html}
                 className="[&>pre]:px-5 [&>pre]:py-4 [&>pre]:m-0 [&>pre]:min-w-full [&>pre]:w-fit [&_code]:block [&_code]:w-fit [&>pre]:rounded-xl [&>pre>code]:p-0"
-                dangerouslySetInnerHTML={{ __html: html }}
               />
             </div>
 
-            {needsFolding && (
+            {needsFolding && !diagram && (
               <div
                 className={cn(
                   "fuwari-code-mask transition-opacity duration-500",
@@ -147,7 +127,7 @@ export const CodeBlock = memo(
           </div>
 
           {/* Expand Button (Subtle Overlay Style) */}
-          {needsFolding && (
+          {needsFolding && !diagram && (
             <div
               className={cn(
                 "absolute bottom-4 left-0 right-0 flex justify-center z-20 pointer-events-none transition-all duration-500",

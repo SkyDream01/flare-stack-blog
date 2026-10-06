@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import type { MediaAsset } from "../types";
 import { MediaTile } from "./media-tile";
@@ -11,6 +12,7 @@ export function MediaGrid({
   isLoadingMore,
   showMeta = true,
   selectedKey,
+  columnsClassName = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
 }: {
   media: Array<MediaAsset>;
   onSelect: (asset: MediaAsset) => void;
@@ -19,6 +21,8 @@ export function MediaGrid({
   isLoadingMore?: boolean;
   showMeta?: boolean;
   selectedKey?: string;
+  /** Grid columns, for grids narrower than the viewport. */
+  columnsClassName?: string;
 }) {
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -40,7 +44,7 @@ export function MediaGrid({
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-start">
+      <div className={cn("grid gap-4 items-start", columnsClassName)}>
         {media.map((asset) => (
           <MediaTile
             key={asset.key}

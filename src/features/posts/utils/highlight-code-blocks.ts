@@ -1,6 +1,7 @@
 import type { JSONContent } from "@tiptap/react";
 import { applyCodeBlockHighlighting } from "@/features/posts/utils/apply-code-block-highlighting";
-import { fallbackCodeHtml } from "@/features/posts/utils/content";
+import { PLAIN_TEXT } from "@/lib/code-languages";
+import { plainCodeHtml } from "@/lib/plain-code-html";
 import { highlight } from "@/lib/shiki";
 
 async function highlightMissingCodeBlocks(
@@ -17,7 +18,7 @@ async function highlightMissingCodeBlocks(
       }
 
       const code = node.content?.map((n) => n.text || "").join("") || "";
-      const lang = node.attrs?.language || "text";
+      const lang = node.attrs?.language || PLAIN_TEXT;
       try {
         const html = await highlight(code, lang);
         node.attrs = { ...node.attrs, highlightedHtml: html };
@@ -31,7 +32,7 @@ async function highlightMissingCodeBlocks(
         );
         node.attrs = {
           ...node.attrs,
-          highlightedHtml: fallbackCodeHtml(code),
+          highlightedHtml: plainCodeHtml(code),
         };
       }
     }

@@ -5,6 +5,18 @@
 @custom-variant light (&:is(.light *));
 @custom-variant system (&:is(.system *));
 
+/* Tables share the published layout in every theme (ADR 0028). */
+.fuwari-table-scroll {
+  overflow-x: auto;
+}
+
+.ProseMirror .fuwari-table-scroll > table,
+.fuwari-custom-md .fuwari-table-scroll > table,
+.cuckoo-custom-md .fuwari-table-scroll > table {
+  display: table;
+  width: 100%;
+}
+
 @layer base {
   button:not(:disabled),
   [role="button"]:not(:disabled) {

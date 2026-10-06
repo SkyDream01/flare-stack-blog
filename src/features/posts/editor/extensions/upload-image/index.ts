@@ -1,3 +1,4 @@
+import type { Range } from "@tiptap/core";
 import { Extension } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import type { EditorView } from "@tiptap/pm/view";
@@ -16,7 +17,12 @@ interface ImageUploadOptions {
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     imageUpload: {
-      uploadImage: (file: File, pos?: number) => ReturnType;
+      /**
+       * Inserts `file` as an image at `at` (the selection by default), or in
+       * place of the range `at`, and swaps in the uploaded address once the
+       * upload finishes. A failed upload removes the image.
+       */
+      uploadImage: (file: File, at?: number | Range) => ReturnType;
     };
   }
 }
@@ -50,7 +56,7 @@ export const ImageUpload = Extension.create<ImageUploadOptions>({
   addCommands() {
     return {
       uploadImage:
-        (file: File, pos?: number) =>
+        (file: File, at?: number | Range) =>
         ({ tr, dispatch, state, view }) => {
           if (!dispatch) return true;
 
@@ -61,8 +67,11 @@ export const ImageUpload = Extension.create<ImageUploadOptions>({
             alt: file.name,
             uploadId,
           });
-          const insertPos = pos ?? tr.selection.from;
-          tr.insert(insertPos, node);
+          if (typeof at === "object") {
+            tr.replaceWith(at.from, at.to, node);
+          } else {
+            tr.insert(at ?? tr.selection.from, node);
+          }
 
           const removePlaceholder = () => {
             if (view.isDestroyed) {

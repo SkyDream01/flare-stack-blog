@@ -1,66 +1,31 @@
 import { X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { FuwariModal } from "@/components/ui/fuwari-modal";
-import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
 import {
   ACCEPTED_IMAGE_TYPES,
   MAX_FILE_SIZE,
 } from "@/features/media/media.schema";
-import { extractImageKey } from "@/features/media/utils/media.utils";
-import { orpcClient } from "@/lib/orpc";
 import { m } from "@/paraglide/messages";
 import { useMediaPicker, useMediaUpload } from "../hooks";
 import type { MediaAsset } from "../types";
-import { MediaGrid } from "./media-grid";
+import { MediaPickerGrid } from "./media-picker-grid";
 
 export function MediaPicker({
   open,
   title,
   onClose,
   onSelect,
-  allowUrlImport = false,
   returnFocus,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   onSelect: (asset: MediaAsset) => void;
-  allowUrlImport?: boolean;
   returnFocus?: () => HTMLElement | null;
 }) {
-  const { mediaItems, loadMore, hasMore, isLoadingMore, isPending } =
-    useMediaPicker(open);
+  const picker = useMediaPicker(open);
   const { uploadFiles, isUploading } = useMediaUpload();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [url, setUrl] = useState("");
-  const [importing, setImporting] = useState(false);
-
-  useEffect(() => {
-    if (open) setUrl("");
-  }, [open]);
-
-  const importUrl = async () => {
-    const trimmed = url.trim();
-    if (!trimmed) return;
-    const existingKey = extractImageKey(trimmed);
-    const existing = existingKey
-      ? mediaItems.find((item) => item.key === existingKey)
-      : undefined;
-    if (existing) {
-      onSelect(existing);
-      return;
-    }
-    setImporting(true);
-    try {
-      const media = await orpcClient.media.importFromUrl({ url: trimmed });
-      onSelect({ ...media, postCount: 0, isCover: false });
-    } catch {
-      toast.error(m.media_import_fail());
-    } finally {
-      setImporting(false);
-    }
-  };
 
   return (
     <FuwariModal
@@ -93,51 +58,8 @@ export function MediaPicker({
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-5 pb-5 min-h-0">
-          {isPending ? (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-xl bg-(--fuwari-btn-regular-bg) animate-pulse"
-                />
-              ))}
-            </div>
-          ) : mediaItems.length === 0 ? (
-            <div className="py-16 text-center text-sm fuwari-text-50">
-              {m.media_empty()}
-            </div>
-          ) : (
-            <MediaGrid
-              media={mediaItems}
-              onSelect={onSelect}
-              onLoadMore={loadMore}
-              hasMore={hasMore}
-              isLoadingMore={isLoadingMore}
-              showMeta={false}
-            />
-          )}
+          <MediaPickerGrid picker={picker} onSelect={onSelect} />
         </div>
-        {allowUrlImport ? (
-          <div className="px-5 pb-5 flex gap-2">
-            <Input
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder={m.editor_insert_image_url()}
-              className="flex-1 h-10 rounded-xl border border-(--fuwari-input-border) bg-(--fuwari-input-bg) px-3 font-sans text-sm fuwari-text-90 shadow-none focus-visible:border-(--fuwari-primary) focus-visible:ring-0"
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void importUrl();
-              }}
-            />
-            <button
-              type="button"
-              disabled={importing || !url.trim()}
-              onClick={() => void importUrl()}
-              className="fuwari-btn-regular rounded-xl h-10 px-4 text-sm font-medium"
-            >
-              {m.editor_insert_import()}
-            </button>
-          </div>
-        ) : null}
         <input
           ref={fileRef}
           type="file"

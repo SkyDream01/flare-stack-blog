@@ -1,15 +1,13 @@
 import { ChevronDown } from "lucide-react";
 import type React from "react";
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { MOTION, useMotionPresence } from "@/hooks/use-motion";
 import { cn } from "@/lib/utils";
+import {
+  POPOVER_PANEL_CLASS,
+  POPOVER_TRIGGER_CLASS,
+  useAnchoredPopover,
+} from "./use-anchored-popover";
 
 interface DropdownOption {
   label: string;
@@ -34,59 +32,19 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   ariaLabel,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const present = useMotionPresence(isOpen, MOTION.popover);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
+  const {
+    triggerRef,
+    popoverRef: menuRef,
+    style: menuStyle,
+  } = useAnchoredPopover({
+    open: isOpen,
+    onDismiss: () => setIsOpen(false),
+    width: 11 * 16,
+    maxHeight: 256,
+  });
 
   const selectedOption =
     options.find((opt) => opt.value === value) || options[0];
-
-  useLayoutEffect(() => {
-    if (!present) {
-      setMenuStyle(null);
-      return;
-    }
-
-    const update = () => {
-      const trigger = triggerRef.current;
-      if (!trigger) return;
-      const rect = trigger.getBoundingClientRect();
-      const menuHeight = 256;
-      const gap = 4;
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const openUp = spaceBelow < menuHeight && rect.top > spaceBelow;
-      setMenuStyle({
-        position: "fixed",
-        right: window.innerWidth - rect.right,
-        width: 11 * 16,
-        top: openUp ? undefined : rect.bottom + gap,
-        bottom: openUp ? window.innerHeight - rect.top + gap : undefined,
-        transformOrigin: openUp ? "bottom right" : "top right",
-        "--popover-offset": openUp ? "4px" : "-4px",
-      } as CSSProperties);
-    };
-
-    update();
-    window.addEventListener("resize", update);
-    document.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      document.removeEventListener("scroll", update, true);
-    };
-  }, [present]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (triggerRef.current?.contains(target)) return;
-      if (menuRef.current?.contains(target)) return;
-      setIsOpen(false);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
 
   useEffect(() => {
     if (
@@ -110,10 +68,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
         aria-expanded={isOpen}
         aria-haspopup="menu"
         onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "flex items-center gap-1 rounded-lg bg-(--fuwari-primary)/10 px-2 py-0.5 font-mono text-xs font-bold uppercase text-(--fuwari-primary)",
-          triggerClassName,
-        )}
+        className={cn(POPOVER_TRIGGER_CLASS, triggerClassName)}
       >
         <span>{selectedOption.label}</span>
         <ChevronDown
@@ -125,7 +80,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
         />
       </button>
 
-      {present && menuStyle
+      {menuStyle
         ? createPortal(
             <div
               ref={menuRef}
@@ -134,7 +89,10 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
               inert={!isOpen}
               aria-hidden={!isOpen}
               aria-label={ariaLabel}
-              className="fuwari-popover-motion z-80 max-h-64 overflow-y-auto rounded-xl bg-(--fuwari-card-bg) p-1 shadow-md ring-1 ring-(--fuwari-input-border) custom-scrollbar"
+              className={cn(
+                POPOVER_PANEL_CLASS,
+                "max-h-64 overflow-y-auto p-1 custom-scrollbar",
+              )}
               style={menuStyle}
               onKeyDown={(event) => {
                 if (event.key === "Escape") {

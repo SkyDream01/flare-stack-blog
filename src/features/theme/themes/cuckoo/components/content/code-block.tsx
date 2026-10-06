@@ -2,36 +2,13 @@ import { Check, ChevronDown, Copy } from "lucide-react";
 import { memo, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
-
-// Map short codes to display labels
-const LANGUAGE_MAP: Record<string, string> = {
-  ts: "TypeScript",
-  typescript: "TypeScript",
-  js: "JavaScript",
-  javascript: "JavaScript",
-  jsx: "JSX",
-  tsx: "TSX",
-  py: "Python",
-  python: "Python",
-  rb: "Ruby",
-  ruby: "Ruby",
-  go: "Go",
-  rs: "Rust",
-  rust: "Rust",
-  java: "Java",
-  cpp: "C++",
-  c: "C",
-  php: "PHP",
-  css: "CSS",
-  html: "HTML",
-  json: "JSON",
-  yaml: "YAML",
-  xml: "XML",
-  sql: "SQL",
-  sh: "sh",
-  bash: "bash",
-  md: "Markdown",
-};
+import { CodeBlockContent } from "@/features/theme/components/code-block-content";
+import {
+  isMermaidLanguage,
+  isPlainTextLanguage,
+  resolveCodeLanguage,
+} from "@/lib/code-languages";
+import { plainCodeHtml } from "@/lib/plain-code-html";
 
 interface CodeBlockProps {
   code: string;
@@ -47,8 +24,8 @@ const FOLD_THRESHOLD = 400;
  */
 export const CodeBlock = memo(
   ({ code, language, highlightedHtml }: CodeBlockProps) => {
-    const fallback = `<pre class="shiki font-mono text-sm leading-relaxed whitespace-pre text-[#abb2bf] bg-transparent! p-0 m-0 border-0"><code>${code}</code></pre>`;
-    const html = highlightedHtml || fallback;
+    const html = highlightedHtml || plainCodeHtml(code);
+    const diagram = isMermaidLanguage(language);
 
     const [copied, setCopied] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(true);
@@ -57,6 +34,10 @@ export const CodeBlock = memo(
     const contentRef = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
+      if (diagram) {
+        setNeedsFolding(false);
+        return;
+      }
       if (contentRef.current) {
         const scrollHeight = contentRef.current.scrollHeight;
         if (scrollHeight > FOLD_THRESHOLD + 50) {
@@ -64,14 +45,11 @@ export const CodeBlock = memo(
           setContentHeight(scrollHeight);
         }
       }
-    }, [html]);
+    }, [html, diagram]);
 
-    const normalizedLanguage = language?.toLowerCase();
-    const displayLanguage = normalizedLanguage
-      ? normalizedLanguage === "text" || normalizedLanguage === "txt"
-        ? m.common_plain_text()
-        : LANGUAGE_MAP[normalizedLanguage] || normalizedLanguage
-      : m.common_plain_text();
+    const displayLanguage = isPlainTextLanguage(language)
+      ? m.common_plain_text()
+      : resolveCodeLanguage(language)?.label || language;
 
     const handleCopy = () => {
       navigator.clipboard.writeText(code);
@@ -82,7 +60,10 @@ export const CodeBlock = memo(
     return (
       <div className="group relative my-6 max-w-full not-prose">
         <div
-          className="relative overflow-hidden rounded-[5px] pt-7"
+          className={cn(
+            "relative overflow-hidden rounded-[5px] pt-7",
+            diagram && "cuckoo-code-mermaid",
+          )}
           style={{
             backgroundColor: "#21252b",
             boxShadow: "0 10px 30px 0 rgb(0 0 0 / 20%)",
@@ -131,7 +112,7 @@ export const CodeBlock = memo(
           <div
             className={cn("cuckoo-code-folding-wrapper custom-scrollbar")}
             style={
-              needsFolding
+              needsFolding && !diagram
                 ? { maxHeight: isCollapsed ? FOLD_THRESHOLD : contentHeight }
                 : undefined
             }
@@ -140,13 +121,15 @@ export const CodeBlock = memo(
               ref={contentRef}
               className="text-sm font-mono leading-relaxed transition-opacity duration-300"
             >
-              <div
+              <CodeBlockContent
+                code={code}
+                language={language}
+                highlightedHtml={html}
                 className="[&>pre]:mx-0 [&>pre]:mb-0 [&>pre]:min-w-full [&>pre]:w-fit [&>pre]:bg-transparent! [&>pre]:px-5 [&>pre]:pb-4 [&>pre]:pt-2 [&>pre]:shadow-none! [&>pre>code]:block [&>pre>code]:w-fit [&>pre>code]:p-0"
-                dangerouslySetInnerHTML={{ __html: html }}
               />
             </div>
 
-            {needsFolding && (
+            {needsFolding && !diagram && (
               <div
                 className={cn(
                   "cuckoo-code-mask transition-opacity duration-500",
@@ -157,7 +140,7 @@ export const CodeBlock = memo(
           </div>
 
           {/* 展开按钮 */}
-          {needsFolding && (
+          {needsFolding && !diagram && (
             <div
               className={cn(
                 "pointer-events-none absolute right-0 bottom-4 left-0 z-20 flex justify-center transition-all duration-500",

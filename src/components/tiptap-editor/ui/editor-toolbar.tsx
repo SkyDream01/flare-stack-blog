@@ -1,7 +1,6 @@
 import type { Editor } from "@tiptap/react";
 import { useEditorState } from "@tiptap/react";
 import clsx from "clsx";
-import type { LucideIcon } from "lucide-react";
 import {
   Bold,
   Code,
@@ -17,13 +16,14 @@ import {
   Sigma,
   SquareFunction,
   Strikethrough,
-  Table as TableIcon,
   Terminal,
   Underline as UnderlineIcon,
   Undo,
 } from "lucide-react";
 import type React from "react";
 import { m } from "@/paraglide/messages";
+import { TableSizePicker } from "./table-size-picker";
+import { ToolbarButton } from "./toolbar-button";
 
 interface EditorToolbarProps {
   className?: string;
@@ -33,37 +33,6 @@ interface EditorToolbarProps {
   onFormulaInlineClick: () => void;
   onFormulaBlockClick: () => void;
 }
-
-interface ToolbarButtonProps {
-  onClick: () => void;
-  isActive?: boolean;
-  icon: LucideIcon;
-  label?: string;
-  variant?: "default" | "ghost";
-}
-
-const ToolbarButton: React.FC<ToolbarButtonProps> = ({
-  onClick,
-  isActive,
-  icon: Icon,
-  label,
-}) => (
-  <button
-    onClick={onClick}
-    className={clsx(
-      "fuwari-toolbar-button h-8 w-8 flex items-center justify-center group relative rounded-lg",
-      isActive
-        ? "bg-(--fuwari-btn-regular-bg) text-(--fuwari-primary)"
-        : "fuwari-text-50 hover:text-(--fuwari-primary) hover:bg-(--fuwari-btn-regular-bg)",
-    )}
-    title={label}
-    aria-label={label}
-    aria-pressed={isActive}
-    type="button"
-  >
-    <Icon size={14} strokeWidth={isActive ? 2.5 : 2} />
-  </button>
-);
 
 const EditorToolbar: React.FC<EditorToolbarProps> = ({
   editor,
@@ -240,18 +209,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         icon={Quote}
         label={m.editor_toolbar_blockquote()}
       />
-      <ToolbarButton
-        onClick={() =>
-          editor
-            ?.chain()
-            .focus()
-            .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-            .run()
-        }
-        isActive={editor?.isActive("table")}
-        icon={TableIcon}
-        label={m.editor_toolbar_table()}
-      />
+      <TableSizePicker editor={editor} isActive={editor?.isActive("table")} />
 
       <div className="mx-2 h-4 w-px bg-(--fuwari-meta-divider)"></div>
 

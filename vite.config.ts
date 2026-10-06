@@ -6,7 +6,6 @@ import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
-import viteTsConfigPaths from "vite-tsconfig-paths";
 import { z } from "zod";
 import packageJson from "./package.json";
 import { themeNames, themes } from "./src/features/theme/registry";
@@ -25,6 +24,7 @@ const config = defineConfig(({ mode }) => {
       __THEME_CONFIG__: JSON.stringify(themes[buildEnv.THEME]),
     },
     resolve: {
+      tsconfigPaths: true,
       alias: {
         "@": path.resolve(__dirname, "./src"),
         "@theme": path.resolve(
@@ -73,9 +73,6 @@ const config = defineConfig(({ mode }) => {
         viteEnvironment: {
           name: "ssr",
         },
-      }),
-      viteTsConfigPaths({
-        projects: ["./tsconfig.json"],
       }),
       tailwindcss(),
       devtools(),
