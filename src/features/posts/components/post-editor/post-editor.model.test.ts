@@ -61,4 +61,17 @@ describe("shouldAutogenerateSlug", () => {
     expect(shouldAutogenerateSlug("custom", "hello")).toBe(false);
     expect(shouldAutogenerateSlug("hello", null)).toBe(false);
   });
+
+  it("treats the new-post placeholder slug as auto-generated", () => {
+    expect(shouldAutogenerateSlug("untitled-log", null)).toBe(true);
+    expect(shouldAutogenerateSlug("untitled-log-12", null)).toBe(true);
+    expect(shouldAutogenerateSlug("untitled-log-3-k2x9fa", null)).toBe(true);
+    expect(shouldAutogenerateSlug("untitled-logbook", null)).toBe(false);
+  });
+
+  it("never follows the title once the post has been published", () => {
+    expect(shouldAutogenerateSlug("untitled-log-2", null, true)).toBe(false);
+    expect(shouldAutogenerateSlug("hello", "hello", true)).toBe(false);
+    expect(shouldAutogenerateSlug("", null, true)).toBe(false);
+  });
 });

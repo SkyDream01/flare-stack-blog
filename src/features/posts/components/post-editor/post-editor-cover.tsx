@@ -1,7 +1,6 @@
 import { Image as ImageIcon } from "lucide-react";
 import { useState } from "react";
 import { MediaPicker } from "@/features/media/components/media-library/components";
-import { getOriginalImageUrl } from "@/features/media/utils/media.utils";
 import { m } from "@/paraglide/messages";
 import type { PostEditorData } from "./types";
 
@@ -49,7 +48,7 @@ export function PostEditorCover({
       >
         {cover ? (
           <img
-            src={getOriginalImageUrl(cover.key)}
+            src={cover.url}
             alt={cover.fileName}
             className="h-full w-full object-cover"
           />

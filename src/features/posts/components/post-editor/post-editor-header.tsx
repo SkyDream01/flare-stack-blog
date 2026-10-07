@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Check, Loader2, MoreHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { usePostEditorReturn } from "./post-editor-return";
+import ConfirmationModal from "@/components/ui/confirmation-modal";
 import { readPostListLocation } from "../post-manager/list-position";
 import { m } from "@/paraglide/messages";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ export function PostEditorHeader({
   const taxonomyReturn = usePostEditorReturn();
   const [returnLocation] = useState(readPostListLocation);
   const menuRef = useRef<HTMLDetailsElement>(null);
+  const [confirmingUnpublish, setConfirmingUnpublish] = useState(false);
   useEffect(() => {
     const closeOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node))
@@ -165,7 +167,7 @@ export function PostEditorHeader({
                 disabled={busy}
                 onClick={() => {
                   if (menuRef.current) menuRef.current.open = false;
-                  onUnpublish();
+                  setConfirmingUnpublish(true);
                 }}
               >
                 {m.editor_header_unpublish()}
@@ -174,6 +176,19 @@ export function PostEditorHeader({
           </details>
         )}
       </div>
+      <ConfirmationModal
+        isOpen={confirmingUnpublish}
+        title={m.editor_unpublish_confirm_title()}
+        message={m.editor_unpublish_confirm_desc()}
+        confirmLabel={m.editor_header_unpublish()}
+        isDanger
+        onClose={() => setConfirmingUnpublish(false)}
+        onConfirm={() => {
+          setConfirmingUnpublish(false);
+          onUnpublish();
+        }}
+        returnFocus={() => menuRef.current?.querySelector("summary") ?? null}
+      />
     </header>
   );
 }

@@ -840,6 +840,19 @@
         }
       }
     },
+    "testStatus": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {},
+        "route": {
+          "method": "GET",
+          "path": "/admin/email/test-status",
+          "summary": "Get the last email test result for the saved settings",
+          "description": "Returns verified or failed when the last test used exactly the saved email settings, and untested otherwise.",
+          "tags": ["Admin Email"]
+        }
+      }
+    },
     "unsubscribe": {
       "~orpc": {
         "errorMap": {},

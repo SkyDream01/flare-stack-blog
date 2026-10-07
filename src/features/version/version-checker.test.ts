@@ -1,5 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
-import { createVersionChecker } from "./service/version.service";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  createVersionChecker,
+  fetchLatestReleaseFromGitHub,
+} from "./service/version.service";
 import { VERSION_CACHE_KEYS } from "./version.schema";
 
 type VersionContext = BaseContext & { executionCtx: ExecutionContext };
@@ -159,5 +162,98 @@ describe("version checker", () => {
     expect(
       JSON.parse(values.get(VERSION_CACHE_KEYS.latestRelease.join(":")) ?? ""),
     ).toEqual(release("v1.6.0"));
+  });
+
+  it("remembers a failed check and only retries on refresh", async () => {
+    const { context, flushBackgroundTasks } = createVersionContext();
+    const fetchLatestRelease = vi.fn(async () => {
+      throw new Error("GitHub API error: 403");
+    });
+    const checker = createVersionChecker({
+      getCurrentVersion: () => "1.5.2",
+      fetchLatestRelease,
+    });
+
+    expect((await checker.check(context)).error).toEqual({
+      reason: "FETCH_FAILED",
+    });
+    await flushBackgroundTasks();
+    expect((await checker.check(context)).error).toEqual({
+      reason: "FETCH_FAILED",
+    });
+    expect(fetchLatestRelease).toHaveBeenCalledOnce();
+
+    await checker.refresh(context);
+    expect(fetchLatestRelease).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("fetchLatestReleaseFromGitHub", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const RELEASE_PAGE =
+    "https://github.com/du2333/flare-stack-blog/releases/latest";
+
+  function redirectToTag(tag: string) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        location: `https://github.com/du2333/flare-stack-blog/releases/tag/${tag}`,
+      },
+    });
+  }
+
+  it("reads the latest tag from the release page redirect without a token", async () => {
+    const fetch = vi.fn(async () => redirectToTag("v3.1.2"));
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(fetchLatestReleaseFromGitHub(undefined)).resolves.toEqual(
+      release("v3.1.2"),
+    );
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledWith(
+      RELEASE_PAGE,
+      expect.objectContaining({ method: "HEAD", redirect: "manual" }),
+    );
+  });
+
+  it("uses the API with a token", async () => {
+    const fetch = vi.fn(async () =>
+      Response.json({
+        tag_name: "v3.1.2",
+        html_url:
+          "https://github.com/du2333/flare-stack-blog/releases/tag/v3.1.2",
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(fetchLatestReleaseFromGitHub("token")).resolves.toEqual(
+      release("v3.1.2"),
+    );
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("falls back to the release page when the API fails", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("rate limited", { status: 403 }))
+      .mockResolvedValueOnce(redirectToTag("v3.1.2"));
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(fetchLatestReleaseFromGitHub("token")).resolves.toEqual(
+      release("v3.1.2"),
+    );
+    expect(fetch).toHaveBeenLastCalledWith(RELEASE_PAGE, expect.anything());
+  });
+
+  it("fails when the release page does not redirect to a tag", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", { status: 429 })),
+    );
+
+    await expect(fetchLatestReleaseFromGitHub(undefined)).rejects.toThrow();
   });
 });

@@ -43,6 +43,7 @@ export function useProfileForm(options: UseProfileFormOptions) {
     register,
     handleSubmit,
     reset,
+    setValue,
     watch,
     formState: { errors, isSubmitting, isDirty },
   } = form;
@@ -83,6 +84,8 @@ export function useProfileForm(options: UseProfileFormOptions) {
     isSubmitting,
     isDirty,
     image: watch("image") || "",
+    setImage: (image: string) =>
+      setValue("image", image, { shouldDirty: true, shouldValidate: true }),
     feedback,
   };
 }

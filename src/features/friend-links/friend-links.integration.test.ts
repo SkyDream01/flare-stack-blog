@@ -71,6 +71,27 @@ describe("FriendLinkService", () => {
       );
     });
 
+    it("uses the configured site title in the email layout", async () => {
+      await seedSystemConfig(adminContext, {
+        ...DEFAULT_CONFIG,
+        site: { ...DEFAULT_CONFIG.site, title: "后台设置的站点名" },
+      });
+
+      await FriendLinkService.submitFriendLink(userContext, {
+        siteName: "New Site",
+        siteUrl: "https://newsite.com",
+      });
+
+      expect(userContext.env.QUEUE.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "EMAIL",
+          data: expect.objectContaining({
+            html: expect.stringContaining("后台设置的站点名"),
+          }),
+        }),
+      );
+    });
+
     it("should send admin webhook without email when admin email is disabled", async () => {
       await seedSystemConfig(adminContext, {
         ...DEFAULT_CONFIG,

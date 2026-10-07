@@ -64,7 +64,7 @@ python scripts/tiptap.py encode draft.md
 
 `posts save --md` does that encoding. `posts get ID --md` dumps the draft. PATCH `contentJson`; GET also returns `publicSnapshotContentJson` (the live snapshot, including generated code highlighting) — that is not the write field.
 
-Markdown subset: headings 2–4, paragraphs, lists, quotes, fences, links, images, tables, `**bold**` `*italic*` `~~strike~~` `` `code` ``, `$inline math$`, `$$block math$$`. Run `tiptap.py -h` for the exact surface.
+Markdown subset: headings 2–4, paragraphs, lists, quotes, fences, links, images, tables, `**bold**` `*italic*` `~~strike~~` `` `code` ``, `$inline math$`, and block math with `$$` alone on the lines before and after the LaTeX. Run `tiptap.py -h` for the exact surface.
 
 ## 4. Domain Rules & Invariants
 

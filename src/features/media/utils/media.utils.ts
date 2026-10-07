@@ -67,6 +67,19 @@ export function getOriginalImageUrl(key: string) {
   return `/images/${key}`;
 }
 
+/**
+ * The original an image transform reads. It carries the request's `v` so a
+ * replaced file at the same key is fetched fresh instead of from the edge
+ * cache of the unversioned original.
+ */
+export function getTransformSourceUrl(requestUrl: URL, key: string) {
+  const source = new URL(getOriginalImageUrl(key), requestUrl.origin);
+  source.searchParams.set("original", "true");
+  const version = requestUrl.searchParams.get("v");
+  if (version) source.searchParams.set("v", version);
+  return source.toString();
+}
+
 export function hasImageTransformParams(searchParams: URLSearchParams) {
   return (
     searchParams.has("width") ||

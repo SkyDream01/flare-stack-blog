@@ -1,10 +1,13 @@
 import {
   createAdminTestContext,
+  createMockSession,
   seedUser,
   waitForBackgroundTasks,
 } from "tests/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { JSONContent } from "@tiptap/react";
+import { eq } from "drizzle-orm";
+import { user } from "@/lib/db/schema";
 import * as PostService from "@/features/posts/services/posts.service";
 import { unwrap } from "@/lib/errors";
 import * as Storage from "./data/media.storage";
@@ -464,6 +467,33 @@ describe("MediaService", () => {
       );
     });
 
+    it("gives a replaced file a new versioned URL and points drafts at it", async () => {
+      const media = unwrap(
+        await MediaService.upload(adminContext, {
+          file: new File(["old"], "banner.png", { type: "image/png" }),
+        }),
+      );
+      const { id: postId } = await PostService.createEmptyPost(adminContext);
+      await setPostContent(postId, imageDoc(media.key));
+      await publishPost(postId);
+
+      const replaced = unwrap(
+        await MediaService.replaceImage(adminContext, {
+          key: media.key,
+          file: new File(["new"], "banner.png", { type: "image/png" }),
+        }),
+      );
+
+      expect(replaced.url).toMatch(
+        new RegExp(`^/images/${media.key}\\?v=\\d+$`),
+      );
+      const post = await PostService.findPostById(adminContext, { id: postId });
+      expect(post?.contentJson?.content?.[0]?.attrs?.src).toBe(replaced.url);
+      expect(post?.publicSnapshotContentJson?.content?.[0]?.attrs?.src).toBe(
+        `/images/${media.key}`,
+      );
+    });
+
     it("imports a public image URL into Media", async () => {
       const bytes = new Uint8Array([1, 2, 3, 4]);
       vi.stubGlobal(
@@ -514,6 +544,60 @@ describe("MediaService", () => {
       const list = await MediaService.getMediaList(adminContext, {});
       expect(list.items.some((item) => item.key === unused.key)).toBe(false);
       expect(list.items.some((item) => item.key === used.key)).toBe(true);
+    });
+  });
+
+  describe("Admin avatar references", () => {
+    async function setAvatar(userId: string, image: string) {
+      await adminContext.db
+        .update(user)
+        .set({ image })
+        .where(eq(user.id, userId));
+    }
+
+    it("keeps media an Admin uses as their avatar", async () => {
+      const avatar = unwrap(
+        await MediaService.upload(adminContext, {
+          file: new File(["a"], "admin-avatar.png", { type: "image/png" }),
+        }),
+      );
+      await setAvatar(
+        adminContext.session.user.id,
+        `https://blog.example${avatar.url}`,
+      );
+
+      const stats = await MediaService.getMediaStats(adminContext);
+      const unusedList = await MediaService.getMediaList(adminContext, {
+        unusedOnly: true,
+      });
+      expect(unusedList.items.some((item) => item.key === avatar.key)).toBe(
+        false,
+      );
+
+      unwrap(await MediaService.deleteUnused(adminContext));
+      const list = await MediaService.getMediaList(adminContext, {});
+      expect(list.items.some((item) => item.key === avatar.key)).toBe(true);
+      expect(stats.unusedCount).toBe(unusedList.items.length);
+
+      const deleted = await MediaService.deleteImage(adminContext, avatar.key);
+      expect(deleted.error?.reason).toBe("MEDIA_IN_USE");
+    });
+
+    it("does not protect media a reader points their avatar at", async () => {
+      const media = unwrap(
+        await MediaService.upload(adminContext, {
+          file: new File(["r"], "reader-avatar.png", { type: "image/png" }),
+        }),
+      );
+      const reader = createMockSession({
+        user: { id: "reader-1", email: "reader@example.com", role: null },
+      }).user;
+      await seedUser(adminContext.db, reader);
+      await setAvatar(reader.id, `https://blog.example${media.url}`);
+
+      unwrap(await MediaService.deleteUnused(adminContext));
+      const list = await MediaService.getMediaList(adminContext, {});
+      expect(list.items.some((item) => item.key === media.key)).toBe(false);
     });
   });
 });

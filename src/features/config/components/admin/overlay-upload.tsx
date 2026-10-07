@@ -3,6 +3,10 @@ import { Loader2 } from "lucide-react";
 import { useRef } from "react";
 import { type FieldPath, useFormContext } from "react-hook-form";
 import { toast } from "sonner";
+import {
+  SITE_ASSET_MAX_FILE_SIZE,
+  SITE_ASSET_MAX_FILE_SIZE_MB,
+} from "@/features/config/config.asset.schema";
 import type { SystemConfig } from "@/features/config/config.schema";
 import { orpcClient } from "@/lib/orpc";
 import { cn } from "@/lib/utils";
@@ -55,8 +59,17 @@ export function OverlayUpload({
         className="hidden"
         onChange={(event) => {
           const file = event.target.files?.[0];
-          if (file) upload.mutate(file);
           event.target.value = "";
+          if (!file) return;
+          if (file.size > SITE_ASSET_MAX_FILE_SIZE) {
+            toast.error(m.settings_asset_upload_fail(), {
+              description: m.settings_asset_validation_file_too_large({
+                maxSizeMb: SITE_ASSET_MAX_FILE_SIZE_MB,
+              }),
+            });
+            return;
+          }
+          upload.mutate(file);
         }}
       />
       <button

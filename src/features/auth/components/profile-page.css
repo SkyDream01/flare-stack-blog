@@ -122,6 +122,14 @@
   box-shadow: 0 0 0 3px
     color-mix(in srgb, var(--fuwari-primary) 12%, transparent);
 }
+.account-field-action {
+  justify-self: start;
+  font-size: 13px;
+  color: var(--fuwari-primary);
+}
+.account-field-action:hover {
+  text-decoration: underline;
+}
 .account-field input::placeholder {
   color: var(--fuwari-fg-30);
 }

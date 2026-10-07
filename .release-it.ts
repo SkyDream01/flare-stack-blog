@@ -19,6 +19,7 @@ export default {
       "bun run test:node",
       "bun run test",
       "bun run i18n:verify",
+      "bun run i18n:prune-unused --check",
     ],
     "before:github:release":
       "mkdir -p tmp && git archive --format=zip --prefix=skills/ -o tmp/flare-stack-blog-skills-v${version}.zip HEAD:.agents/skills",

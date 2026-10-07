@@ -44,8 +44,12 @@ export function usePostActions({
   const slugGenerationMode = useRef<"manual" | "auto">("manual");
   const latestSlugRef = useRef(post.slug);
   const latestTitleRef = useRef(post.title);
+  const publishedRef = useRef(false);
   latestSlugRef.current = post.slug;
   latestTitleRef.current = post.title;
+  // `publishedAt` arrives on reload after the first publish and survives an
+  // unpublish; `hasPublicSnapshot` covers the session that first publishes.
+  publishedRef.current = post.hasPublicSnapshot || post.publishedAt !== null;
   const debouncedTitle = useDebounce(post.title, 500);
 
   const invalidatePostQueries = () => {
@@ -144,7 +148,11 @@ export function usePostActions({
       queuedTitleRef.current = null;
       if (
         queuedTitle &&
-        shouldAutogenerateSlug(latestSlugRef.current, lastAutoSlugRef.current)
+        shouldAutogenerateSlug(
+          latestSlugRef.current,
+          lastAutoSlugRef.current,
+          publishedRef.current,
+        )
       ) {
         slugGenerationMode.current = "auto";
         slugMutation.mutate(queuedTitle);
@@ -172,7 +180,11 @@ export function usePostActions({
       return;
     }
     if (
-      !shouldAutogenerateSlug(latestSlugRef.current, lastAutoSlugRef.current)
+      !shouldAutogenerateSlug(
+        latestSlugRef.current,
+        lastAutoSlugRef.current,
+        publishedRef.current,
+      )
     ) {
       return;
     }

@@ -6,12 +6,20 @@ import {
   LogOut,
   UserRound,
 } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
 import type { useProfileForm } from "../hooks/use-profile-form";
 import type { usePasswordForm } from "../hooks/use-password-form";
 import type { useNotificationToggle } from "../hooks/use-notification-toggle";
 import { m } from "@/paraglide/messages";
 import "./profile-page.css";
+
+// Only an Admin can pick an avatar from the media library, so readers never
+// load the picker.
+const MediaPicker = lazy(() =>
+  import("@/features/media/components/media-library/components").then(
+    (mod) => ({ default: mod.MediaPicker }),
+  ),
+);
 
 interface ProfilePageProps {
   user: {
@@ -36,6 +44,8 @@ export function ProfilePage({
 }: ProfilePageProps) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [pickingAvatar, setPickingAvatar] = useState(false);
+  const pickAvatarRef = useRef<HTMLButtonElement>(null);
   const image = profileForm.image;
   return (
     <section className="account-page fuwari-card-base">
@@ -95,6 +105,16 @@ export function ProfilePage({
                 profileForm.errors.image ? "account-image-error" : undefined
               }
             />
+            {user.role === "admin" && (
+              <button
+                ref={pickAvatarRef}
+                type="button"
+                className="account-field-action"
+                onClick={() => setPickingAvatar(true)}
+              >
+                {m.account_avatar_pick_media()}
+              </button>
+            )}
           </Field>
           <div className="account-email">
             <span>{m.account_email()}</span>
@@ -124,6 +144,22 @@ export function ProfilePage({
           </div>
         </fieldset>
       </form>
+      {pickingAvatar && (
+        <Suspense fallback={null}>
+          <MediaPicker
+            open
+            title={m.account_avatar_pick_media()}
+            onClose={() => setPickingAvatar(false)}
+            onSelect={(asset) => {
+              profileForm.setImage(
+                new URL(asset.url, window.location.origin).toString(),
+              );
+              setPickingAvatar(false);
+            }}
+            returnFocus={() => pickAvatarRef.current}
+          />
+        </Suspense>
+      )}
       <section className="account-setting">
         <div className="account-setting-row">
           <div>

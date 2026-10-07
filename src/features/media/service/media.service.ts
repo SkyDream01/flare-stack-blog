@@ -12,6 +12,8 @@ import { getImageDimensions } from "@/features/media/utils/image-dimensions";
 import {
   buildTransformOptions,
   getContentTypeFromKey,
+  getOriginalImageUrl,
+  getTransformSourceUrl,
   hasImageTransformParams,
   isGifKey,
 } from "@/features/media/utils/media.utils";
@@ -73,7 +75,9 @@ export async function deleteImage(
   key: string,
 ) {
   // 后端兜底检查：防止删除正在被引用的媒体
-  const inUse = await PostMediaRepo.isMediaInUse(context.db, key);
+  const inUse =
+    (await PostMediaRepo.isMediaInUse(context.db, key)) ||
+    (await MediaRepo.isUsedAsAdminAvatar(context.db, key));
   if (inUse) {
     return err({ reason: "MEDIA_IN_USE" });
   }
@@ -145,7 +149,11 @@ export async function replaceImage(
 
   const dimensions = getImageDimensions(await input.file.arrayBuffer());
   await Storage.putToR2(context.env, input.file, input.key);
+  // The key stays, so a new version keeps cached copies of the old file from
+  // answering for the new one.
+  const url = `${getOriginalImageUrl(input.key)}?v=${Date.now()}`;
   const updated = await MediaRepo.updateMediaFile(context.db, input.key, {
+    url,
     fileName: input.file.name || existing.fileName,
     mimeType: input.file.type || existing.mimeType,
     sizeInBytes: input.file.size,
@@ -155,6 +163,7 @@ export async function replaceImage(
   if (!updated) {
     return err({ reason: "MEDIA_NOT_FOUND" });
   }
+  await PostMediaRepo.pointDraftImagesAt(context.db, existing, url);
   return ok(updated);
 }
 
@@ -330,8 +339,7 @@ export async function handleImageRequest(
 
   // 3. 尝试进行图片处理
   try {
-    const origin = url.origin;
-    const sourceImageUrl = `${origin}/images/${key}?original=true`;
+    const sourceImageUrl = getTransformSourceUrl(url, key);
 
     const subRequestHeaders = new Headers();
 

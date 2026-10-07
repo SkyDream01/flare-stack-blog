@@ -1,9 +1,24 @@
 import type { SQL } from "drizzle-orm";
 import { and, count, desc, eq, inArray, lt, or, sql, sum } from "drizzle-orm";
 import { escapeLikeString } from "@/features/media/data/helper";
-import { MediaTable, PostMediaTable, PostsTable } from "@/lib/db/schema";
+import { MediaTable, PostMediaTable, PostsTable, user } from "@/lib/db/schema";
 
 export type Media = typeof MediaTable.$inferSelect;
+
+// An Admin's avatar picked from the media library is a reference, like a Post
+// image. Other users' avatar URLs are not, so they cannot pin media.
+const usedAsAdminAvatar = sql`exists (select 1 from ${user} where ${user.role} = 'admin' and instr(${user.image}, '/images/' || ${MediaTable.key}) > 0)`;
+
+const unreferenced = sql`not exists (select 1 from ${PostMediaTable} where ${PostMediaTable.mediaId} = ${MediaTable.id}) and not ${usedAsAdminAvatar}`;
+
+export async function isUsedAsAdminAvatar(db: DB, key: string) {
+  const rows = await db
+    .select({ id: MediaTable.id })
+    .from(MediaTable)
+    .where(and(eq(MediaTable.key, key), usedAsAdminAvatar))
+    .limit(1);
+  return rows.length > 0;
+}
 export type MediaListItem = Media & {
   postCount: number;
   isCover: boolean;
@@ -53,6 +68,7 @@ export async function updateMediaFile(
   db: DB,
   key: string,
   data: {
+    url: string;
     fileName: string;
     mimeType: string;
     sizeInBytes: number;
@@ -63,6 +79,7 @@ export async function updateMediaFile(
   const [updated] = await db
     .update(MediaTable)
     .set({
+      url: data.url,
       fileName: data.fileName,
       mimeType: data.mimeType,
       sizeInBytes: data.sizeInBytes,
@@ -101,29 +118,16 @@ export async function getMediaList(
     conditions.push(sql`${MediaTable.fileName} LIKE ${pattern} ESCAPE '\\'`);
   }
 
-  let items: Array<Media>;
-
   if (unusedOnly) {
-    conditions.push(sql`${PostMediaTable.postId} IS NULL`);
-    items = await db
-      .select({
-        media: MediaTable,
-        postMediaId: PostMediaTable.postId,
-      })
-      .from(MediaTable)
-      .leftJoin(PostMediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(MediaTable.id))
-      .limit(limit + 1)
-      .then((rows) => rows.map((row) => row.media));
-  } else {
-    items = await db
-      .select()
-      .from(MediaTable)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(MediaTable.id))
-      .limit(limit + 1);
+    conditions.push(unreferenced);
   }
+
+  const items: Array<Media> = await db
+    .select()
+    .from(MediaTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(MediaTable.id))
+    .limit(limit + 1);
 
   const hasMore = items.length > limit;
   if (hasMore) {
@@ -139,8 +143,7 @@ export async function getUnusedMediaKeys(db: DB): Promise<Array<string>> {
   const rows = await db
     .select({ key: MediaTable.key })
     .from(MediaTable)
-    .leftJoin(PostMediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
-    .where(sql`${PostMediaTable.postId} IS NULL`);
+    .where(unreferenced);
   return rows.map((row) => row.key);
 }
 
@@ -155,8 +158,7 @@ export async function getMediaStats(db: DB) {
   const [unused] = await db
     .select({ unusedCount: count() })
     .from(MediaTable)
-    .leftJoin(PostMediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
-    .where(sql`${PostMediaTable.postId} IS NULL`);
+    .where(unreferenced);
 
   return {
     totalCount: Number(totals.totalCount ?? 0),
@@ -225,9 +227,7 @@ async function withUsage(
 export async function deleteUnusedMedia(db: DB): Promise<Array<string>> {
   const rows = await db
     .delete(MediaTable)
-    .where(
-      sql`not exists (select 1 from ${PostMediaTable} where ${PostMediaTable.mediaId} = ${MediaTable.id})`,
-    )
+    .where(unreferenced)
     .returning({ key: MediaTable.key });
   return rows.map((row) => row.key);
 }

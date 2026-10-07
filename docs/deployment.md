@@ -2,6 +2,9 @@
 
 可以通过 **GitHub + Cloudflare Workers Builds**，或仓库保留的 **GitHub Actions** 部署博客，并使用自己的域名访问和管理博客。本文默认介绍 Workers Builds；GitHub Actions 的推送方式见“以后如何更新”。
 
+> [!TIP]
+> 更喜欢看视频？可以跟着 [B 站视频教程](https://www.bilibili.com/video/BV1iQHr6NEcC/) 一步步完成部署。
+
 ## 前置条件
 
 - 一个 GitHub 账号。
@@ -273,7 +276,7 @@ git push origin main
 | Turnstile 人机验证 | `VITE_TURNSTILE_SITE_KEY` | `TURNSTILE_SECRET_KEY`（Secret） | 在 Cloudflare 创建站点并添加博客域名；Site Key 与 Secret Key 成对使用 |
 | Umami 访问统计 | `VITE_UMAMI_WEBSITE_ID` | `UMAMI_WEBSITE_ID`、`UMAMI_SRC` | 两边 Website ID 填同一个，`UMAMI_SRC` 填服务地址，例如 `https://cloud.umami.is` |
 | Umami 文章热度同步 | 同上 | Cloud 使用 `UMAMI_API_KEY`；自托管使用 `UMAMI_USERNAME`、`UMAMI_PASSWORD` | API Key 和密码设为 Secret；两种认证方式二选一。API 地址可按模板配置 `UMAMI_API_URL` |
-| 减少后台更新检查的 GitHub API 限流 | 无 | `GITHUB_TOKEN`（Secret） | 按模板链接创建 Fine-grained token，权限保留默认的公共仓库只读访问 |
+| 后台更新检查改走 GitHub API | 无 | `GITHUB_TOKEN`（Secret） | 不配也能检查更新：默认读取 GitHub 发布页的跳转。配了 token 会优先走 API，更稳定；API 失败时仍会退回发布页。按模板链接创建 Fine-grained token，权限保留默认的公共仓库只读访问 |
 
 修改**构建时变量**后，需要重新触发构建，新值才会进入部署产物。修改**运行时变量**后，使用保存并部署使其生效。
 

@@ -478,7 +478,7 @@ def main() -> None:
             "\n"
             "Subset: headings 2-4, paragraphs, lists, quotes, fences,\n"
             "links, images, tables, **bold** *italic* ~~strike~~ `code`,\n"
-            "$inline math$, $$block math$$, ---."
+            "$inline math$, block math between two lines of $$, ---."
         )
         return
     if args[0] == "--self-test":

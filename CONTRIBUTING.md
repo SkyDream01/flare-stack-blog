@@ -11,7 +11,7 @@
    - 基于 `dev` 分支创建特性分支（例如 `feature/awesome-feature` 或 `fix/auth-issue`）。
 2. **本地编码与验证**
    - 遵循项目现有的编码规范与目录架构。
-   - 涉及多语言界面修改时，请务必同时更新 `messages/zh.json` 与 `messages/en.json`，并运行 `bun run i18n:compile`。
+   - 涉及多语言界面修改时，请务必同时更新 `messages/zh.json` 与 `messages/en.json`，并运行 `bun run i18n:compile`。删除界面文案后，用 `bun run i18n:prune-unused --write` 清掉不再使用的 key，CI 会拦下残留的未用 key。
    - 涉及核心功能调整或 Bug 修复时，请补充或更新对应的自动化测试。
 3. **提交代码前检查**
    提交前请确保在本地完整运行并通过以下检查：

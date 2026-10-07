@@ -11,6 +11,10 @@ export function notificationAvailabilityQuery(enabled: boolean) {
   return orpc.email.availability.queryOptions({ enabled });
 }
 
+export function emailTestStatusQuery() {
+  return orpc.email.testStatus.queryOptions();
+}
+
 export function hasPasswordQuery(enabled: boolean) {
   return orpc.email.hasPassword.queryOptions({ enabled });
 }

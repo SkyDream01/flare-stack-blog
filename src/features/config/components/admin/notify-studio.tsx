@@ -3,13 +3,22 @@ import { useMediaQuery } from "@/hooks/use-motion";
 import { SecretControl } from "./secret-control";
 import { useConfigEditing, type ConfigFormValues } from "./config-editing";
 import { Loader2, MessageCircle, Send } from "lucide-react";
-import { useState, useId, Children, isValidElement, cloneElement } from "react";
-import { useFormContext, useWatch } from "react-hook-form";
+import { useQuery } from "@tanstack/react-query";
+import {
+  useEffect,
+  useState,
+  useId,
+  Children,
+  isValidElement,
+  cloneElement,
+} from "react";
+import { useFormContext, useFormState, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { SETTINGS_FIELD_CLASS } from "@/features/config/components/admin/settings-pages";
 import type { SystemConfig } from "@/features/config/config.schema";
 import type { AdminTestEmailConnectionInput } from "@/features/email/email.schema";
 import { useEmailConnection } from "@/features/email/hooks/use-email-connection";
+import { emailTestStatusQuery } from "@/features/email/queries";
 import { useWebhookConnection } from "@/features/webhook/hooks/use-webhook-connection";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
@@ -36,6 +45,19 @@ function EmailChannel() {
     success: boolean;
   } | null>(null);
   const email = useWatch({ control, name: "email" });
+  const { dirtyFields } = useFormState({ control, name: "email" });
+  // The saved settings' last test applies only while the form shows them.
+  const emailEdited = Boolean(dirtyFields.email) || Boolean(clearPassword);
+  const savedTest = useQuery(emailTestStatusQuery());
+  const refetchSavedTest = savedTest.refetch;
+  // Saving changes which settings are saved, so re-read their test status.
+  const [seenRevision, setSeenRevision] = useState(revisions.notifications);
+  useEffect(() => {
+    if (revisions.notifications === seenRevision) return;
+    setSeenRevision(revisions.notifications);
+    void refetchSavedTest();
+  }, [revisions.notifications, seenRevision, refetchSavedTest]);
+  const savedTestState = emailEdited ? "untested" : savedTest.data?.state;
   const adminOn =
     useWatch({ control, name: "notification.admin.channels.email" }) ?? true;
   const userOn =
@@ -64,7 +86,9 @@ function EmailChannel() {
         ? testResult.success
           ? "verified"
           : "failed"
-        : "configured";
+        : savedTestState === "verified" || savedTestState === "failed"
+          ? savedTestState
+          : "configured";
   const connectionLabels = {
     testing: m.settings_connection_testing(),
     unconfigured: m.settings_connection_unconfigured(),
@@ -104,6 +128,7 @@ function EmailChannel() {
       }
     } finally {
       setTesting(false);
+      void refetchSavedTest();
     }
   };
 
@@ -215,6 +240,21 @@ function EmailChannel() {
         <p className="settings-muted notify-test-hint">
           {m.settings_design_test_hint()}
         </p>
+        {!matchesTest &&
+          savedTest.data?.testedAt &&
+          (savedTestState === "verified" || savedTestState === "failed") && (
+            <p className="settings-muted">
+              {savedTestState === "verified"
+                ? m.settings_email_last_test_verified({
+                    time: formatTestedAt(savedTest.data.testedAt),
+                  })
+                : m.settings_email_last_test_failed({
+                    time: formatTestedAt(savedTest.data.testedAt),
+                    error:
+                      savedTest.data.error ?? m.settings_email_unknown_error(),
+                  })}
+            </p>
+          )}
       </div>
       <aside className="notify-preview">
         <SettingsDisclosure
@@ -244,6 +284,13 @@ function EmailChannel() {
       </aside>
     </section>
   );
+}
+
+function formatTestedAt(testedAt: string) {
+  return new Date(testedAt).toLocaleString([], {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 function emailTestInput(

@@ -1,6 +1,13 @@
 import type { Locale } from "@/lib/i18n";
 import { m } from "@/paraglide/messages";
-import { EmailLayout } from "./EmailLayout";
+import {
+  EmailButton,
+  EmailHeading,
+  EmailLayout,
+  EmailPanel,
+  EmailText,
+} from "./EmailLayout";
+import type { EmailSite } from "./email-theme";
 
 interface AdminNotificationEmailProps {
   commentPreview: string;
@@ -8,6 +15,7 @@ interface AdminNotificationEmailProps {
   commenterName: string;
   locale: Locale;
   postTitle: string;
+  site: EmailSite;
 }
 
 export const AdminNotificationEmail = ({
@@ -16,62 +24,30 @@ export const AdminNotificationEmail = ({
   commenterName,
   locale,
   postTitle,
+  site,
 }: AdminNotificationEmailProps) => {
   return (
     <EmailLayout
       locale={locale}
+      site={site}
       previewText={m.email_comment_admin_root_preview(
         { commenterName, postTitle },
         { locale },
       )}
     >
-      <h1
-        style={{
-          fontFamily: '"Noto Serif SC", "Songti SC", Georgia, serif',
-          fontSize: "20px",
-          fontWeight: "500",
-          color: "#1a1a1a",
-          marginBottom: "24px",
-          lineHeight: "1.4",
-        }}
-      >
+      <EmailHeading>
         {m.email_comment_admin_root_title({}, { locale })}
-      </h1>
-      <p style={{ fontSize: "14px", color: "#444", lineHeight: "1.6" }}>
+      </EmailHeading>
+      <EmailText>
         {m.email_comment_admin_root_intro(
           { commenterName, postTitle },
           { locale },
         )}
-      </p>
-      <blockquote
-        style={{
-          borderLeft: "2px solid #e5e5e5",
-          margin: "24px 0",
-          paddingLeft: "16px",
-          fontStyle: "italic",
-          color: "#666",
-          fontSize: "14px",
-          lineHeight: "1.6",
-        }}
-      >
-        {commentPreview}
-      </blockquote>
-      <div style={{ marginTop: "32px" }}>
-        <a
-          href={commentUrl}
-          style={{
-            backgroundColor: "#1a1a1a",
-            color: "#ffffff",
-            padding: "12px 24px",
-            textDecoration: "none",
-            fontSize: "13px",
-            display: "inline-block",
-            letterSpacing: "0.05em",
-          }}
-        >
-          {m.email_comment_admin_root_action({}, { locale })}
-        </a>
-      </div>
+      </EmailText>
+      <EmailPanel>{commentPreview}</EmailPanel>
+      <EmailButton href={commentUrl}>
+        {m.email_comment_admin_root_action({}, { locale })}
+      </EmailButton>
     </EmailLayout>
   );
 };

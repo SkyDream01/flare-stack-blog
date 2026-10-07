@@ -303,8 +303,11 @@ it("replaces an out-of-range page after a successful Post count refresh", async 
   await waitFor(() => expect(workspace.state().page).toBe(2));
   expect(workspace.changes).toHaveBeenCalledExactlyOnceWith({ page: 2 }, true);
   expect(workspace.state().search).toBe("kept");
-  expect(requests.posts).toHaveBeenLastCalledWith(
-    expect.objectContaining({ offset: 12, search: "kept" }),
+  // The page change refetches asynchronously, so the request can trail it.
+  await waitFor(() =>
+    expect(requests.posts).toHaveBeenLastCalledWith(
+      expect.objectContaining({ offset: 12, search: "kept" }),
+    ),
   );
 });
 

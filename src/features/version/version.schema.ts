@@ -30,4 +30,5 @@ export type UpdateCheckResult = z.infer<typeof UpdateCheckResultSchema>;
 
 export const VERSION_CACHE_KEYS = {
   latestRelease: ["version", "latest-release"] as const,
+  recentFailure: ["version", "recent-failure"] as const,
 } as const;

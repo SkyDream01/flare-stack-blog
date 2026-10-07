@@ -31,10 +31,24 @@ export function contentStatsFromText(text: string) {
   return { chars, words: cjkChars + englishWords };
 }
 
+// New drafts are created as `untitled-log`, `untitled-log-N`, or with a random
+// suffix after a contended insert.
+const PLACEHOLDER_SLUG = /^untitled-log(?:-[a-z0-9]+)*$/;
+
+/**
+ * Whether a title change should regenerate the slug. A published post keeps
+ * its slug, since there is no redirect from an old public slug.
+ */
 export function shouldAutogenerateSlug(
   slug: string,
   lastAutoSlug: string | null,
+  published = false,
 ) {
+  if (published) return false;
   const trimmed = slug.trim();
-  return trimmed.length === 0 || lastAutoSlug === trimmed;
+  return (
+    trimmed.length === 0 ||
+    PLACEHOLDER_SLUG.test(trimmed) ||
+    lastAutoSlug === trimmed
+  );
 }

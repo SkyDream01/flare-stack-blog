@@ -17,6 +17,8 @@ import { err, ok } from "@/lib/errors";
 
 const GITHUB_REPO = "du2333/flare-stack-blog";
 const RELEASE_CACHE_TTL = "6h";
+// A failed check is remembered so every admin page load does not retry it.
+const FAILURE_CACHE_TTL = "30m";
 const GITHUB_REQUEST_TIMEOUT = ms("5s");
 
 type VersionContext = BaseContext & { executionCtx: ExecutionContext };
@@ -48,8 +50,20 @@ export function createVersionChecker({
     try {
       const runningVersion =
         RunningApplicationReleaseVersionSchema.parse(getCurrentVersion());
-      const fetcher = async () =>
-        ApplicationReleaseSchema.parse(await fetchLatestRelease(context));
+      const fetcher = async () => {
+        try {
+          return ApplicationReleaseSchema.parse(
+            await fetchLatestRelease(context),
+          );
+        } catch (error) {
+          context.executionCtx.waitUntil(
+            kvStore.put(context, VERSION_CACHE_KEYS.recentFailure, "1", {
+              ttl: FAILURE_CACHE_TTL,
+            }),
+          );
+          throw error;
+        }
+      };
       let latestRelease: ApplicationRelease;
 
       if (refresh) {
@@ -67,7 +81,14 @@ export function createVersionChecker({
           context,
           VERSION_CACHE_KEYS.latestRelease,
           ApplicationReleaseSchema,
-          fetcher,
+          async () => {
+            if (await kvStore.get(context, VERSION_CACHE_KEYS.recentFailure)) {
+              throw new Error(
+                "version check failed recently; refresh to retry",
+              );
+            }
+            return await fetcher();
+          },
           { ttl: RELEASE_CACHE_TTL },
         );
       }
@@ -97,18 +118,67 @@ export function createVersionChecker({
   };
 }
 
-async function fetchLatestReleaseFromGitHub(
-  context: VersionContext,
+/**
+ * Reads the latest release through the API when a token is set, since the
+ * unauthenticated API quota is shared by every Worker on the same egress IP.
+ * Otherwise, or when the API fails, reads the tag that the release page
+ * redirects to, which does not count against the API quota.
+ */
+export async function fetchLatestReleaseFromGitHub(
+  githubToken: string | undefined,
+): Promise<ApplicationRelease> {
+  if (githubToken) {
+    try {
+      return await fetchLatestReleaseFromApi(githubToken);
+    } catch (error) {
+      console.warn(
+        JSON.stringify({
+          message: "github api release lookup failed, using release page",
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  }
+  return await fetchLatestReleaseFromReleasePage();
+}
+
+async function fetchLatestReleaseFromReleasePage(): Promise<ApplicationRelease> {
+  const response = await fetch(
+    `https://github.com/${GITHUB_REPO}/releases/latest`,
+    {
+      method: "HEAD",
+      redirect: "manual",
+      headers: { "User-Agent": "flare-stack-blog" },
+      signal: AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT),
+    },
+  );
+
+  const location = response.headers.get("location");
+  const releaseUrl = location ? new URL(location, "https://github.com") : null;
+  const tag = releaseUrl
+    ? /\/releases\/tag\/([^/]+)$/.exec(releaseUrl.pathname)?.[1]
+    : undefined;
+  if (!releaseUrl || !tag) {
+    throw new Error(
+      `GitHub release page did not redirect to a tag: ${response.status}`,
+    );
+  }
+
+  return {
+    version: decodeURIComponent(tag),
+    releaseUrl: releaseUrl.toString(),
+  };
+}
+
+async function fetchLatestReleaseFromApi(
+  githubToken: string,
 ): Promise<ApplicationRelease> {
   const headers: Record<string, string> = {
     "User-Agent": "flare-stack-blog",
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
+    Authorization: `Bearer ${githubToken}`,
   };
-  const githubToken = serverEnv(context.env).GITHUB_TOKEN;
-  if (githubToken) {
-    headers.Authorization = `Bearer ${githubToken}`;
-  }
 
   const response = await fetch(
     `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
@@ -147,5 +217,6 @@ function isNewer(latest: string, current: string) {
 
 export const versionChecker = createVersionChecker({
   getCurrentVersion: () => __APP_VERSION__,
-  fetchLatestRelease: fetchLatestReleaseFromGitHub,
+  fetchLatestRelease: (context) =>
+    fetchLatestReleaseFromGitHub(serverEnv(context.env).GITHUB_TOKEN),
 });

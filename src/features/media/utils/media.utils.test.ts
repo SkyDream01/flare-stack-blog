@@ -3,6 +3,7 @@ import {
   getOptimizedImageUrl,
   getOriginalImageUrl,
   getPublicImageSrc,
+  getTransformSourceUrl,
   hasImageTransformParams,
   PUBLIC_IMAGE_WIDTH,
 } from "./media.utils";
@@ -50,5 +51,24 @@ describe("image URLs", () => {
     expect(hasImageTransformParams(new URLSearchParams("quality=80"))).toBe(
       true,
     );
+  });
+
+  it("fetches the transform source at the requested version", () => {
+    expect(
+      getTransformSourceUrl(
+        new URL(
+          "https://blog.example/images/asset/themes/fuwari/home-bg.webp?quality=80&width=1600&v=177",
+        ),
+        "asset/themes/fuwari/home-bg.webp",
+      ),
+    ).toBe(
+      "https://blog.example/images/asset/themes/fuwari/home-bg.webp?original=true&v=177",
+    );
+    expect(
+      getTransformSourceUrl(
+        new URL("https://blog.example/images/abc.png?quality=80&width=800"),
+        "abc.png",
+      ),
+    ).toBe("https://blog.example/images/abc.png?original=true");
   });
 });
