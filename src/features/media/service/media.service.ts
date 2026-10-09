@@ -10,11 +10,10 @@ import {
 } from "@/features/media/media.schema";
 import { getImageDimensions } from "@/features/media/utils/image-dimensions";
 import {
-  buildTransformOptions,
   getContentTypeFromKey,
   getOriginalImageUrl,
   getTransformSourceUrl,
-  hasImageTransformParams,
+  parseImageTransform,
   isGifKey,
 } from "@/features/media/utils/media.utils";
 import * as PostMediaRepo from "@/features/posts/data/post-media.data";
@@ -321,21 +320,20 @@ export async function handleImageRequest(
   // Miniflare's local Image Resizing encodes AVIF extremely slowly (~30s for a
   // ~1MB hero image). Serve the R2 original in local dev; production still
   // goes through Cloudflare Image Resizing.
+  // 2. 构建 Cloudflare Image Resizing 参数（只接受允许的宽度，其余返回原图）
+  const transformOptions = parseImageTransform(
+    searchParams,
+    request.headers.get("Accept") || "",
+  );
   if (
     isLoop ||
     wantsOriginal ||
     isLocalDev ||
     isGifKey(key) ||
-    !hasImageTransformParams(searchParams)
+    !transformOptions
   ) {
     return await serveOriginal();
   }
-
-  // 2. 构建 Cloudflare Image Resizing 参数
-  const transformOptions = buildTransformOptions(
-    searchParams,
-    request.headers.get("Accept") || "",
-  );
 
   // 3. 尝试进行图片处理
   try {

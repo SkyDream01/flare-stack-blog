@@ -61,6 +61,8 @@ export const PUBLIC_IMAGE_WIDTH = {
   cover: 800,
   body: 800,
   avatar: 400,
+  // The lightbox; Cloudflare never upscales, so smaller originals keep their size.
+  zoom: 2560,
 } as const;
 
 export function getOriginalImageUrl(key: string) {
@@ -80,20 +82,23 @@ export function getTransformSourceUrl(requestUrl: URL, key: string) {
   return source.toString();
 }
 
-export function hasImageTransformParams(searchParams: URLSearchParams) {
-  return (
-    searchParams.has("width") ||
-    searchParams.has("height") ||
-    searchParams.has("quality") ||
-    searchParams.has("fit")
-  );
-}
-
 export function getOptimizedImageUrl(key: string, width?: number) {
   if (isGifKey(key)) {
     return `/images/${key}?original=true`;
   }
   return `/images/${key}?quality=80${width ? `&width=${width}` : ""}`;
+}
+
+/** A `srcset` of transformed widths, or undefined when the image is not transformed. */
+export function getPublicImageSrcSet(
+  src: string,
+  widths: ReadonlyArray<number>,
+) {
+  const key = extractImageKey(src);
+  if (!key || isGifKey(key)) return undefined;
+  return widths
+    .map((width) => `${getPublicImageSrc(src, width)} ${width}w`)
+    .join(", ");
 }
 
 export function getPublicImageSrc(src: string, width: number) {
@@ -107,32 +112,39 @@ export function getPublicImageSrc(src: string, width: number) {
   return `${next.pathname}${next.search}`;
 }
 
-export function buildTransformOptions(
+// Cloudflare bills each image and parameter set once a month, so only the
+// widths the site requests are transformed. Anything else gets the original,
+// which keeps arbitrary parameters from using up the transformation quota.
+export const IMAGE_TRANSFORM_WIDTHS = [400, 800, 1600, 2560] as const;
+const IMAGE_TRANSFORM_QUALITY = 80;
+const IMAGE_TRANSFORM_PARAMS = new Set(["width", "quality", "v"]);
+
+/**
+ * The Cloudflare transform for a public image request, or null to serve the
+ * original. Only an allowed width at the site's quality is transformed.
+ */
+export function parseImageTransform(
   searchParams: URLSearchParams,
   accept: string,
 ) {
-  const transformOptions: Record<string, unknown> = { quality: 80 };
-
-  if (searchParams.has("width")) {
-    const width = Number.parseInt(searchParams.get("width")!, 10);
-    if (!Number.isNaN(width) && width > 0) transformOptions.width = width;
+  for (const name of searchParams.keys()) {
+    if (!IMAGE_TRANSFORM_PARAMS.has(name)) return null;
   }
-  if (searchParams.has("height")) {
-    const height = Number.parseInt(searchParams.get("height")!, 10);
-    if (!Number.isNaN(height) && height > 0) transformOptions.height = height;
-  }
-  if (searchParams.has("quality")) {
-    const quality = Number.parseInt(searchParams.get("quality")!, 10);
-    if (!Number.isNaN(quality) && quality > 0 && quality <= 100)
-      transformOptions.quality = quality;
-  }
-  if (searchParams.has("fit")) transformOptions.fit = searchParams.get("fit");
-
-  if (/image\/avif/.test(accept)) {
-    transformOptions.format = "avif";
-  } else if (/image\/webp/.test(accept)) {
-    transformOptions.format = "webp";
+  const width = Number(searchParams.get("width"));
+  if (!IMAGE_TRANSFORM_WIDTHS.some((allowed) => allowed === width)) return null;
+  const quality = searchParams.get("quality");
+  if (quality !== null && Number(quality) !== IMAGE_TRANSFORM_QUALITY) {
+    return null;
   }
 
-  return transformOptions;
+  const format: "avif" | "webp" | undefined = /image\/avif/.test(accept)
+    ? "avif"
+    : /image\/webp/.test(accept)
+      ? "webp"
+      : undefined;
+  return {
+    width,
+    quality: IMAGE_TRANSFORM_QUALITY,
+    ...(format ? { format } : {}),
+  };
 }

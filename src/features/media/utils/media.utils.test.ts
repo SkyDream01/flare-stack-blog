@@ -3,8 +3,9 @@ import {
   getOptimizedImageUrl,
   getOriginalImageUrl,
   getPublicImageSrc,
+  getPublicImageSrcSet,
   getTransformSourceUrl,
-  hasImageTransformParams,
+  parseImageTransform,
   PUBLIC_IMAGE_WIDTH,
 } from "./media.utils";
 
@@ -40,17 +41,47 @@ describe("image URLs", () => {
     );
   });
 
-  it("only treats width/quality/fit as transform requests", () => {
-    expect(hasImageTransformParams(new URLSearchParams("v=1"))).toBe(false);
-    expect(hasImageTransformParams(new URLSearchParams("original=true"))).toBe(
-      false,
+  it.each([
+    ["width=400&quality=80", 400],
+    ["quality=80&width=800", 800],
+    ["width=1600&quality=80&v=177", 1600],
+    ["width=2560", 2560],
+  ])("transforms the allowed request %s", (query, width) => {
+    expect(
+      parseImageTransform(new URLSearchParams(query), "image/avif,image/webp"),
+    ).toEqual({ width, quality: 80, format: "avif" });
+  });
+
+  it.each([
+    "",
+    "v=1",
+    "original=true",
+    "quality=80",
+    "width=799&quality=80",
+    "width=800&quality=90",
+    "width=800&height=600",
+    "width=800&fit=cover",
+    "width=800&original=true",
+  ])("serves the original for %s", (query) => {
+    expect(parseImageTransform(new URLSearchParams(query), "")).toBeNull();
+  });
+
+  it("negotiates webp when avif is not accepted", () => {
+    expect(
+      parseImageTransform(new URLSearchParams("width=800"), "image/webp"),
+    ).toEqual({ width: 800, quality: 80, format: "webp" });
+  });
+
+  it("offers a 1x and 2x source set for public images", () => {
+    expect(getPublicImageSrcSet("/images/abc.png?v=3", [800, 1600])).toBe(
+      "/images/abc.png?quality=80&width=800&v=3 800w, /images/abc.png?quality=80&width=1600&v=3 1600w",
     );
-    expect(hasImageTransformParams(new URLSearchParams("width=800"))).toBe(
-      true,
-    );
-    expect(hasImageTransformParams(new URLSearchParams("quality=80"))).toBe(
-      true,
-    );
+    expect(
+      getPublicImageSrcSet("/images/loop.gif", [800, 1600]),
+    ).toBeUndefined();
+    expect(
+      getPublicImageSrcSet("https://cdn.example/pic.png", [800, 1600]),
+    ).toBeUndefined();
   });
 
   it("fetches the transform source at the requested version", () => {

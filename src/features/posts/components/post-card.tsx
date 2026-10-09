@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import {
   getPublicImageSrc,
+  getPublicImageSrcSet,
   PUBLIC_IMAGE_WIDTH,
 } from "@/features/media/utils/media.utils";
 import {
@@ -167,6 +168,11 @@ export function PostCard({ post, pinned, popular }: PostCardProps) {
           </div>
           <img
             src={getPublicImageSrc(post.cover.url, PUBLIC_IMAGE_WIDTH.cover)}
+            srcSet={getPublicImageSrcSet(post.cover.url, [
+              PUBLIC_IMAGE_WIDTH.cover,
+              PUBLIC_IMAGE_WIDTH.cover * 2,
+            ])}
+            sizes="(min-width: 768px) 28vw, 100vw"
             alt={post.title}
             width={post.cover.width ?? undefined}
             height={post.cover.height ?? undefined}
