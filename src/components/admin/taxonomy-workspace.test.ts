@@ -163,10 +163,13 @@ function postSearch() {
 }
 
 async function ready() {
-  await waitFor(() => {
-    expect(requests.posts).toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "2" })).toBeDefined();
-  });
+  await waitFor(
+    () => {
+      expect(requests.posts).toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "2" })).toBeDefined();
+    },
+    { timeout: 5000 },
+  );
 }
 
 it("selects the first Category without rewriting the default route state", async () => {

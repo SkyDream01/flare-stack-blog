@@ -2,8 +2,13 @@ import { ArrowUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
+import {
+  FLOATING_ACTION_BUTTON_CLASS,
+  useFloatingActionsSlotRef,
+} from "./floating-actions";
 
 export function BackToTop() {
+  const setSlot = useFloatingActionsSlotRef();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -24,23 +29,23 @@ export function BackToTop() {
   };
 
   return (
-    <div className="hidden lg:block absolute right-0 top-0 w-15 h-15 pointer-events-none">
-      <div
-        className={cn(
-          "fixed bottom-40 flex items-center rounded-2xl overflow-hidden transition-all duration-300 pointer-events-auto",
-          isVisible
-            ? "opacity-100 translate-x-20 scale-100"
-            : "opacity-0 translate-x-20 scale-90 pointer-events-none",
-        )}
+    <div
+      className={cn(
+        "fuwari-floating-actions z-40 transition-all duration-300",
+        isVisible
+          ? "opacity-100 scale-100"
+          : "opacity-0 scale-90 pointer-events-none",
+      )}
+    >
+      {/* Page actions, such as the post TOC, stack above. */}
+      <div ref={setSlot} className="contents" />
+      <button
+        onClick={scrollToTop}
+        aria-label={m.post_back_to_top()}
+        className={FLOATING_ACTION_BUTTON_CLASS}
       >
-        <button
-          onClick={scrollToTop}
-          aria-label={m.post_back_to_top()}
-          className="flex items-center justify-center w-15 h-15 fuwari-card-base hover:bg-(--fuwari-btn-plain-bg-hover) active:bg-(--fuwari-btn-plain-bg-active) text-(--fuwari-primary) text-2xl font-bold transition-all active:scale-90 shadow-md"
-        >
-          <ArrowUp className="w-7 h-7" strokeWidth={2.5} />
-        </button>
-      </div>
+        <ArrowUp className="w-6 h-6 lg:w-7 lg:h-7" strokeWidth={2.5} />
+      </button>
     </div>
   );
 }

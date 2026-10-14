@@ -1,32 +1,29 @@
 import { Link } from "@tanstack/react-router";
 import { Clock, FileText, Pencil } from "lucide-react";
+import { useRef } from "react";
 import type { PostPageProps } from "@/features/theme/contract/pages";
 import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
+import { PostOutdatedNotice } from "@/features/posts/components/post-outdated-notice";
+import TableOfContents from "@/features/posts/components/table-of-contents";
+import { useHeadingAnchors } from "@/features/posts/components/content/use-heading-anchors";
 import { FuwariCommentSection } from "@/features/theme/themes/fuwari/components/comments/view/comment-section";
 import { ContentRenderer } from "@/features/theme/themes/fuwari/components/content/content-renderer";
 import { authClient } from "@/lib/auth/auth.client";
 import { m } from "@/paraglide/messages";
 import { PostMeta } from "./components/post-meta";
 import { PostSummary } from "./components/post-summary";
-import TableOfContents from "./components/table-of-contents";
 
 export function PostPage({ post }: PostPageProps) {
   const { data: session } = authClient.useSession();
+  const contentRef = useRef<HTMLDivElement>(null);
+  useHeadingAnchors(contentRef);
   // Approximate word count
   const wordCount = post.readTimeInMinutes * 300;
 
   return (
     <div className="relative flex flex-col rounded-(--fuwari-radius-large) py-1 md:py-0 md:bg-transparent gap-4 mb-4 w-full">
       {/* Table Of Contents (Desktop Floating Right) */}
-      <div
-        className="hidden 2xl:block absolute top-0 h-full pl-4"
-        style={{
-          right: "calc(var(--fuwari-toc-width) * -1)",
-          width: "var(--fuwari-toc-width)",
-        }}
-      >
-        <TableOfContents headers={post.toc} />
-      </div>
+      <TableOfContents headers={post.toc} />
 
       {/* Main Post Container */}
       <div className="fuwari-card-base z-10 px-6 md:px-9 pt-6 pb-4 relative w-full fuwari-onload-animation">
@@ -84,8 +81,16 @@ export function PostPage({ post }: PostPageProps) {
         {/* Summary */}
         <PostSummary summary={post.summary} />
 
+        <PostOutdatedNotice
+          publishedAt={post.publishedAt}
+          updatedAt={post.updatedAt}
+        />
+
         {/* Markdown Content */}
-        <div className="mb-6 prose dark:prose-invert prose-base max-w-none! fuwari-custom-md">
+        <div
+          ref={contentRef}
+          className="mb-6 prose dark:prose-invert prose-base max-w-none! fuwari-custom-md"
+        >
           <ContentRenderer content={post.contentJson} />
         </div>
 

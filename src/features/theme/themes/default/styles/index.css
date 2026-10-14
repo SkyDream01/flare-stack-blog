@@ -85,6 +85,20 @@ mark {
   @apply bg-muted text-inherit px-1 py-0.5 rounded-sm transition-colors border-b border-border;
 }
 
+.default-theme :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: 5rem;
+}
+
+.default-theme :is(h1, h2, h3, h4, h5, h6) > .anchor {
+  @apply ml-2 text-muted-foreground no-underline opacity-0 transition-opacity;
+  font-size: 0.7em;
+}
+
+.default-theme :is(h1, h2, h3, h4, h5, h6):hover > .anchor,
+.default-theme :is(h1, h2, h3, h4, h5, h6) > .anchor:focus-visible {
+  @apply opacity-100;
+}
+
 /* Theme Transition: Disable default cross-fade when 'theme-transition' class is present */
 .theme-transition::view-transition-old(root),
 .theme-transition::view-transition-new(root) {

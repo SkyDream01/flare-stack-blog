@@ -1,12 +1,15 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUp, Pencil, Share2, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { PostPageProps } from "@/features/theme/contract/pages";
 import { ContentRenderer } from "@/features/theme/themes/default/components/content/content-renderer";
 import { authClient } from "@/lib/auth/auth.client";
 import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
+import { CompactTableOfContents } from "@/features/posts/components/compact-table-of-contents";
+import { PostOutdatedNotice } from "@/features/posts/components/post-outdated-notice";
+import { useHeadingAnchors } from "@/features/posts/components/content/use-heading-anchors";
 import { formatDate } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { CommentSection } from "../../components/comments/view/comment-section";
@@ -16,6 +19,8 @@ export function PostPage({ post }: PostPageProps) {
   const navigate = useNavigate();
   const { data: session } = authClient.useSession();
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  useHeadingAnchors(contentRef);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -120,7 +125,13 @@ export function PostPage({ post }: PostPageProps) {
           </aside>
 
           <main className="max-w-none text-foreground leading-relaxed font-serif">
-            <ContentRenderer content={post.contentJson} />
+            <PostOutdatedNotice
+              publishedAt={post.publishedAt}
+              updatedAt={post.updatedAt}
+            />
+            <div ref={contentRef} className="default-post-content">
+              <ContentRenderer content={post.contentJson} />
+            </div>
 
             <footer className="mt-24 pt-8 border-t border-border/20 flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground/60 tracking-widest uppercase">
@@ -165,6 +176,8 @@ export function PostPage({ post }: PostPageProps) {
           <CommentSection postId={post.id} />
         </div>
       </article>
+
+      <CompactTableOfContents headers={post.toc} theme="default" />
 
       {/* Back To Top */}
       <div

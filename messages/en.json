@@ -76,6 +76,11 @@
   "post_share_error": "Copy failed",
   "post_share_error_desc": "Could not access clipboard, please copy the link manually",
   "post_back_to_top": "Back to top",
+  "post_toc": "Table of contents",
+  "post_heading_link": "Copy link to this section",
+  "post_heading_link_copied": "Link to this section copied",
+  "post_heading_link_copy_failed": "Couldn't copy the link. Copy it from the address bar instead.",
+  "post_outdated_notice": "This post was last updated on {date}, {days} days ago. Some of it may be out of date.",
   "post_word_count": [
     {
       "declarations": ["input count", "local formattedCountEn = count: number"],

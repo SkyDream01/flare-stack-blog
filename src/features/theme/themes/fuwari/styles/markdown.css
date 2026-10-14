@@ -47,22 +47,21 @@
   h4,
   h5,
   h6 {
-    &:hover::after {
+    scroll-margin-top: 5rem;
+    &:hover:not(:has(> .anchor))::after {
       content: "#";
       @apply text-(--fuwari-primary) opacity-50 transition-opacity font-normal no-underline ml-[0.2ch];
     }
     .anchor {
-      @apply transition -m-0.5 ml-[0.2ch] p-0.5 select-none opacity-0! no-underline!;
-
-      .anchor-icon {
-        @apply mx-[0.45ch]!;
-      }
+      @apply ml-[0.2ch] text-(--fuwari-primary) font-normal no-underline select-none opacity-0 transition-opacity;
     }
 
-    &:hover {
-      .anchor {
-        @apply opacity-100!;
-      }
+    &:hover .anchor {
+      @apply opacity-50;
+    }
+    .anchor:hover,
+    .anchor:focus-visible {
+      @apply opacity-100;
     }
   }
 

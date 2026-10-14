@@ -64,6 +64,25 @@
     @apply text-base font-bold mt-6 mb-3;
   }
 
+  :is(h1, h2, h3, h4, h5, h6) {
+    scroll-margin-top: 5rem;
+  }
+
+  :is(h1, h2, h3, h4, h5, h6) > .anchor {
+    color: var(--cuckoo-accent);
+    font-size: 0.7em;
+    font-weight: 400;
+    margin-left: 0.4em;
+    opacity: 0;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+
+  :is(h1, h2, h3, h4, h5, h6):hover > .anchor,
+  :is(h1, h2, h3, h4, h5, h6) > .anchor:focus-visible {
+    opacity: 1;
+  }
+
   h3::before,
   h4::before,
   h5::before,
@@ -74,12 +93,12 @@
     padding: 0 0 0 7px;
   }
 
-  a:not(.not-prose a) {
+  a:not(.not-prose a):not(.anchor) {
     color: var(--cuckoo-accent);
     text-decoration: none;
     transition: color 0.2s;
   }
-  a:not(.not-prose a):hover {
+  a:not(.not-prose a):not(.anchor):hover {
     color: var(--cuckoo-accent-hover);
     text-decoration: underline;
   }

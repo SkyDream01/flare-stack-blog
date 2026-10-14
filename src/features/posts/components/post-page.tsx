@@ -8,9 +8,11 @@ import type { PostWithToc } from "@/features/posts/schema/posts.schema";
 import { authClient } from "@/lib/auth/auth.client";
 import { m } from "@/paraglide/messages";
 import { usePhotoSwipeGallery } from "./content/photo-swipe";
+import { useHeadingAnchors } from "./content/use-heading-anchors";
 import ZoomableImage from "./content/zoomable-image";
 import { PostAdjacentNav } from "./post-adjacent-nav";
 import { PostMeta } from "./post-meta";
+import { PostOutdatedNotice } from "./post-outdated-notice";
 import { PostSummary } from "./post-summary";
 import TableOfContents from "./table-of-contents";
 
@@ -29,6 +31,7 @@ export function PostPage({ post }: PostPageProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   usePhotoSwipeGallery(coverRef, post.id);
   usePhotoSwipeGallery(contentRef, post.id);
+  useHeadingAnchors(contentRef);
   // Approximate word count
   const wordCount = post.readTimeInMinutes * 300;
 
@@ -137,6 +140,10 @@ export function PostPage({ post }: PostPageProps) {
             animationDelay: enterDelay(325),
           }}
         >
+          <PostOutdatedNotice
+            publishedAt={post.publishedAt}
+            updatedAt={post.updatedAt}
+          />
           <div
             ref={contentRef}
             className="mb-6 prose dark:prose-invert prose-base max-w-none! fuwari-custom-md"

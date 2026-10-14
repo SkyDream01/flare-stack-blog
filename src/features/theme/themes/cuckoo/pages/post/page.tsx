@@ -1,7 +1,7 @@
 import { PostCover } from "@/features/theme/components/post-cover";
 import { Link, useRouteContext } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { PostPageProps } from "@/features/theme/contract/pages";
 import { CuckooCommentSection } from "@/features/theme/themes/cuckoo/components/comments/view/comment-section";
 import { ContentRenderer } from "@/features/theme/themes/cuckoo/components/content/content-renderer";
@@ -12,8 +12,10 @@ import {
 import { setSidebarToc } from "@/features/theme/themes/cuckoo/components/toc-store";
 import { authClient } from "@/lib/auth/auth.client";
 import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
+import { CompactTableOfContents } from "@/features/posts/components/compact-table-of-contents";
 import { m } from "@/paraglide/messages";
 import { PostMeta } from "./components/post-meta";
+import { useHeadingAnchors } from "@/features/posts/components/content/use-heading-anchors";
 
 /** 超过 30 天未更新时显示过时提醒(对应原主题 .post-alert) */
 function getOutdatedInfo(
@@ -38,6 +40,8 @@ function getOutdatedInfo(
 export function PostPage({ post }: PostPageProps) {
   const { data: session } = authClient.useSession();
   const { siteConfig } = useRouteContext({ from: "__root__" });
+  const contentRef = useRef<HTMLDivElement>(null);
+  useHeadingAnchors(contentRef);
 
   // 把目录交给侧栏渲染(对应原主题侧栏 #toc 模块)
   useEffect(() => {
@@ -107,7 +111,10 @@ export function PostPage({ post }: PostPageProps) {
         })()}
 
         {/* 正文(对应原主题 .post-content.mdui-typo) */}
-        <div className="cuckoo-custom-md prose dark:prose-invert prose-base max-w-none! p-5 md:p-6">
+        <div
+          ref={contentRef}
+          className="cuckoo-custom-md prose dark:prose-invert prose-base max-w-none! p-5 md:p-6"
+        >
           <ContentRenderer content={post.contentJson} />
         </div>
       </article>
@@ -117,6 +124,8 @@ export function PostPage({ post }: PostPageProps) {
 
       {/* 评论区 */}
       <CuckooCommentSection postId={post.id} />
+
+      <CompactTableOfContents headers={post.toc} theme="cuckoo" />
     </div>
   );
 }

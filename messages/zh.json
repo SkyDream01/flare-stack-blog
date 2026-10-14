@@ -75,6 +75,11 @@
   "post_share_error": "复制失败",
   "post_share_error_desc": "无法访问剪贴板，请手动复制链接",
   "post_back_to_top": "返回顶部",
+  "post_toc": "目录",
+  "post_heading_link": "复制本节链接",
+  "post_heading_link_copied": "已复制本节链接",
+  "post_heading_link_copy_failed": "复制失败，请手动复制地址栏中的链接",
+  "post_outdated_notice": "本文最后更新于 {date}，距今已有 {days} 天，文中部分信息可能已经过时。",
   "post_word_count": [
     {
       "declarations": ["input count", "local formattedCountZh = count: number"],
