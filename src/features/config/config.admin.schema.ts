@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { SystemConfigSchema } from "./config.schema";
 import { SiteConfigInputSchema } from "./site-config.schema";
+import {
+  WEBHOOK_TEMPLATE_MAX_LENGTH,
+  webhookProviderSchema,
+} from "@/features/webhook/webhook.schema";
 
 const ConfigRevisionSchema = z
   .number()
@@ -29,7 +33,33 @@ const DeliveryNotificationSchema = z
       .object({ channels: z.object({ email: z.boolean() }).strict() })
       .strict(),
     user: z.object({ emailEnabled: z.boolean() }).strict(),
-    webhook: z.object({ url: z.union([z.url(), z.literal("")]) }).strict(),
+    webhook: z
+      .object({
+        provider: webhookProviderSchema
+          .optional()
+          .describe(
+            "Push channel: generic (signed Flare JSON), telegram, discord, feishu, dingtalk, wecom, bark, ntfy or custom (body template). Omitted keeps the saved channel.",
+          ),
+        url: z
+          .union([z.url(), z.literal("")])
+          .describe(
+            "Endpoint or bot Webhook URL; Bark's push URL; ntfy's topic URL. Unused for telegram.",
+          ),
+        chatId: z
+          .string()
+          .trim()
+          .max(100)
+          .optional()
+          .describe("Telegram chat to message. Omitted keeps the saved one."),
+        template: z
+          .string()
+          .max(WEBHOOK_TEMPLATE_MAX_LENGTH)
+          .optional()
+          .describe(
+            "custom only: request body with {{title}}, {{message}}, {{url}}, {{type}}, {{timestamp}} and {{data.<field>}} placeholders, JSON-escaped when the body is JSON. Omitted keeps the saved one.",
+          ),
+      })
+      .strict(),
   })
   .strict();
 export const UpdateConfigSectionSchema = z.discriminatedUnion("section", [
@@ -52,7 +82,7 @@ export const UpdateConfigSectionSchema = z.discriminatedUnion("section", [
             "keep retains the saved password; replace stores value; clear removes it. Supplying a password requires host, username and senderAddress.",
           ),
           webhookSecret: SecretChangeSchema.describe(
-            "keep retains the saved secret; replace stores value; clear removes it. A nonempty Webhook URL requires a secret; clear the URL before removing its secret.",
+            "The generic or custom signing key, or the Telegram bot token. keep retains the saved secret while the channel stays the same; replace stores value; clear removes it. generic needs a secret alongside its URL, telegram its bot token; other channels discard it.",
           ),
         })
         .strict(),

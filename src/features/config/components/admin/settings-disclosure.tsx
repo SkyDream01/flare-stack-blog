@@ -1,5 +1,5 @@
-import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useState, type ReactNode } from "react";
+import { DisclosureChevron, DisclosurePanel } from "@/components/ui/disclosure";
 
 export function SettingsDisclosure({
   title,
@@ -25,17 +25,11 @@ export function SettingsDisclosure({
         onClick={() => setOpen((value) => !value)}
       >
         <span>{title}</span>
-        <ChevronDown size={16} aria-hidden="true" />
+        <DisclosureChevron />
       </button>
-      <div
-        id={id}
-        className="settings-disclosure-content"
-        data-open={open}
-        inert={!open}
-        aria-hidden={!open}
-      >
-        <div>{children}</div>
-      </div>
+      <DisclosurePanel id={id} open={open}>
+        {children}
+      </DisclosurePanel>
     </div>
   );
 }

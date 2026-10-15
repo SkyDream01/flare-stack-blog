@@ -1,24 +1,37 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import "./button.css";
 
-/**
- * The look of a small square icon button, for links that look like one.
- * `active` marks a toggle that is on.
- */
-export function iconButtonClass(active = false, className?: string) {
+export interface IconButtonStyle {
+  /** sm 32px, md 36px, lg 44px (the public toolbar). */
+  size?: "sm" | "md" | "lg";
+  /** Turns red on hover, for destructive actions. */
+  tone?: "danger";
+  /** Shows the on state, for links; buttons get it from `aria-pressed`. */
+  active?: boolean;
+  className?: string;
+}
+
+/** The look of a square icon button, for links that look like one. */
+export function iconButtonClass({
+  size = "sm",
+  tone,
+  active = false,
+  className,
+}: IconButtonStyle = {}) {
   return cn(
-    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg disabled:opacity-50",
-    active
-      ? "bg-(--fuwari-btn-regular-bg) text-(--fuwari-primary)"
-      : "fuwari-text-50 hover:bg-(--fuwari-btn-regular-bg) hover:text-(--fuwari-primary)",
+    "fuwari-icon-button",
+    `fuwari-icon-button-${size}`,
+    tone === "danger" && "fuwari-button-tone-danger",
+    active && "fuwari-icon-button-active",
     className,
   );
 }
 
-interface IconButtonProps extends Omit<
-  ButtonHTMLAttributes<HTMLButtonElement>,
-  "type" | "aria-label" | "title" | "aria-pressed"
-> {
+interface IconButtonProps
+  extends
+    Omit<ComponentProps<"button">, "aria-label" | "title">,
+    Omit<IconButtonStyle, "active"> {
   /** Names the button for screen readers and as its tooltip. */
   label: string;
   /** Set for toggles: whether it is on. Leave unset for actions. */
@@ -27,22 +40,25 @@ interface IconButtonProps extends Omit<
   children: ReactNode;
 }
 
-/** A small square button showing only an icon, named by `label`. */
+/** A square button showing only an icon, named by `label`. */
 export function IconButton({
   label,
   active,
+  size,
+  tone,
   className,
   children,
+  type = "button",
   ...props
 }: IconButtonProps) {
   return (
     <button
+      type={type}
+      aria-pressed={active}
       {...props}
-      type="button"
       aria-label={label}
       title={label}
-      aria-pressed={active}
-      className={iconButtonClass(active, className)}
+      className={iconButtonClass({ size, tone, active, className })}
     >
       {children}
     </button>

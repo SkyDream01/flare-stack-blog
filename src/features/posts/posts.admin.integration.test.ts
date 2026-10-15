@@ -5,7 +5,12 @@ import {
   seedAdminApiKey,
 } from "tests/test-utils";
 import { describe, expect, it } from "vitest";
-import { PostsTable } from "@/lib/db/schema";
+import {
+  CategoriesTable,
+  PostsTable,
+  PostTagsTable,
+  TagsTable,
+} from "@/lib/db/schema";
 import { createApiContext } from "@/lib/orpc/create-context";
 import { openAPIHandler } from "@/lib/orpc/openapi-handler";
 import { unwrap } from "@/lib/errors";
@@ -59,6 +64,8 @@ async function listPosts(apiKey: string, query: string) {
       id: number;
       title: string;
       summary: string | null;
+      slug: string;
+      publicSlug: string | null;
       contentJson?: unknown;
     }>;
     total: number;
@@ -414,6 +421,45 @@ describe("Admin posts list for external editors", () => {
     expect(category.items.some((item) => "contentJson" in item)).toBe(false);
   });
 
+  it("returns the live page's slug, not the draft's, until the post is unpublished", async () => {
+    const apiKey = await seedAdminApiKey();
+    const context = createAdminTestContext();
+    const id = await createPostWithBody(context, 0);
+    const readBoth = async () => {
+      const page = await listPosts(apiKey, "sortBy=id&sortDir=ASC");
+      const response = await callAdminApi(apiKey, `/admin/posts/${id}`);
+      expect(response.status).toBe(200);
+      const post = (await response.json()) as {
+        slug: string;
+        publicSlug: string | null;
+      };
+      return { listed: page.items[0], post };
+    };
+
+    let { listed, post } = await readBoth();
+    expect(listed).toMatchObject({ slug: "post-0", publicSlug: null });
+    expect(post).toMatchObject({ slug: "post-0", publicSlug: null });
+
+    unwrap(await PostService.publishPost(context, { id }));
+    unwrap(
+      await PostService.updatePost(context, {
+        id,
+        data: { slug: "renamed-draft" },
+      }),
+    );
+    ({ listed, post } = await readBoth());
+    expect(listed).toMatchObject({
+      slug: "renamed-draft",
+      publicSlug: "post-0",
+    });
+    expect(post).toMatchObject({ slug: "renamed-draft", publicSlug: "post-0" });
+
+    unwrap(await PostService.unpublishPost(context, { id }));
+    ({ listed, post } = await readBoth());
+    expect(listed.publicSlug).toBeNull();
+    expect(post.publicSlug).toBeNull();
+  });
+
   it("keeps the existing page size limit", async () => {
     const apiKey = await seedAdminApiKey();
     const context = createAdminTestContext();
@@ -452,5 +498,42 @@ describe("Admin posts list for external editors", () => {
 
     expect(ascending.items.map((item) => item.id)).toEqual(ids);
     expect(descending.items.map((item) => item.id)).toEqual([...ids].reverse());
+  });
+
+  it("filters by category, uncategorized and tag from the query string", async () => {
+    const apiKey = await seedAdminApiKey();
+    const context = createAdminTestContext();
+    const [category] = await context.db
+      .insert(CategoriesTable)
+      .values({ name: "Notes" })
+      .returning();
+    const [tag] = await context.db
+      .insert(TagsTable)
+      .values({ name: "Rust" })
+      .returning();
+    const [inCategory, tagged] = await context.db
+      .insert(PostsTable)
+      .values([
+        { title: "In category", slug: "in-category", categoryId: category.id },
+        { title: "Tagged", slug: "tagged" },
+      ])
+      .returning();
+    await context.db
+      .insert(PostTagsTable)
+      .values({ postId: tagged.id, tagId: tag.id });
+
+    const byCategory = await listPosts(apiKey, `categoryId=${category.id}`);
+    const byTag = await listPosts(apiKey, `tagId=${tag.id}`);
+    const uncategorized = await listPosts(apiKey, "uncategorized=true");
+    const both = await listPosts(
+      apiKey,
+      `categoryId=${category.id}&tagId=${tag.id}`,
+    );
+
+    expect(byCategory.items.map((item) => item.id)).toEqual([inCategory.id]);
+    expect(byTag.items.map((item) => item.id)).toEqual([tagged.id]);
+    expect(uncategorized.items.map((item) => item.id)).toEqual([tagged.id]);
+    expect(both.total).toBe(0);
+    expect(both.statusCounts).toEqual({ draft: 0, published: 0 });
   });
 });

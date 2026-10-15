@@ -7,6 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import type { Editor } from "@tiptap/core";
+import { findInPopover } from "tests/popover";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderPostEditor } from "@/features/posts/editor/test-utils";
 import { m } from "@/paraglide/messages";
@@ -141,7 +142,7 @@ it("opens the in-place link input from the link button", async () => {
     fireEvent.click(button);
   });
 
-  const input = await screen.findByRole("textbox", {
+  const input = await findInPopover("textbox", {
     name: m.editor_link_url(),
   });
   expect(menu()).toBeNull();
@@ -168,6 +169,6 @@ it("turns the selected text into an inline formula, open for editing", async () 
   const math = editor.state.doc.firstChild?.child(1);
   expect(math?.type.name).toBe("inlineMath");
   expect(math?.attrs.latex).toBe("E=mc^2");
-  const input = await screen.findByRole("textbox", { name: "LaTeX" });
+  const input = await findInPopover("textbox", { name: "LaTeX" });
   expect((input as HTMLTextAreaElement).value).toBe("E=mc^2");
 });

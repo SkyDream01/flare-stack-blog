@@ -1,4 +1,4 @@
-import { Loader2, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import {
   useContext,
   useEffect,
@@ -7,6 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Button } from "@/components/ui/button";
+import { StatusText } from "@/components/ui/status-text";
 import { m } from "@/paraglide/messages";
 import { CommentEditorActive } from "./comment-reveal";
 
@@ -89,35 +91,31 @@ export function CommentEditor({
         <div className="comment-challenge">{active ? challenge : null}</div>
         <div className="comment-composer-actions">
           {onCancel && (
-            <button
-              type="button"
-              className="comment-text-button"
+            <Button
+              variant="plain"
+              size="sm"
               onClick={onCancel}
               disabled={isSubmitting}
             >
               {m.comments_editor_cancel()}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             type="submit"
-            className="fuwari-btn-primary"
-            disabled={
-              !value.trim() || isSubmitting || challengePending || !active
-            }
+            variant="primary"
+            size="lg"
+            disabled={!value.trim() || challengePending || !active}
+            loading={isSubmitting}
+            icon={<Send size={15} />}
           >
-            {isSubmitting ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <Send size={15} />
-            )}
             {submitLabel || m.comments_editor_submit()}
-          </button>
+          </Button>
         </div>
       </div>
       {error && (
-        <p id={`${id}-error`} role="alert" className="comment-error">
+        <StatusText error id={`${id}-error`} className="comment-error">
           {m.comments_send_failed_keep_draft()}
-        </p>
+        </StatusText>
       )}
     </form>
   );

@@ -1,7 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, Loader2, Search, X } from "lucide-react";
+import { ChevronRight, Search } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { SearchField } from "@/components/ui/search-field";
+import { Spinner } from "@/components/ui/spinner";
 import { useContentMotion } from "@/hooks/use-motion";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/paraglide/messages";
 import "./search-page.css";
 
@@ -58,36 +64,25 @@ export function SearchPage({
           ? "error"
           : `${searchedQuery}:${results.map((result) => result.post.id).join(",")}`,
   );
-  const clear = () => {
-    onQueryChange("");
-    inputRef.current?.focus();
-  };
   return (
     <section className="public-search fuwari-card-base">
       <h1>{m.search_page_heading()}</h1>
-      <div role="search" className="public-search-field">
-        <Search size={20} strokeWidth={1.5} aria-hidden="true" />
-        <input
-          ref={inputRef}
-          type="search"
-          value={query}
-          aria-label={m.search_placeholder()}
-          placeholder={m.search_placeholder()}
-          onChange={(event) => onQueryChange(event.target.value)}
-          onCompositionStart={() => onCompositionChange(true)}
-          onCompositionEnd={() => onCompositionChange(false)}
-        />
-        {query && (
-          <button type="button" onClick={clear} aria-label={m.search_clear()}>
-            <X size={18} />
-          </button>
-        )}
-      </div>
+      <SearchField
+        ref={inputRef}
+        size="lg"
+        value={query}
+        aria-label={m.search_placeholder()}
+        placeholder={m.search_placeholder()}
+        onValueChange={onQueryChange}
+        onCompositionStart={() => onCompositionChange(true)}
+        onCompositionEnd={() => onCompositionChange(false)}
+        clearLabel={m.search_clear()}
+      />
       <p className="public-search-caption" role="status" aria-live="polite">
         {hasQuery ? (
           isSearching ? (
             <>
-              <Loader2 size={14} className="animate-spin" />
+              <Spinner size={14} />
               {m.search_loading()}
             </>
           ) : hasError ? (
@@ -101,21 +96,16 @@ export function SearchPage({
       </p>
       <div ref={resultsRef} aria-busy={isSearching}>
         {!hasQuery ? (
-          <div className="public-search-empty">
-            <Search size={28} strokeWidth={1.5} />
-            <h2>{m.search_fuwari_intro_title()}</h2>
-          </div>
+          <EmptyState icon={Search} title={m.search_fuwari_intro_title()} />
         ) : hasError ? (
-          <div className="public-search-empty">
-            <p>{m.search_retry_hint()}</p>
-            <button
-              type="button"
-              className="fuwari-btn-regular"
-              onClick={onRetry}
-            >
-              {m.search_retry()}
-            </button>
-          </div>
+          <EmptyState
+            description={m.search_retry_hint()}
+            action={
+              <Button size="lg" onClick={onRetry}>
+                {m.search_retry()}
+              </Button>
+            }
+          />
         ) : results.length ? (
           <ul className="public-search-results" data-updating={isSearching}>
             {results.map((result) => (
@@ -145,7 +135,7 @@ export function SearchPage({
                   {result.post.tags.length > 0 && (
                     <div className="public-search-tags">
                       {result.post.tags.map((tag) => (
-                        <span key={tag}>#{tag}</span>
+                        <Badge key={tag}>#{tag}</Badge>
                       ))}
                     </div>
                   )}
@@ -160,17 +150,23 @@ export function SearchPage({
           </ul>
         ) : isSearching ? (
           <div className="public-search-skeleton" aria-hidden="true">
-            <span />
-            <span />
-            <span />
+            <Skeleton className="h-6 w-[65%] rounded-md" />
+            <Skeleton className="h-4.5 rounded-md" />
+            <Skeleton className="h-4.5 w-4/5 rounded-md" />
           </div>
         ) : (
-          <div className="public-search-empty">
-            <Search size={28} strokeWidth={1.5} />
-            <h2>{m.search_no_results()}</h2>
-            <p>{m.search_no_results_with_query({ query: searchedQuery })}</p>
-            <p>{m.search_empty_hint()}</p>
-          </div>
+          <EmptyState
+            icon={Search}
+            title={m.search_no_results()}
+            description={
+              <>
+                <p>
+                  {m.search_no_results_with_query({ query: searchedQuery })}
+                </p>
+                <p>{m.search_empty_hint()}</p>
+              </>
+            }
+          />
         )}
       </div>
     </section>

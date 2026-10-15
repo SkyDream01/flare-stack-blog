@@ -1,6 +1,6 @@
-import clsx from "clsx";
 import type { LucideIcon } from "lucide-react";
 import type { ComponentPropsWithRef } from "react";
+import { IconButton } from "@/components/ui/icon-button";
 
 interface ToolbarButtonProps extends Omit<
   ComponentPropsWithRef<"button">,
@@ -8,7 +8,7 @@ interface ToolbarButtonProps extends Omit<
 > {
   isActive?: boolean;
   icon: LucideIcon;
-  label?: string;
+  label: string;
 }
 
 /** An icon-only button in the editor toolbar. */
@@ -19,20 +19,13 @@ export function ToolbarButton({
   ...props
 }: ToolbarButtonProps) {
   return (
-    <button
-      aria-pressed={isActive}
+    <IconButton
       {...props}
-      className={clsx(
-        "fuwari-toolbar-button h-8 w-8 flex items-center justify-center group relative rounded-lg",
-        isActive
-          ? "bg-(--fuwari-btn-regular-bg) text-(--fuwari-primary)"
-          : "fuwari-text-50 hover:text-(--fuwari-primary) hover:bg-(--fuwari-btn-regular-bg)",
-      )}
-      title={label}
-      aria-label={label}
-      type="button"
+      label={label}
+      active={isActive}
+      className="fuwari-toolbar-button"
     >
       <Icon size={14} strokeWidth={isActive ? 2.5 : 2} />
-    </button>
+    </IconButton>
   );
 }

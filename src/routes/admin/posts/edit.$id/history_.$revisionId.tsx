@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { StatusPage } from "@/components/common/status-page";
+import { buttonClass } from "@/components/ui/button";
 import { PostHistoryPage } from "@/features/posts/components/post-editor/post-history-page";
 import { PostEditorSkeleton } from "@/features/posts/components/post-editor/post-editor-skeleton";
 import {
@@ -53,7 +54,7 @@ function HistoryRevision() {
         action={
           <Link
             to="/admin/posts"
-            className="fuwari-btn-primary h-10 rounded-xl px-6 text-sm font-medium"
+            className={buttonClass({ variant: "primary", size: "lg" })}
           >
             {m.common_back()}
           </Link>
@@ -70,7 +71,7 @@ function HistoryRevision() {
           <Link
             to="/admin/posts/edit/$id/history"
             params={{ id }}
-            className="fuwari-btn-primary h-10 rounded-xl px-6 text-sm font-medium"
+            className={buttonClass({ variant: "primary", size: "lg" })}
           >
             {m.editor_history_back()}
           </Link>

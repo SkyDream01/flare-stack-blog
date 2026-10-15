@@ -22,6 +22,13 @@ const AdminPostCoverSchema = PublicPostCoverSchema.extend({
   fileName: z.string(),
 });
 
+const PublicSlugSchema = z
+  .string()
+  .nullable()
+  .describe(
+    "Slug of the live page at /post/{publicSlug}. It can differ from slug, the draft's, until the next publish. Null while the post is not published.",
+  );
+
 const PostSelectSchema = createSelectSchema(PostsTable, {
   publishedAt: coercedDateNullable,
   pinnedAt: coercedDateNullable,
@@ -100,17 +107,14 @@ export const PostWithTocSchema = PostSelectSchema.omit({
   })
   .nullable();
 
-export const AdminPostSchema = PostSelectSchema.omit({
-  publicSlug: true,
-})
-  .extend({
-    tags: z.array(TagSelectSchema).optional(),
-    hasPublicSnapshot: z.boolean(),
-    publicSnapshotContentJson: NullableJsonContentSchema,
-    serverToday: z.string(),
-    cover: AdminPostCoverSchema.nullable(),
-  })
-  .nullable();
+export const AdminPostSchema = PostSelectSchema.extend({
+  publicSlug: PublicSlugSchema,
+  tags: z.array(TagSelectSchema).optional(),
+  hasPublicSnapshot: z.boolean(),
+  publicSnapshotContentJson: NullableJsonContentSchema,
+  serverToday: z.string(),
+  cover: AdminPostCoverSchema.nullable(),
+}).nullable();
 
 export function normalizePostTagName(
   tagName: string | undefined,
@@ -186,6 +190,22 @@ export type AdminTaxonomyFilter = z.infer<typeof AdminTaxonomyFilterSchema>;
 
 export const GetPostsInputSchema = z.object({
   taxonomy: AdminTaxonomyFilterSchema.optional(),
+  categoryId: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Only posts whose current category is this one."),
+  uncategorized: z
+    .boolean()
+    .optional()
+    .describe("Only posts without a current category."),
+  tagId: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Only posts currently carrying this tag."),
   offset: z.number().optional(),
   limit: z.number().optional(),
   status: z.custom<PostStatus>().optional(),
@@ -213,6 +233,7 @@ const AdminPostListItemSchema = z.object({
   title: z.string(),
   summary: z.string().nullable(),
   slug: z.string(),
+  publicSlug: PublicSlugSchema,
   status: z.enum(["draft", "published"]),
   publishedAt: coercedDateNullable,
   pinnedAt: coercedDateNullable,
@@ -233,7 +254,7 @@ export const AdminPostListPageSchema = z.object({
   items: z.array(AdminPostListItemSchema),
   total: z.number().int().nonnegative(),
   statusCounts: AdminPostStatusCountsSchema.describe(
-    "Counts matching search, publicOnly and taxonomy scope before status filtering or pagination.",
+    "Counts matching search, publicOnly, taxonomy scope and the category and tag filters before status filtering or pagination.",
   ),
 });
 
@@ -288,3 +309,17 @@ export type PublishPostInput = z.infer<typeof PublishPostInputSchema>;
 export type UnpublishPostInput = z.infer<typeof UnpublishPostInputSchema>;
 export type PostItem = z.infer<typeof PostItemSchema>;
 export type PostWithToc = z.infer<typeof PostWithTocSchema>;
+
+export const VideoMetaInputSchema = z.object({
+  provider: z.enum(["bilibili", "youtube"]),
+  videoId: z.string().max(32),
+  page: z.number().int().positive().nullable().optional(),
+});
+
+export const VideoMetaSchema = z
+  .object({
+    title: z.string().nullable(),
+    cover: z.string().nullable(),
+    duration: z.number().int().nullable(),
+  })
+  .nullable();

@@ -38,7 +38,10 @@
   "posts_all": "All",
   "posts_count": [
     {
-      "declarations": ["input count", "local formattedCountEn = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
       "match": {
         "count=1": "{formattedCountEn} post",
         "count=*": "{formattedCountEn} posts"
@@ -47,7 +50,10 @@
   ],
   "format_month_day": [
     {
-      "declarations": ["input date", "local formattedDateEn = date: datetime month=2-digit day=2-digit"],
+      "declarations": [
+        "input date",
+        "local formattedDateEn = date: datetime month=2-digit day=2-digit"
+      ],
       "match": {
         "date=*": "{formattedDateEn}"
       }
@@ -83,7 +89,10 @@
   "post_outdated_notice": "This post was last updated on {date}, {days} days ago. Some of it may be out of date.",
   "post_word_count": [
     {
-      "declarations": ["input count", "local formattedCountEn = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
       "match": {
         "count=1": "About {formattedCountEn} word",
         "count=*": "About {formattedCountEn} words"
@@ -94,7 +103,10 @@
   "post_uncategorized": "Uncategorized",
   "read_time": [
     {
-      "declarations": ["input count", "local formattedCountEn = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
       "match": {
         "count=1": "{formattedCountEn} minute",
         "count=*": "{formattedCountEn} minutes"
@@ -103,7 +115,10 @@
   ],
   "post_views_count": [
     {
-      "declarations": ["input count", "local formattedCountEn = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
       "match": {
         "count=1": "{formattedCountEn} view",
         "count=*": "{formattedCountEn} views"
@@ -112,7 +127,10 @@
   ],
   "format_date": [
     {
-      "declarations": ["input date", "local formattedDateEn = date: datetime year=numeric month=2-digit day=2-digit"],
+      "declarations": [
+        "input date",
+        "local formattedDateEn = date: datetime year=numeric month=2-digit day=2-digit"
+      ],
       "match": {
         "date=*": "{formattedDateEn}"
       }
@@ -120,7 +138,10 @@
   ],
   "format_datetime": [
     {
-      "declarations": ["input date", "local formattedDateTimeEn = date: datetime year=numeric month=2-digit day=2-digit hour=2-digit minute=2-digit"],
+      "declarations": [
+        "input date",
+        "local formattedDateTimeEn = date: datetime year=numeric month=2-digit day=2-digit hour=2-digit minute=2-digit"
+      ],
       "match": {
         "date=*": "{formattedDateTimeEn}"
       }
@@ -129,7 +150,10 @@
   "time_ago_just_now": "just now",
   "time_ago_minutes": [
     {
-      "declarations": ["input count", "local formattedCountEn = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
       "match": {
         "count=1": "{formattedCountEn}m ago",
         "count=*": "{formattedCountEn}m ago"
@@ -138,7 +162,10 @@
   ],
   "time_ago_hours": [
     {
-      "declarations": ["input count", "local formattedCountEn = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
       "match": {
         "count=1": "{formattedCountEn}h ago",
         "count=*": "{formattedCountEn}h ago"
@@ -147,7 +174,10 @@
   ],
   "time_ago_days": [
     {
-      "declarations": ["input count", "local formattedCountEn = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
       "match": {
         "count=1": "{formattedCountEn}d ago",
         "count=*": "{formattedCountEn}d ago"
@@ -161,7 +191,9 @@
   "search_no_results": "No results found",
   "search_no_results_with_query": [
     {
-      "declarations": ["input query"],
+      "declarations": [
+        "input query"
+      ],
       "match": {
         "query=*": "No posts found matching \"{query}\". Try searching with different keywords."
       }
@@ -201,7 +233,9 @@
   "friend_link_validation_required": "Site name is required",
   "friend_link_validation_too_long": [
     {
-      "declarations": ["input max"],
+      "declarations": [
+        "input max"
+      ],
       "match": {
         "max=*": "Maximum {max} characters"
       }
@@ -308,7 +342,9 @@
   "request_error_rate_limited_title": "Too Many Requests",
   "request_error_rate_limited_desc": [
     {
-      "declarations": ["input seconds"],
+      "declarations": [
+        "input seconds"
+      ],
       "match": {
         "seconds=*": "Please try again in {seconds} seconds."
       }
@@ -474,7 +510,10 @@
   "theme_toggle_title": "Theme: {theme}",
   "format_month_day_time": [
     {
-      "declarations": ["input date", "local formattedDateTimeEn = date: datetime month=2-digit day=2-digit hour=2-digit minute=2-digit hour12=true"],
+      "declarations": [
+        "input date",
+        "local formattedDateTimeEn = date: datetime month=2-digit day=2-digit hour=2-digit minute=2-digit hour12=true"
+      ],
       "match": {
         "date=*": "{formattedDateTimeEn}"
       }
@@ -487,10 +526,8 @@
   "admin_sidebar_close_navigation": "Close navigation",
   "admin_sidebar_dashboard": "Overview",
   "admin_sidebar_posts": "Posts",
-  "admin_sidebar_tags": "Categories & Tags",
   "admin_sidebar_media": "Media",
   "admin_sidebar_friend_links": "Links",
-  "admin_sidebar_muted_users": "Muted",
   "admin_sidebar_admin_fallback": "Admin",
   "admin_sidebar_role_admin": "Administrator",
   "admin_sidebar_role_user": "User",
@@ -502,8 +539,6 @@
   "admin_sidebar_logout_failed": "Sign out failed",
   "admin_sidebar_logout_failed_desc": "Please try again.",
   "admin_overview_title": "Overview",
-  "admin_overview_continue_writing": "Continue writing",
-  "admin_overview_recent_comments": "New comments",
   "admin_overview_popularity_failed": "Popularity sync failed",
   "admin_overview_popularity_expired": "Popularity data expired",
   "admin_overview_activity_anonymous": "Anonymous",
@@ -539,7 +574,6 @@
   "admin_posts_sort_recent_upd": "Recent Updated",
   "admin_posts_no_match": "No posts found",
   "admin_posts_clear_filters": "Clear filters",
-  "admin_posts_col_status": "Status",
   "admin_posts_delete_confirm_title": "Delete post",
   "admin_posts_delete_confirm_desc": "Delete \"{title}\"? This cannot be undone.",
   "admin_posts_delete_confirm_btn": "Delete",
@@ -553,7 +587,11 @@
   "admin_posts_time_modified": "Modified",
   "admin_pagination_info": [
     {
-      "declarations": ["input startItem", "input endItem", "input totalItems"],
+      "declarations": [
+        "input startItem",
+        "input endItem",
+        "input totalItems"
+      ],
       "match": {
         "startItem=*": "Showing {startItem} - {endItem} of {totalItems}"
       }
@@ -568,7 +606,9 @@
   "editor_status_unsaved": "Unsaved",
   "editor_status_saved": [
     {
-      "declarations": ["input time"],
+      "declarations": [
+        "input time"
+      ],
       "match": {
         "time=*": "Saved {time}"
       }
@@ -638,7 +678,9 @@
   "editor_action_slug_set": "URL Slug Set",
   "editor_action_slug_set_desc": [
     {
-      "declarations": ["input slug"],
+      "declarations": [
+        "input slug"
+      ],
       "match": {
         "slug=*": "URL slug set to \"{slug}\""
       }
@@ -694,16 +736,13 @@
   "tag_selector_no_match": "No matching tags found",
   "tag_selector_empty": "No tags available (type to create)",
   "tag_manager_title": "Tags",
-  "taxonomy_manager_title": "Categories & Tags",
   "taxonomy_manager_create_category": "New category",
   "category_manager_title": "Categories",
   "category_manager_create": "Create",
-  "category_manager_rename": "Rename",
   "category_manager_save": "Save",
   "category_manager_cancel": "Cancel",
   "category_manager_delete": "Delete",
   "category_manager_delete_title": "Delete category",
-  "category_manager_delete_message": "Delete category \"{name}\"? Posts in it will become uncategorized.",
   "category_manager_created": "Created",
   "category_manager_renamed": "Renamed",
   "category_manager_deleted": "Deleted",
@@ -714,17 +753,9 @@
   "tag_manager_name_exists": "This name is already in use",
   "tag_manager_unknown_error": "Something went wrong. Please try again.",
   "tag_manager_renamed": "Renamed",
-  "tag_manager_delete_fail": "Couldn't delete",
   "tag_manager_deleted": "Deleted",
-  "tag_manager_search_placeholder": "Search tags",
-  "tag_manager_empty": "No tags",
-  "tag_manager_edit": "Edit",
-  "tag_manager_edit_title": "Edit tag",
-  "tag_manager_no_match": "No matching tags",
   "tag_manager_clear_search": "Clear search",
   "tag_manager_delete_title": "Delete tag",
-  "tag_manager_delete_desc": "Delete tag \"{tagName}\"? It will be removed from posts.",
-  "tag_manager_delete_confirm": "Delete",
   "media_title": "Media",
   "media_upload": "Upload",
   "media_stats": "{count} · {size}",
@@ -759,7 +790,9 @@
   "media_validation_file_invalid_type": "Only image files are supported",
   "media_upload_fail": [
     {
-      "declarations": ["input name"],
+      "declarations": [
+        "input name"
+      ],
       "match": {
         "name=*": "Upload failed: {name}"
       }
@@ -880,7 +913,9 @@
   "settings_site_field_primary_hue": "Primary Hue",
   "settings_site_validation_too_long": [
     {
-      "declarations": ["input max"],
+      "declarations": [
+        "input max"
+      ],
       "match": {
         "max=*": "Maximum {max} characters"
       }
@@ -944,18 +979,9 @@
   "settings_webhook_toast_test_sent": "Test request sent",
   "settings_webhook_toast_test_fail": "Failed to send test request",
   "settings_webhook_toast_test_fail_msg": "Failed: {message}",
-  "settings_webhook_delivery_failed": [
-    {
-      "declarations": ["input status", "input statusText", "input detail"],
-      "match": {
-        "detail=": "Webhook delivery failed: {status} {statusText}",
-        "detail=*": "Webhook delivery failed: {status} {statusText} - {detail}"
-      }
-    }
-  ],
+  "settings_webhook_delivery_failed": "Webhook delivery failed: {status} {statusText}",
   "settings_webhook_endpoint_btn_test": "Test",
   "settings_webhook_endpoint_field_url": "URL",
-  "settings_webhook_endpoint_field_url_ph": "https://hooks.example.com/notify",
   "settings_webhook_endpoint_field_secret": "Signing Secret",
   "webhook_example_post_title": "Welcome to the Notification System",
   "webhook_example_commenter_name": "Test User",
@@ -1058,17 +1084,6 @@
   "media_unused_confirm": "Delete these {count} images without post references? This cannot be undone.",
   "media_reference_fail": "Could not load post references",
   "media_image_unavailable": "Image preview unavailable",
-  "taxonomy_workspace_hint": "Choose a category or tag to explore its posts.",
-  "taxonomy_scope_current": "Current assignment",
-  "taxonomy_scope_public": "Public usage",
-  "taxonomy_scope_current_hint": "Includes editable content of both draft and published posts.",
-  "taxonomy_scope_public_hint": "Counts currently associated published posts. Category and tag changes do not require republishing.",
-  "taxonomy_public_short": "Public {count}",
-  "taxonomy_empty_selection": "Choose a category or tag to see related posts.",
-  "taxonomy_current_empty": "No posts are currently assigned here.",
-  "taxonomy_public_empty": "No public versions currently use this category or tag.",
-  "taxonomy_usage_summary": "Current assignment: {current} posts · Public usage: {public} posts",
-  "taxonomy_posts_search": "Search related posts",
   "friend_review_hint": "Review submissions and choose the sites to feature.",
   "friend_review_queue": "Submissions",
   "friend_review_search": "Search sites or domains",
@@ -1081,12 +1096,8 @@
   "friend_review_preview_hint": "Once approved, these details appear on your friend links page.",
   "friend_review_previous": "Previous",
   "friend_review_next": "Next",
-  "dashboard_intro": "A place to write, connect, and share.",
-  "dashboard_resume": "Continue editing",
   "dashboard_first_post": "Start with your first post",
   "dashboard_recent_edits": "Recently edited",
-  "dashboard_tasks": "Needs attention",
-  "dashboard_pending_links": "{count} friend link applications to review",
   "muted_manager_hint": "Manage muted users and restore their ability to comment.",
   "muted_manager_count": "{count} users",
   "muted_manager_search": "Search usernames",
@@ -1123,8 +1134,6 @@
   "settings_design_remove_secret": "Remove saved credential",
   "settings_design_remove_email_hint": "Saving notification settings will remove the email password and disable email delivery. You do not need to remove it before replacing it.",
   "settings_design_remove_webhook_hint": "The endpoint URL will be cleared and its secret marked for removal. Saving notification settings will disable Webhook delivery.",
-  "settings_design_hide_secret": "Hide new credential",
-  "settings_design_show_secret": "Show new credential",
   "settings_design_keys_hint": "Create credentials for scripts and external tools.",
   "settings_design_key_prefix": "Key prefix",
   "settings_design_created_at": "Created",
@@ -1283,5 +1292,318 @@
   "editor_unpublish_confirm_desc": "The public page disappears immediately and the post becomes a draft. Publish it again to restore it with the same link and publication date.",
   "settings_email_last_test_verified": "Last test passed: {time}",
   "settings_email_last_test_failed": "Last test failed: {time}. {error}",
-  "account_avatar_pick_media": "Choose from media library"
+  "account_avatar_pick_media": "Choose from media library",
+  "common_code_copied": "Code copied",
+  "admin_overview_comment_mute": "Mute this user",
+  "admin_overview_reply_sent": "Reply sent",
+  "admin_overview_view_muted_users": "View muted users",
+  "admin_posts_filter_category": "Category",
+  "admin_posts_filter_category_all": "All categories",
+  "admin_posts_filter_tag": "Tag",
+  "admin_posts_filter_tag_all": "All tags",
+  "admin_posts_manage_taxonomy": "Manage categories and tags",
+  "admin_posts_action_view_live": "View Live Page",
+  "admin_posts_action_pin": "Pin",
+  "admin_posts_action_unpin": "Unpin",
+  "admin_posts_toast_pinned": "Pinned",
+  "admin_posts_toast_unpinned": "Unpinned",
+  "admin_posts_toast_pin_failed": "Couldn't update the pin. Try again.",
+  "editor_meta_category_create": "+ New category…",
+  "editor_toolbar_video": "Insert video",
+  "editor_slash_video": "Video",
+  "editor_video_input": "Video link or embed code",
+  "editor_video_placeholder": "Paste a video link or embed code",
+  "editor_video_hint": "Works with Bilibili and YouTube links or embed codes",
+  "editor_video_recognized": "Found: {provider} · {video}",
+  "editor_video_short_link": "b23.tv short links aren't supported yet. Paste the full video link.",
+  "editor_video_unsupported": "Not recognized. Only Bilibili and YouTube are supported.",
+  "editor_video_insert": "Insert video",
+  "editor_video_edit": "Edit video",
+  "editor_video_update": "Update",
+  "editor_video_open": "Open original",
+  "video_provider_bilibili": "Bilibili",
+  "video_provider_youtube": "YouTube",
+  "post_video_play": "Play {provider} video",
+  "post_video_play_title": "Play {provider} video: {title}",
+  "post_video_player": "{provider} video player",
+  "post_video_open": "Open on {provider}",
+  "editor_formula_display": "Display as",
+  "media_filter_label": "Filter media",
+  "settings_webhook_delivery_failed_detail": "Webhook delivery failed: {status} {statusText} - {detail}",
+  "settings_webhook_provider": "Channel",
+  "settings_webhook_provider_generic": "Generic JSON (signed)",
+  "settings_webhook_provider_feishu": "Feishu / Lark",
+  "settings_webhook_provider_dingtalk": "DingTalk",
+  "settings_webhook_provider_wecom": "WeCom",
+  "settings_webhook_provider_custom": "Custom",
+  "settings_webhook_hint_generic": "Posts a fixed JSON body signed with HMAC, for a receiver you run yourself.",
+  "settings_webhook_hint_telegram": "Message @BotFather on Telegram with /newbot to get a bot token. Send the bot a message or add it to a group, then use Find to pick the chat.",
+  "settings_webhook_hint_discord": "Channel settings → Integrations → Webhooks → New Webhook, then copy its URL.",
+  "settings_webhook_hint_feishu": "Group settings → Bots → Add bot → Custom bot, then copy its Webhook URL. If you turn on keyword security, use \"Blog notification\".",
+  "settings_webhook_hint_dingtalk": "Group settings → Bots → Add bot → Custom. Choose keyword security with \"Blog notification\", then copy its Webhook URL.",
+  "settings_webhook_hint_wecom": "In the group chat, add a group bot, create a new one and copy its Webhook URL.",
+  "settings_webhook_hint_bark": "Copy the push URL from the Bark app's home screen, such as https://api.day.app/yourKey.",
+  "settings_webhook_hint_ntfy": "Enter the topic URL and subscribe to the same topic in the ntfy app. Anyone who knows the topic can subscribe, so pick a name that is hard to guess.",
+  "settings_webhook_hint_custom": "Write the body the receiving service expects; variables are filled in when sending, and escaped when the body is JSON. With a signing key, X-Flare-Signature is sent as well.",
+  "settings_webhook_field_webhook_url": "Webhook URL",
+  "settings_webhook_field_bark_url": "Push URL",
+  "settings_webhook_field_ntfy_url": "Topic URL",
+  "settings_webhook_field_bot_token": "Bot token",
+  "settings_webhook_field_chat_id": "Chat ID",
+  "settings_webhook_field_chat_id_ph": "For example 123456789 or -1001234567890",
+  "settings_webhook_find_chats": "Find",
+  "settings_webhook_chats_empty": "No chats found. Send the bot a message or add it to a group, then try Find again.",
+  "settings_webhook_chat_private": "Private",
+  "settings_webhook_chat_group": "Group",
+  "settings_webhook_chat_channel": "Channel",
+  "settings_webhook_toast_chats_fail": "Could not find chats: {message}",
+  "settings_webhook_field_template": "Body template",
+  "settings_webhook_template_variables": "Variables",
+  "settings_webhook_field_secret_optional": "Signing key (optional)",
+  "settings_webhook_docs_link": "Payload and signature guide",
+  "webhook_title_comment": "Blog notification · New comment",
+  "webhook_title_reply": "Blog notification · Comment reply",
+  "webhook_title_friend_link_submitted": "Blog notification · Friend link request",
+  "webhook_title_friend_link_reviewed": "Blog notification · Friend link review",
+  "taxonomy_sheet_title": "Categories & tags",
+  "taxonomy_sheet_search_category": "Search or create a category",
+  "taxonomy_sheet_search_tag": "Search or create a tag",
+  "taxonomy_sheet_create_hint": "Press Enter to create “{name}”",
+  "taxonomy_sheet_category_created": "Created category “{name}”",
+  "taxonomy_sheet_tag_created": "Created tag “{name}”",
+  "taxonomy_sheet_category_empty": "No categories yet. Type a name and press Enter to create one.",
+  "taxonomy_sheet_tag_empty": "No tags yet. Type a name and press Enter to create one.",
+  "taxonomy_sheet_no_match": "Nothing matches “{query}”",
+  "taxonomy_sheet_load_error": "Couldn't load",
+  "taxonomy_sheet_pick": "Show posts in “{name}” ({count})",
+  "taxonomy_sheet_row_actions": "Actions for “{name}”",
+  "taxonomy_sheet_rename": "Rename",
+  "taxonomy_sheet_rename_label": "New name for “{name}”",
+  "taxonomy_sheet_rename_hint": "Enter to save, Esc to cancel",
+  "taxonomy_sheet_delete_category_desc": "Delete the category “{name}”? {count} posts will lose this category.",
+  "taxonomy_sheet_delete_tag_desc": "Delete the tag “{name}”? {count} posts will lose this tag.",
+  "taxonomy_sheet_purge": "Delete all unused tags ({count})",
+  "taxonomy_sheet_purge_title": "Delete unused tags",
+  "taxonomy_sheet_purge_desc": "This deletes {count} tags that no post uses. It cannot be undone.",
+  "taxonomy_sheet_purge_progress": "Deleting {done}/{total}",
+  "taxonomy_sheet_purged": "Deleted {count} unused tags",
+  "taxonomy_sheet_purge_partial": "Deleted {done}, {failed} failed",
+  "admin_overview_email_needs_setup_desc": "You won't get emails about new comments or friend link requests",
+  "admin_overview_popularity_failed_desc": "See why on the maintenance page and sync again",
+  "admin_overview_popularity_expired_desc": "Not synced for over 7 days; the homepage shows pinned and recent posts instead",
+  "admin_overview_default_site_identity_desc": "Set your own site title and author",
+  "admin_overview_update_available": "Version {version} is available",
+  "admin_overview_update_available_desc": "You're on v{current}. See what's new",
+  "dashboard_stats_label": "Blog at a glance",
+  "dashboard_stat_posts": "Posts",
+  "dashboard_stat_drafts": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "{formattedCountEn} draft",
+        "count=*": "{formattedCountEn} drafts"
+      }
+    }
+  ],
+  "dashboard_stat_no_drafts": "No drafts",
+  "dashboard_stat_views": "Views, last 30 days",
+  "dashboard_stat_views_unconfigured": "Umami not connected",
+  "dashboard_stat_views_missing": "Not synced yet",
+  "dashboard_stat_views_expired": "Data is out of date",
+  "dashboard_stat_comments": "Comments",
+  "dashboard_stat_comments_recent": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "+{formattedCountEn} in the last 7 days",
+        "count=*": "+{formattedCountEn} in the last 7 days"
+      }
+    }
+  ],
+  "dashboard_stat_comments_none_recent": "None in the last 7 days",
+  "dashboard_stat_friend_links": "Friend links",
+  "dashboard_stat_friend_links_pending": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "{formattedCountEn} awaiting review",
+        "count=*": "{formattedCountEn} awaiting review"
+      }
+    }
+  ],
+  "dashboard_stat_friend_links_none_pending": "None awaiting review",
+  "dashboard_popular_title": "Popular in the last 30 days",
+  "dashboard_popular_expired": "Out of date",
+  "dashboard_popular_open_public": "Open public page",
+  "dashboard_popular_unconfigured_title": "Umami isn't connected",
+  "dashboard_popular_unconfigured_desc": "Once connected, your most-read posts of the last 30 days show up here",
+  "dashboard_popular_missing_title": "No popularity data yet",
+  "dashboard_popular_missing_desc": "Popularity syncs once a day, or you can sync it now",
+  "dashboard_popular_sync": "Sync now",
+  "dashboard_popular_no_views": "No post was read in the last 30 days",
+  "dashboard_unreplied_title": "Awaiting your reply",
+  "dashboard_unreplied_more": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "{formattedCountEn} more awaiting reply",
+        "count=*": "{formattedCountEn} more awaiting reply"
+      }
+    }
+  ],
+  "dashboard_unreplied_empty_title": "All caught up",
+  "dashboard_unreplied_empty_desc": "New visitor comments will show up here",
+  "dashboard_comment_mark_handled": "Mark as handled",
+  "dashboard_comment_marked_handled": "Marked as handled",
+  "dashboard_comment_handled_undo": "Undo",
+  "dashboard_comment_handled_error": "Couldn't update the comment. Try again.",
+  "dashboard_unreplied_handle_all": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "Mark all as handled ({formattedCountEn})",
+        "count=*": "Mark all as handled ({formattedCountEn})"
+      }
+    }
+  ],
+  "dashboard_unreplied_handle_all_title": "Mark all as handled?",
+  "dashboard_unreplied_handle_all_desc": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "This comment will leave the list awaiting reply. The comment itself stays, and no one is notified.",
+        "count=*": "These {formattedCountEn} comments will leave the list awaiting reply. The comments themselves stay, and no one is notified."
+      }
+    }
+  ],
+  "dashboard_unreplied_handle_all_confirm": "Mark all as handled",
+  "dashboard_unreplied_handled_all": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "Marked {formattedCountEn} comment as handled",
+        "count=*": "Marked {formattedCountEn} comments as handled"
+      }
+    }
+  ],
+  "dashboard_unreplied_load_more": "Load more",
+  "dashboard_unreplied_load_error": "Couldn't load comments awaiting reply",
+  "dashboard_pending_links_title": "Friend links to review",
+  "dashboard_pending_links_more": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "{formattedCountEn} more request",
+        "count=*": "{formattedCountEn} more requests"
+      }
+    }
+  ],
+  "dashboard_greeting_morning": "Good morning, {name}",
+  "dashboard_greeting_afternoon": "Good afternoon, {name}",
+  "dashboard_greeting_evening": "Good evening, {name}",
+  "dashboard_summary_views": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "{formattedCountEn} visit in 30 days",
+        "count=*": "{formattedCountEn} visits in 30 days"
+      }
+    }
+  ],
+  "dashboard_summary_unreplied": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "{formattedCountEn} comment awaits your reply",
+        "count=*": "{formattedCountEn} comments await your reply"
+      }
+    }
+  ],
+  "dashboard_summary_pending_links": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "{formattedCountEn} friend link to review",
+        "count=*": "{formattedCountEn} friend links to review"
+      }
+    }
+  ],
+  "dashboard_summary_clear": "All caught up — a good day to write",
+  "dashboard_hero_continue": "Continue “{title}”",
+  "dashboard_writing_title": "Writing",
+  "dashboard_writing_days": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "Wrote on {formattedCountEn} day in 6 months",
+        "count=*": "Wrote on {formattedCountEn} days in 6 months"
+      }
+    }
+  ],
+  "dashboard_writing_streak": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number"
+      ],
+      "match": {
+        "count=1": "longest streak {formattedCountEn} day",
+        "count=*": "longest streak {formattedCountEn} days"
+      }
+    }
+  ],
+  "dashboard_writing_none": "No writing in the last 6 months",
+  "dashboard_writing_basis": "Counts new posts, publishes and saved revisions by local day",
+  "dashboard_writing_less": "Less",
+  "dashboard_writing_more": "More",
+  "dashboard_writing_day": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountEn = count: number",
+        "input date"
+      ],
+      "match": {
+        "count=1": "{date}: {formattedCountEn} writing event",
+        "count=*": "{date}: {formattedCountEn} writing events"
+      }
+    }
+  ],
+  "dashboard_writing_day_none": "{date}: no writing"
 }

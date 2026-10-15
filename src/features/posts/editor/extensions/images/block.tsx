@@ -1,7 +1,7 @@
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewWrapper } from "@tiptap/react";
-import { Loader2 } from "lucide-react";
 import { useMemo } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { parseImageSize } from "@/features/posts/utils/normalize-content";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
@@ -54,7 +54,7 @@ export function ImageBlock({
           {isUploading && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="flex items-center gap-2 rounded-xl bg-(--fuwari-card-bg) px-3 py-2 text-sm fuwari-text-50 shadow-md">
-                <Loader2 className="animate-spin" size={14} />
+                <Spinner size={14} />
                 <span>{m.media_upload_status_uploading()}</span>
               </div>
             </div>

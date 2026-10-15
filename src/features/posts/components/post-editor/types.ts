@@ -29,6 +29,8 @@ export interface PostEditorProps {
     id: number;
     publicSnapshotContentJson?: JSONContent | null;
   };
+  /** The live page's slug, read fresh from the server; null while unpublished. */
+  publicSlug: string | null;
   onSave: (data: PostEditorData) => Promise<void>;
 }
 

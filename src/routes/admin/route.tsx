@@ -17,6 +17,8 @@ import {
 import { SideBar } from "@/components/admin/side-bar";
 import { PageFade } from "@/components/layout/page-fade";
 import { Toaster } from "@/components/layout/toaster";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { sessionQuery } from "@/features/auth/queries";
 import { settingsSectionFromPath } from "@/features/config/components/admin/settings-pages";
 import { useVersionCheck } from "@/features/version/hooks/use-version-check";
@@ -150,27 +152,26 @@ function MobileTopBar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   return (
     <header className="lg:hidden shrink-0 mb-4">
       <div className="fuwari-card-base flex items-center gap-3 px-3 h-16">
-        <button
+        <IconButton
+          size="md"
           onClick={onOpenSidebar}
-          className="p-2 rounded-lg fuwari-text-75 hover:text-(--fuwari-primary)"
-          aria-label={m.admin_layout_open_navigation()}
+          label={m.admin_layout_open_navigation()}
         >
           <Menu size={20} strokeWidth={1.5} />
-        </button>
+        </IconButton>
         <h1 className="flex-1 min-w-0 truncate text-base font-medium fuwari-text-90">
           <ClientOnly fallback={m.admin_layout_title()}>
             {mobileTitle ?? pageTitle}
           </ClientOnly>
         </h1>
         {primaryAction ? (
-          <button
-            type="button"
+          <Button
+            variant="primary"
             onClick={primaryAction.onClick}
             disabled={primaryAction.disabled}
-            className="fuwari-btn-primary rounded-xl h-9 px-3 text-sm font-medium shrink-0"
           >
             {primaryAction.label}
-          </button>
+          </Button>
         ) : (
           <span className="w-9" />
         )}

@@ -8,7 +8,7 @@ import {
   useProfileForm,
 } from "@/features/auth/hooks";
 import { hasPasswordQuery } from "@/features/email/queries";
-import { authClient } from "@/lib/auth/auth.client";
+import { authClient } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 
 export const Route = createFileRoute("/_public/_user/profile")({

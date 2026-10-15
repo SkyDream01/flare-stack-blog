@@ -10,6 +10,7 @@ import {
 } from "@testing-library/react";
 import { Editor, EditorContent } from "@tiptap/react";
 import { createElement } from "react";
+import { findInPopover } from "tests/popover";
 import { afterEach, expect, it, vi } from "vitest";
 import { createSchemaExtensions } from "@/features/posts/editor/schema";
 import { m } from "@/paraglide/messages";
@@ -50,9 +51,10 @@ function trigger() {
   return screen.getByRole("button", { name: m.editor_code_language() });
 }
 
-function openPicker() {
+/** Opens the picker and waits until its search box can be typed in. */
+async function openPicker() {
   fireEvent.click(trigger());
-  return screen.getByRole("combobox");
+  return findInPopover("combobox");
 }
 
 function optionLabels() {
@@ -75,7 +77,7 @@ it("shows the display name of the block's language, resolving aliases", async ()
 it("filters by alias as the Admin types and picks the match with Enter", async () => {
   const target = await renderCodeBlock("ts");
 
-  const search = openPicker();
+  const search = await openPicker();
   expect(document.activeElement).toBe(search);
   fireEvent.change(search, { target: { value: "yml" } });
   expect(optionLabels()).toEqual(["YAML"]);
@@ -91,7 +93,7 @@ it("filters by alias as the Admin types and picks the match with Enter", async (
 it("moves through the filtered list with the arrow keys", async () => {
   const target = await renderCodeBlock("ts");
 
-  const search = openPicker();
+  const search = await openPicker();
   fireEvent.change(search, { target: { value: "c" } });
   expect(optionLabels().slice(0, 3)).toEqual(["C", "C++", "C#"]);
   expect(activeOption(search)).toBe("C");
@@ -114,7 +116,7 @@ it("leaves the list where the Admin scrolled it, and follows the arrow keys", as
   });
 
   try {
-    const search = openPicker();
+    const search = await openPicker();
     scrollIntoView.mockClear();
 
     const listbox = screen.getByRole("listbox");
@@ -133,7 +135,7 @@ it("leaves the list where the Admin scrolled it, and follows the arrow keys", as
 it("starts on the current language and closes with Escape without changing it", async () => {
   const target = await renderCodeBlock("python");
 
-  const search = openPicker();
+  const search = await openPicker();
   expect(activeOption(search)).toBe("Python");
 
   fireEvent.keyDown(search, { key: "Escape" });
@@ -146,7 +148,7 @@ it("starts on the current language and closes with Escape without changing it", 
 it("picks a language with the mouse, including plain text", async () => {
   const target = await renderCodeBlock("ts");
 
-  const search = openPicker();
+  const search = await openPicker();
   fireEvent.change(search, { target: { value: "text" } });
   fireEvent.click(
     within(screen.getByRole("listbox")).getByRole("option", {
@@ -160,7 +162,7 @@ it("picks a language with the mouse, including plain text", async () => {
 it("says so when nothing matches and ignores Enter", async () => {
   const target = await renderCodeBlock("ts");
 
-  const search = openPicker();
+  const search = await openPicker();
   fireEvent.change(search, { target: { value: "cobol" } });
   expect(optionLabels()).toEqual([]);
   expect(screen.getByText(m.editor_code_language_empty())).toBeTruthy();
@@ -174,30 +176,34 @@ it("shows plain-text aliases as plain text and starts on that option", async () 
   await renderCodeBlock("txt");
 
   expect(trigger().textContent).toBe(m.common_plain_text());
-  expect(activeOption(openPicker())).toBe(m.common_plain_text());
+  expect(activeOption(await openPicker())).toBe(m.common_plain_text());
 });
 
-it("anchors the popover to the trigger, opening upward without room below", async () => {
+it("anchors the popover below the trigger's right edge", async () => {
   await renderCodeBlock("ts");
-  const top = window.innerHeight - 200;
+  // jsdom lays nothing out: give the viewport the window's size.
+  const root = document.documentElement;
+  vi.spyOn(root, "clientWidth", "get").mockReturnValue(window.innerWidth);
+  vi.spyOn(root, "clientHeight", "get").mockReturnValue(window.innerHeight);
+  const top = window.innerHeight - 400;
   vi.spyOn(trigger(), "getBoundingClientRect").mockReturnValue(
     DOMRect.fromRect({ x: 800, y: top, width: 100, height: 24 }),
   );
 
-  openPicker();
+  await openPicker();
 
   const popover = screen.getByRole("listbox").parentElement as HTMLElement;
   expect(popover.style.position).toBe("fixed");
-  expect(popover.style.right).toBe(`${window.innerWidth - 900}px`);
-  expect(popover.style.width).toBe("208px");
-  expect(popover.style.bottom).toBe("204px");
-  expect(popover.style.transformOrigin).toBe("bottom right");
+  // The popover has no size in jsdom, so its right edge is its left.
+  expect(popover.style.left).toBe("900px");
+  expect(popover.style.top).toBe(`${top + 24 + 6}px`);
+  expect(popover.style.transformOrigin).toBe("top right");
 });
 
 it("closes without changing the language when the Admin clicks elsewhere", async () => {
   const target = await renderCodeBlock("ts");
 
-  const search = openPicker();
+  const search = await openPicker();
   fireEvent.mouseDown(search);
   expect(screen.getByRole("listbox")).toBeTruthy();
 

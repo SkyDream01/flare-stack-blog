@@ -4,9 +4,10 @@ import {
   useRouter,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { Home, LayoutDashboard, Loader2, RotateCw } from "lucide-react";
+import { Home, LayoutDashboard, RotateCw } from "lucide-react";
 import { useRef, useState } from "react";
 import { StatusPage } from "@/components/common/status-page";
+import { Button, buttonClass } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 
 export function ErrorPage({ reset }: Partial<ErrorComponentProps>) {
@@ -41,21 +42,19 @@ export function ErrorPage({ reset }: Partial<ErrorComponentProps>) {
       description={admin ? m.admin_error_desc() : m.error_desc()}
       action={
         <>
-          <button
-            type="button"
-            className="fuwari-btn-primary"
+          <Button
+            variant="primary"
+            size="lg"
             onClick={retry}
-            disabled={retrying}
-            aria-busy={retrying}
+            loading={retrying}
+            icon={<RotateCw size={18} aria-hidden="true" />}
           >
-            {retrying ? (
-              <Loader2 size={18} className="animate-spin" aria-hidden="true" />
-            ) : (
-              <RotateCw size={18} aria-hidden="true" />
-            )}
             {retrying ? m.error_retrying() : m.error_retry()}
-          </button>
-          <Link to={admin ? "/admin" : "/"} className="fuwari-btn-regular">
+          </Button>
+          <Link
+            to={admin ? "/admin" : "/"}
+            className={buttonClass({ size: "lg" })}
+          >
             {admin ? (
               <LayoutDashboard size={18} aria-hidden="true" />
             ) : (

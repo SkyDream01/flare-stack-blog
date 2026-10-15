@@ -10,6 +10,7 @@ import {
 import type { Editor } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
+import { findInPopover } from "tests/popover";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderPostEditor } from "@/features/posts/editor/test-utils";
 import { m } from "@/paraglide/messages";
@@ -95,7 +96,7 @@ it("groups the table actions under labelled row and column menus", async () => {
   fireEvent.click(
     menu.getByRole("button", { name: m.editor_table_row_menu() }),
   );
-  const rows = await screen.findByRole("menu", {
+  const rows = await findInPopover("menu", {
     name: m.editor_table_row_menu(),
   });
   expect(menuItems(rows)).toEqual([
@@ -122,7 +123,7 @@ it("groups the table actions under labelled row and column menus", async () => {
   fireEvent.click(
     menu.getByRole("button", { name: m.editor_table_col_menu() }),
   );
-  const columns = await screen.findByRole("menu", {
+  const columns = await findInPopover("menu", {
     name: m.editor_table_col_menu(),
   });
   expect(menuItems(columns)).toEqual([

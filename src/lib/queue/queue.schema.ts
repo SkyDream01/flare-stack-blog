@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { notificationEventSchema } from "@/features/notification/notification.schema";
+import { webhookEndpointSchema } from "@/features/webhook/webhook.schema";
 import { EMAIL_UNSUBSCRIBE_TYPES } from "@/lib/db/schema";
 
 const emailMessageSchema = z.object({
@@ -22,8 +23,8 @@ const emailMessageSchema = z.object({
 const webhookMessageSchema = z.object({
   type: z.literal("WEBHOOK"),
   data: z.object({
-    url: z.url(),
-    secret: z.string(),
+    // Messages queued before providers carry only url and secret.
+    ...webhookEndpointSchema.shape,
     event: notificationEventSchema,
   }),
 });

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { buttonClass } from "@/components/ui/button";
 import { AuthStatus } from "./auth-elements";
 import { m } from "@/paraglide/messages";
 
@@ -24,7 +25,14 @@ export function VerifyEmailPage({
         title={m.verify_email_success_title()}
         description={m.verify_email_success_desc()}
       >
-        <Link to="/" className="auth-action fuwari-btn-primary">
+        <Link
+          to="/"
+          className={buttonClass({
+            variant: "primary",
+            size: "lg",
+            className: "auth-action",
+          })}
+        >
           {m.verify_email_success_action()}
         </Link>
       </AuthStatus>
@@ -39,7 +47,14 @@ export function VerifyEmailPage({
           : m.verify_email_error_generic_desc()
       }
     >
-      <Link to="/login" className="auth-action fuwari-btn-primary">
+      <Link
+        to="/login"
+        className={buttonClass({
+          variant: "primary",
+          size: "lg",
+          className: "auth-action",
+        })}
+      >
         {m.verify_email_error_action()}
       </Link>
       <p className="auth-note">{m.auth_verify_retry_hint()}</p>

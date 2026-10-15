@@ -12,6 +12,8 @@ import { postContentOf } from "@/features/posts/editor/extensions/image-placehol
 import { postRevisionListQuery } from "@/features/posts/queries";
 import { normalizePostContent } from "@/features/posts/utils/normalize-content";
 import { m } from "@/paraglide/messages";
+import { useDeletePost } from "../post-manager/hooks";
+import { readPostListLocation } from "../post-manager/list-position";
 import { useAutoSave, usePostActions } from "./hooks";
 import { PostEditorHeader } from "./post-editor-header";
 import { PostEditorMetadata } from "./post-editor-metadata";
@@ -19,7 +21,11 @@ import { PostEditorInfoPanel } from "./post-editor-info-panel";
 import { PostEditorSummary } from "./post-editor-summary";
 import type { PostEditorData, PostEditorProps } from "./types";
 
-export function PostEditor({ initialData, onSave }: PostEditorProps) {
+export function PostEditor({
+  initialData,
+  publicSlug,
+  onSave,
+}: PostEditorProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { setPrimaryAction, setMobileTitle } = useAdminChrome();
@@ -58,17 +64,47 @@ export function PostEditor({ initialData, onSave }: PostEditorProps) {
     return editorContentRef.current;
   }, []);
 
-  const { saveStatus, lastSaved, setError, flush } = useAutoSave({
+  const {
+    saveStatus,
+    lastSaved,
+    setError,
+    flush,
+    waitForInFlightSave,
+    discardInFlightSave,
+  } = useAutoSave({
     post,
     getContent,
     contentEpoch,
     onSave,
   });
 
+  // Unsaved edits of a deleted post have nowhere to go, so leave unguarded.
+  const deletedRef = useRef(false);
   const { proceed, reset, status } = useBlocker({
-    shouldBlockFn: () => saveStatus !== "SYNCED",
+    shouldBlockFn: () => !deletedRef.current && saveStatus !== "SYNCED",
     withResolver: true,
   });
+
+  const deleteMutation = useDeletePost({
+    onSuccess: () => {
+      deletedRef.current = true;
+      void navigate({ to: "/admin/posts", search: readPostListLocation() });
+    },
+  });
+  const [settlingSave, setSettlingSave] = useState(false);
+  const handleDelete = useCallback(async () => {
+    setSettlingSave(true);
+    discardInFlightSave();
+    await waitForInFlightSave();
+    setSettlingSave(false);
+    deleteMutation.mutate({ id: initialData.id, title: post.title });
+  }, [
+    deleteMutation,
+    discardInFlightSave,
+    initialData.id,
+    post.title,
+    waitForInFlightSave,
+  ]);
 
   const {
     isGeneratingSlug,
@@ -197,8 +233,12 @@ export function PostEditor({ initialData, onSave }: PostEditorProps) {
           processState={processState}
           canPublish={canPublish}
           hasPublicSnapshot={post.hasPublicSnapshot}
+          publicSlug={post.hasPublicSnapshot ? publicSlug : null}
+          title={post.title}
           onPublish={handlePublish}
           onUnpublish={handleUnpublish}
+          onDelete={() => void handleDelete()}
+          isDeleting={settlingSave || deleteMutation.isPending}
           infoOpen={infoOpen}
           onOpenInfo={() => setInfoOpen((value) => !value)}
           onOpenHistory={() => void openHistory()}

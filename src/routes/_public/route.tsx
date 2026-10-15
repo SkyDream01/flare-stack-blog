@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import theme from "@theme";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 import { getThemePreloadImages } from "@/features/theme/site-config.helpers";
-import { authClient } from "@/lib/auth/auth.client";
+import { authClient } from "@/lib/auth/auth-client";
 import { CACHE_CONTROL } from "@/lib/constants";
 import { clientEnv } from "@/lib/env/client.env";
 import { m } from "@/paraglide/messages";

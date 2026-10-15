@@ -1,4 +1,3 @@
-import { z } from "zod";
 import * as AuthData from "@/features/auth/data/auth.data";
 import { resolveSiteConfig } from "@/features/config/config.resolve";
 import * as ConfigService from "@/features/config/service/config.service";
@@ -16,6 +15,8 @@ import {
   notificationEventSchema,
   USER_NOTIFICATION_EVENTS,
 } from "@/features/notification/notification.schema";
+import { missingWebhookField } from "@/features/webhook/webhook.providers";
+import type { WebhookEndpoint } from "@/features/webhook/webhook.schema";
 import { serverEnv } from "@/lib/env/server.env";
 
 function isAdminNotificationEvent(
@@ -38,11 +39,14 @@ function isUserNotificationEvent(
 
 function configuredWebhookEndpoint(
   config: Awaited<ReturnType<typeof ConfigService.getSystemConfig>>,
-) {
-  const url = config?.notification?.webhook?.url?.trim() ?? "";
-  const secret = config?.notification?.webhook?.secret?.trim() ?? "";
-  if (!url || !secret || !z.url().safeParse(url).success) return null;
-  return { url, secret };
+): WebhookEndpoint | null {
+  const endpoint = config?.notification?.webhook;
+  if (!endpoint || missingWebhookField(endpoint)) return null;
+  return {
+    ...endpoint,
+    url: endpoint.url.trim(),
+    secret: endpoint.secret.trim(),
+  };
 }
 
 async function enqueueEmailNotification(
@@ -68,15 +72,11 @@ async function enqueueWebhookNotification(
     NotificationEvent,
     { type: (typeof ADMIN_NOTIFICATION_EVENTS)[number] }
   >,
-  endpoint: { url: string; secret: string },
+  endpoint: WebhookEndpoint,
 ) {
   await context.env.QUEUE.send({
     type: "WEBHOOK",
-    data: {
-      url: endpoint.url,
-      secret: endpoint.secret,
-      event,
-    },
+    data: { ...endpoint, event },
   });
 }
 

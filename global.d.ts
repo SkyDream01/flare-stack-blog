@@ -34,4 +34,6 @@ declare global {
   const __APP_VERSION__: string;
   const __THEME_NAME__: import("@/features/theme/registry").ThemeName;
   const __THEME_CONFIG__: import("@/features/theme/registry").ThemeRouterConfig;
+  /** Identifies the deployed build; see the Workers Cache key in server.ts. */
+  const __BUILD_ID__: string;
 }

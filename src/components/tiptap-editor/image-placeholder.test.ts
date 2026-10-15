@@ -8,6 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import type { Editor, JSONContent } from "@tiptap/core";
+import { findInPopover } from "tests/popover";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   pressKey,
@@ -79,7 +80,7 @@ async function openFromToolbar() {
       screen.getByRole("button", { name: m.editor_toolbar_image() }),
     );
   });
-  const dialog = await screen.findByRole("dialog", {
+  const dialog = await findInPopover("dialog", {
     name: m.editor_image_picker_title(),
   });
   return { ...view, dialog };
@@ -184,7 +185,7 @@ it("keeps the placeholder on Escape and reopens the picker when it is clicked", 
     fireEvent.click(placeholder);
   });
   expect(
-    await screen.findByRole("dialog", { name: m.editor_image_picker_title() }),
+    await findInPopover("dialog", { name: m.editor_image_picker_title() }),
   ).toBeDefined();
 });
 
@@ -229,13 +230,13 @@ it("inserts a placeholder from the slash menu's image item", async () => {
   });
 
   act(() => typeText(editor, "/image"));
-  await screen.findByRole("listbox", { name: m.editor_slash_menu() });
+  await findInPopover("listbox", { name: m.editor_slash_menu() });
   act(() => {
     pressKey(editor, "Enter");
   });
 
   expect(
-    await screen.findByRole("dialog", { name: m.editor_image_picker_title() }),
+    await findInPopover("dialog", { name: m.editor_image_picker_title() }),
   ).toBeDefined();
   expect(topLevel(editor)).toEqual([
     "paragraph",

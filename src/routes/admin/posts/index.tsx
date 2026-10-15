@@ -5,6 +5,7 @@ import { adminPostsListParams } from "@/features/posts/components/post-manager/h
 import { PostManagerPageSkeleton } from "@/features/posts/components/post-manager/post-manager-skeleton";
 import { adminPostsQuery } from "@/features/posts/queries";
 import type {
+  CategoryFilter,
   SortField,
   StatusFilter,
 } from "@/features/posts/components/post-manager/types";
@@ -23,6 +24,11 @@ const searchSchema = z.object({
     .default("updatedAt")
     .catch("updatedAt"),
   search: z.string().optional().default("").catch(""),
+  category: z
+    .union([z.number().int().positive(), z.literal("none")])
+    .optional()
+    .catch(undefined),
+  tag: z.number().int().positive().optional().catch(undefined),
 });
 
 type PostsSearchParams = z.infer<typeof searchSchema>;
@@ -50,17 +56,17 @@ export const Route = createFileRoute("/admin/posts/")({
 
 function PostManagerPage() {
   const navigate = useNavigate();
-  const { page, status, sortBy, search } = Route.useSearch();
+  const current = Route.useSearch();
+  const { page, status, sortBy, search, category, tag } = current;
 
-  const updateSearch = (updates: Partial<PostsSearchParams>) => {
+  const updateSearch = (
+    updates: Partial<PostsSearchParams>,
+    replace = false,
+  ) => {
     navigate({
       to: "/admin/posts",
-      search: {
-        page: updates.page ?? 1,
-        status: updates.status ?? status,
-        sortBy: updates.sortBy ?? sortBy,
-        search: updates.search ?? search,
-      },
+      search: { ...current, page: 1, ...updates },
+      replace,
     });
   };
 
@@ -82,6 +88,8 @@ function PostManagerPage() {
       status={status}
       sortBy={sortBy}
       search={search}
+      category={category}
+      tag={tag}
       onPageChange={(newPage) => updateSearch({ page: newPage })}
       onStatusChange={(newStatus: StatusFilter) =>
         updateSearch({ status: newStatus })
@@ -90,6 +98,15 @@ function PostManagerPage() {
         updateSearch({ sortBy: nextSortBy })
       }
       onSearchChange={(newSearch) => updateSearch({ search: newSearch })}
+      onCategoryChange={(nextCategory?: CategoryFilter, replace?: boolean) =>
+        updateSearch({ category: nextCategory }, replace)
+      }
+      onTagChange={(nextTag?: number, replace?: boolean) =>
+        updateSearch({ tag: nextTag }, replace)
+      }
+      onTaxonomyFilter={(filter) =>
+        updateSearch({ category: undefined, tag: undefined, ...filter })
+      }
       onResetFilters={handleResetFilters}
     />
   );

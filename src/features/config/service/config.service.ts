@@ -15,6 +15,20 @@ import {
 import type { SiteConfig } from "@/features/config/config.schema";
 import * as ConfigRepo from "@/features/config/data/config.data";
 import * as Storage from "@/features/media/data/media.storage";
+import {
+  isWebhookEmpty,
+  missingWebhookField,
+  webhookSecretUse,
+} from "@/features/webhook/webhook.providers";
+import type {
+  WebhookEndpoint,
+  WebhookProvider,
+} from "@/features/webhook/webhook.schema";
+
+type UpdateNotifications = Extract<
+  UpdateConfigSection,
+  { section: "notifications" }
+>;
 
 export async function getSystemConfig(
   context: DbContext & { executionCtx: ExecutionContext },
@@ -52,7 +66,11 @@ function redactSnapshot(
       },
       notification: {
         ...config.notification,
-        webhook: { url: config.notification?.webhook?.url ?? "", secret: "" },
+        webhook: {
+          ...config.notification?.webhook,
+          url: config.notification?.webhook?.url ?? "",
+          secret: "",
+        },
       },
     },
     revisions: {
@@ -72,6 +90,33 @@ function changeSecret(current: string | undefined, change: SecretChange) {
     : change.action === "clear"
       ? ""
       : change.value;
+}
+/**
+ * The saved endpoint after an edit. The secret means something different per
+ * channel (a signing key, a bot token), so a kept secret does not follow the
+ * admin to another channel, and channels without one drop it.
+ */
+function nextWebhook(
+  current: WebhookEndpoint | undefined,
+  input: UpdateNotifications["notification"]["webhook"],
+  secretChange: SecretChange,
+): WebhookEndpoint {
+  const currentProvider = current?.provider ?? "generic";
+  const provider = input.provider ?? currentProvider;
+  const secret =
+    webhookSecretUse(provider) === "none" ||
+    (secretChange.action === "keep" && provider !== currentProvider)
+      ? ""
+      : changeSecret(current?.secret, secretChange);
+  const chatId = input.chatId ?? current?.chatId;
+  const template = input.template ?? current?.template;
+  return {
+    ...(provider !== "generic" && { provider }),
+    url: provider === "telegram" ? "" : input.url,
+    secret,
+    ...(chatId && { chatId }),
+    ...(template && { template }),
+  };
 }
 export async function updateSystemConfig(
   context: DbContext & { executionCtx: ExecutionContext },
@@ -101,13 +146,11 @@ export async function updateSystemConfig(
             },
             notification: {
               ...data.notification,
-              webhook: {
-                url: data.notification.webhook.url,
-                secret: changeSecret(
-                  current.config.notification?.webhook?.secret,
-                  data.secrets.webhookSecret,
-                ),
-              },
+              webhook: nextWebhook(
+                current.config.notification?.webhook,
+                data.notification.webhook,
+                data.secrets.webhookSecret,
+              ),
             },
           });
     if (data.section === "notifications") {
@@ -122,10 +165,14 @@ export async function updateSystemConfig(
           status: 400,
           data: { field: "email" },
         });
-      if (endpoint.url && !endpoint.secret)
+      // Empty turns notifications off; anything entered must be complete.
+      const missing = isWebhookEmpty(endpoint)
+        ? null
+        : missingWebhookField(endpoint);
+      if (missing)
         throw new ORPCError("CONFIG_INVALID", {
           status: 400,
-          data: { field: "notification.webhook.secret" },
+          data: { field: `notification.webhook.${missing}` },
         });
     }
     if (
@@ -152,15 +199,18 @@ export async function resolveTestSecret(
   context: DbContext,
   kind: "emailPassword" | "webhookSecret",
   input: SavedSecretInput,
+  provider: WebhookProvider = "generic",
 ) {
   if (input.action === "replace") return input.value;
   const current = await ConfigRepo.getConfigSnapshot(context.db);
   if (current.notificationRevision !== input.expectedRevision)
     throw new ORPCError("CONFIG_CONFLICT", { status: 409 });
+  const webhook = current.config.notification?.webhook;
+  // A saved secret belongs to the channel it was saved for.
+  if (kind === "webhookSecret" && (webhook?.provider ?? "generic") !== provider)
+    throw new ORPCError("CONFIG_INVALID", { status: 400 });
   const value =
-    kind === "emailPassword"
-      ? current.config.email?.password
-      : current.config.notification?.webhook?.secret;
+    kind === "emailPassword" ? current.config.email?.password : webhook?.secret;
   if (!value) throw new ORPCError("CONFIG_INVALID", { status: 400 });
   return value;
 }

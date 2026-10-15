@@ -1,29 +1,40 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Hash, Loader2, Plus, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, Hash, Plus, X } from "lucide-react";
+import { useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { FloatingPopover } from "@/components/ui/floating-popover";
+import { ListboxOption } from "@/components/ui/listbox-option";
+import { Spinner } from "@/components/ui/spinner";
 import { tagsAdminQueryOptions } from "@/features/tags/queries";
 import { orpcClient } from "@/lib/orpc";
 import type { Tag } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
-import { MOTION, useMotionPresence } from "@/hooks/use-motion";
 import { m } from "@/paraglide/messages";
+import "@/components/ui/field.css";
+
+const MENU_MAX_HEIGHT = 200;
 
 interface TagSelectorProps {
   value: Array<number>;
   onChange: (value: Array<number>) => void;
   disabled?: boolean;
+  id?: string;
+  "aria-describedby"?: string;
 }
 
 export function TagSelector({
   value = [],
   onChange,
   disabled,
+  id,
+  "aria-describedby": ariaDescribedBy,
 }: TagSelectorProps) {
   const [open, setOpen] = useState(false);
-  const present = useMotionPresence(open && !disabled, MOTION.popover);
   const [searchTerm, setSearchTerm] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
+  // -1 until the arrow keys move: Enter then acts on the typed text.
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const listId = useId();
+  const fieldRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -74,7 +85,7 @@ export function TagSelector({
       // 4. Update selection with optimistic ID immediately
       // This makes it feel instant to the user
       onChange([...valueRef.current, optimisticTag.id]);
-      setSearchTerm("");
+      changeSearch("");
 
       // Return context with snapshot and tempId
       return { previousTags, optimisticTagId: optimisticTag.id };
@@ -136,19 +147,60 @@ export function TagSelector({
     [tags, searchTerm],
   );
 
+  const changeSearch = (term: string) => {
+    setSearchTerm(term);
+    setActiveIndex(-1);
+  };
+
   const toggleTag = (tagId: number) => {
     if (value.includes(tagId)) {
       onChange(value.filter((id) => id !== tagId));
     } else {
       onChange([...value, tagId]);
     }
-    setSearchTerm("");
+    changeSearch("");
     inputRef.current?.focus();
   };
 
+  const canCreate =
+    searchTerm !== "" &&
+    !tags.some((t) => t.name.toLowerCase() === searchTerm.toLowerCase());
+  // The listbox in order: creating the typed tag, then the matching tags.
+  const options = [
+    ...(canCreate
+      ? [
+          {
+            id: `${listId}-create`,
+            pick: () => createTagMutation.mutate(searchTerm),
+          },
+        ]
+      : []),
+    ...availableTags.map((tag) => ({
+      id: `${listId}-${tag.id}`,
+      pick: () => toggleTag(tag.id),
+    })),
+  ];
+  const activeOption = open ? options[activeIndex] : undefined;
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && options.length) {
       e.preventDefault();
+      setOpen(true);
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      const next =
+        activeIndex < 0 && step < 0
+          ? options.length - 1
+          : (activeIndex + step + options.length) % options.length;
+      setActiveIndex(next);
+      document
+        .getElementById(options[next].id)
+        ?.scrollIntoView?.({ block: "nearest" });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (activeOption) {
+        activeOption.pick();
+        return;
+      }
       const trimmedTerm = searchTerm.trim();
       if (!trimmedTerm) return;
 
@@ -160,7 +212,7 @@ export function TagSelector({
         if (!value.includes(exactMatch.id)) {
           toggleTag(exactMatch.id);
         } else {
-          setSearchTerm("");
+          changeSearch("");
         }
       } else {
         createTagMutation.mutate(trimmedTerm);
@@ -175,27 +227,14 @@ export function TagSelector({
     }
   };
 
-  // Click outside to close dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   // Only show loading if we are fetching tags for the FIRST time and have no data
   const isInitialLoading = isTagsLoading && tags.length === 0;
 
   return (
-    <div className="relative group" ref={containerRef}>
+    <div className="relative group">
       {/* Main Container */}
       <div
+        ref={fieldRef}
         onClick={() => {
           if (!disabled && !isInitialLoading) {
             inputRef.current?.focus();
@@ -203,9 +242,8 @@ export function TagSelector({
           }
         }}
         className={cn(
-          "min-h-10 w-full rounded-xl bg-(--fuwari-btn-regular-bg) px-2 py-1.5 text-sm cursor-text",
-          (disabled || isInitialLoading) && "cursor-not-allowed opacity-50",
-          "flex flex-wrap items-center gap-1.5",
+          "fuwari-field-shell flex-wrap gap-1.5 py-1.5",
+          !disabled && !isInitialLoading && "cursor-text",
         )}
       >
         {/* Selected Tags */}
@@ -232,97 +270,103 @@ export function TagSelector({
         {/* Input */}
         <input
           ref={inputRef}
+          id={id}
+          aria-describedby={ariaDescribedBy}
           type="text"
-          className="h-6 min-w-20 flex-1 bg-transparent text-sm outline-none placeholder:fuwari-text-30"
+          className="h-6 min-w-20"
           placeholder={
             selectedTags.length === 0 ? m.tag_selector_search_placeholder() : ""
           }
           value={searchTerm}
           onChange={(e) => {
-            setSearchTerm(e.target.value);
+            changeSearch(e.target.value);
             setOpen(true);
           }}
+          role="combobox"
+          aria-haspopup="listbox"
           aria-expanded={open}
-          onKeyDown={(event) => {
-            if (open && event.key === "Escape") {
-              event.preventDefault();
-              event.stopPropagation();
-              setOpen(false);
-            } else handleKeyDown(event);
-          }}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={activeOption?.id}
+          onKeyDown={handleKeyDown}
           onFocus={() => !isInitialLoading && setOpen(true)}
           disabled={disabled || isInitialLoading}
         />
 
         {/* Loading Spinner */}
         {(isInitialLoading || createTagMutation.isPending) && (
-          <div className="mr-1 animate-spin fuwari-text-50">
-            <Loader2 size={12} />
-          </div>
+          <Spinner size={12} className="mr-1 fuwari-text-50" />
         )}
       </div>
 
       {/* Dropdown Menu */}
-      {present && (
+      <FloatingPopover
+        open={open && !disabled}
+        anchor={open && !disabled ? fieldRef.current : null}
+        onDismiss={() => {
+          setOpen(false);
+          setActiveIndex(-1);
+        }}
+        matchTriggerWidth
+        maxHeight={MENU_MAX_HEIGHT}
+        className="flex flex-col"
+      >
         <div
-          data-state={open && !disabled ? "open" : "closing"}
-          inert={!open || disabled}
-          className="fuwari-popover-motion absolute top-full left-0 z-50 mt-1 w-full rounded-xl bg-(--fuwari-card-bg) shadow-md ring-1 ring-(--fuwari-input-border)"
+          id={listId}
+          role="listbox"
+          aria-multiselectable="true"
+          className="min-h-0 w-full overflow-y-auto overflow-x-hidden p-1"
         >
-          <div className="max-h-50 w-full overflow-y-auto overflow-x-hidden p-1">
-            {/* Create Option */}
-            {searchTerm &&
-              !tags.some(
-                (t) => t.name.toLowerCase() === searchTerm.toLowerCase(),
-              ) && (
-                <div
-                  className="relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-sm outline-none fuwari-text-75 hover:bg-(--fuwari-btn-regular-bg)/70 hover:fuwari-text-90"
-                  onClick={() => createTagMutation.mutate(searchTerm)}
-                >
-                  <Plus className="mr-2 h-4 w-4 fuwari-text-50" />
-                  <span>{m.tag_selector_create_action({ searchTerm })}</span>
-                </div>
-              )}
+          {/* Create Option */}
+          {canCreate && (
+            <ListboxOption
+              id={options[0].id}
+              active={activeIndex === 0}
+              onActivate={() => setActiveIndex(0)}
+              onPick={options[0].pick}
+              className="px-3"
+            >
+              <Plus className="mr-2 h-4 w-4 fuwari-text-50" />
+              <span>{m.tag_selector_create_action({ searchTerm })}</span>
+            </ListboxOption>
+          )}
 
-            {/* Filtered List */}
-            {isError ? (
-              <div className="p-2 text-center text-xs text-(--fuwari-danger-fg)">
-                <p>{m.tag_selector_load_fail()}</p>
-              </div>
-            ) : availableTags.length === 0 && !searchTerm ? (
-              <p className="p-2 text-center text-xs fuwari-text-50">
-                {searchTerm
-                  ? m.tag_selector_no_match()
-                  : m.tag_selector_empty()}
-              </p>
-            ) : availableTags.length === 0 &&
-              searchTerm &&
-              !createTagMutation.isPending ? null : (
-              availableTags.map((tag) => {
-                const isSelected = value.includes(tag.id);
-                return (
-                  <div
-                    key={tag.id}
-                    className={cn(
-                      "relative flex cursor-pointer select-none items-center rounded-lg px-3 py-2 text-sm outline-none transition-colors",
-                      isSelected
-                        ? "bg-(--fuwari-btn-regular-bg) text-(--fuwari-primary)"
-                        : "fuwari-text-75 hover:bg-(--fuwari-btn-regular-bg)/70 hover:fuwari-text-90",
-                    )}
-                    onClick={() => toggleTag(tag.id)}
-                  >
-                    <Hash className="mr-2 h-4 w-4 fuwari-text-30" />
-                    <span className="flex-1 truncate">{tag.name}</span>
-                    {isSelected && (
-                      <Check className="ml-auto h-4 w-4 opacity-50" />
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
+          {/* Filtered List */}
+          {isError ? (
+            <p className="fuwari-form-field-error p-2 text-center">
+              {m.tag_selector_load_fail()}
+            </p>
+          ) : availableTags.length === 0 && !searchTerm ? (
+            <p className="p-2 text-center text-xs fuwari-text-50">
+              {searchTerm ? m.tag_selector_no_match() : m.tag_selector_empty()}
+            </p>
+          ) : availableTags.length === 0 &&
+            searchTerm &&
+            !createTagMutation.isPending ? null : (
+            availableTags.map((tag, index) => {
+              const isSelected = value.includes(tag.id);
+              const optionIndex = index + (canCreate ? 1 : 0);
+              return (
+                <ListboxOption
+                  key={tag.id}
+                  id={options[optionIndex].id}
+                  active={activeIndex === optionIndex}
+                  current={isSelected}
+                  onActivate={() => setActiveIndex(optionIndex)}
+                  onPick={options[optionIndex].pick}
+                  className="px-3"
+                >
+                  <Hash className="mr-2 h-4 w-4 fuwari-text-30" />
+                  <span className="flex-1 truncate">{tag.name}</span>
+                  {isSelected && (
+                    <Check className="ml-auto h-4 w-4 opacity-50" />
+                  )}
+                </ListboxOption>
+              );
+            })
+          )}
         </div>
-      )}
+      </FloatingPopover>
     </div>
   );
 }

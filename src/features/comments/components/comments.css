@@ -13,11 +13,12 @@
   color: var(--fuwari-fg-50);
   font-weight: 500;
 }
-.comments-section :is(button, a):focus-visible {
+.comments-section
+  :is(button, a):not(.fuwari-button, .fuwari-icon-button):focus-visible {
   outline: 2px solid var(--fuwari-primary);
   outline-offset: 3px;
 }
-.comments-section button:disabled {
+.comments-section button:not(.fuwari-button, .fuwari-icon-button):disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -34,23 +35,7 @@
   flex: 1;
   min-width: 140px;
 }
-.comments-login > a {
-  min-height: 44px;
-  padding: 10px 16px;
-  border-radius: 12px;
-  gap: 8px;
-  font-size: 14px;
-}
 .comments-muted,
-.comments-empty {
-  color: var(--fuwari-fg-50);
-  font-size: 14px;
-  line-height: 1.7;
-  padding-block: 24px;
-}
-.comments-empty {
-  text-align: center;
-}
 .comment-avatar {
   width: 40px;
   height: 40px;
@@ -128,14 +113,6 @@
   color: var(--fuwari-fg-75);
   overflow-wrap: anywhere;
 }
-.comment-blogger {
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: var(--fuwari-btn-regular-bg);
-  color: var(--fuwari-primary);
-  font-size: 11px;
-  font-weight: 400;
-}
 .comment-author .comment-reply-target,
 .comment-meta time {
   font-size: 12px;
@@ -156,8 +133,7 @@
   font-style: italic;
   padding-block: 4px;
 }
-.comment-reply-button,
-.comment-text-button {
+.comment-reply-button {
   min-height: 40px;
   padding-inline: 4px;
   border-radius: 6px;
@@ -168,8 +144,7 @@
 .comment-reply-button {
   margin-left: -4px;
 }
-.comment-reply-button:hover,
-.comment-text-button:hover {
+.comment-reply-button:hover {
   color: var(--fuwari-primary);
 }
 .comment-highlighted {
@@ -192,27 +167,8 @@
   padding-top: 20px;
 }
 .comment-thread-toggle {
+  display: flex;
   min-height: 40px;
-  border-radius: 6px;
-  color: var(--fuwari-primary);
-  font-size: 13px;
-  display: block;
-}
-.comment-reveal {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition:
-    grid-template-rows 320ms var(--fuwari-motion-ease),
-    opacity 180ms;
-}
-.comment-reveal[data-open="true"] {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-.comment-reveal > div {
-  min-height: 0;
-  overflow: hidden;
 }
 .comment-root-reply {
   margin-left: 56px;
@@ -255,7 +211,7 @@
   background: var(--fuwari-btn-regular-bg);
   border-color: color-mix(in srgb, var(--fuwari-primary) 45%, transparent);
 }
-.comments-section .comment-composer textarea {
+.comment-composer-input textarea {
   display: block;
   width: 100%;
   min-width: 0;
@@ -287,13 +243,6 @@
   align-items: center;
   gap: 16px;
 }
-.comment-composer-actions > .fuwari-btn-primary {
-  min-height: 44px;
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  gap: 8px;
-}
 .comment-challenge {
   min-width: 0;
   max-width: 100%;
@@ -302,23 +251,10 @@
   display: none;
 }
 .comment-error {
-  color: var(--fuwari-danger-fg);
-  font-size: 13px;
-  line-height: 1.7;
   margin-top: 10px;
 }
 .comment-load-error {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  color: var(--fuwari-fg-50);
-  font-size: 13px;
-  padding-block: 16px;
-}
-.comment-load-error button {
-  min-height: 40px;
-  color: var(--fuwari-primary);
+  margin-block: 12px;
 }
 .comment-load-state {
   color: var(--fuwari-fg-50);
@@ -329,12 +265,6 @@
   display: flex;
   justify-content: center;
   padding-top: 20px;
-}
-.comments-pagination button {
-  min-height: 44px;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-size: 14px;
 }
 .comment-body-height {
   overflow: hidden;
@@ -388,7 +318,7 @@
   .comment-reply-composer > .comment-avatar {
     display: none;
   }
-  .comments-section .comment-composer textarea {
+  .comment-composer-input textarea {
     font-size: 16px;
   }
   .comment-composer-footer {
@@ -400,12 +330,10 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .comment-reveal,
   .comment-item,
   .comment-body-height,
   .comment-composer-input,
-  .comment-reply-button,
-  .comment-text-button {
+  .comment-reply-button {
     transition: none;
   }
 }

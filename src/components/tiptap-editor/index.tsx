@@ -72,6 +72,7 @@ export const Editor = memo(function Editor({
           className={toolbarClassName}
           onLinkClick={() => editor?.commands.openLinkEditor()}
           onImageClick={() => editor?.commands.insertImagePlaceholder()}
+          onVideoClick={() => editor?.commands.insertVideo()}
           onFormulaInlineClick={() => editor?.commands.insertMath("inline")}
           onFormulaBlockClick={() => editor?.commands.insertMath("block")}
         />

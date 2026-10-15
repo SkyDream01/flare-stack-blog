@@ -1,9 +1,8 @@
-import { shift } from "@floating-ui/dom";
 import type { Editor } from "@tiptap/core";
 import { Extension } from "@tiptap/core";
 import { PluginKey } from "@tiptap/pm/state";
-import type { SuggestionMount, SuggestionProps } from "@tiptap/suggestion";
-import { Suggestion } from "@tiptap/suggestion";
+import type { SuggestionProps } from "@tiptap/suggestion";
+import { exitSuggestion, Suggestion } from "@tiptap/suggestion";
 import type { SlashMenuItem } from "./items";
 import { filterSlashMenuItems, SLASH_MENU_ITEMS } from "./items";
 
@@ -13,11 +12,8 @@ export interface SlashMenuState {
   query: string;
   items: ReadonlyArray<SlashMenuItem>;
   activeIndex: number;
-  /**
-   * Anchors an element below the typed `/query`, following it on scroll and
-   * resize, and returns a cleanup. Interacting outside it closes the menu.
-   */
-  mount: SuggestionMount;
+  /** Where the typed `/query` is on screen, or `null` once it is gone. */
+  clientRect: () => DOMRect | null;
 }
 
 interface SlashMenuStorage {
@@ -74,8 +70,8 @@ export const SlashMenu = Extension.create<
         query: props.query,
         items,
         activeIndex: previous?.query === props.query ? previous.activeIndex : 0,
-        // The first mount follows the typed text for the menu's lifetime.
-        mount: previous?.mount ?? props.mount,
+        // The first rect follows the typed text for the menu's lifetime.
+        clientRect: previous?.clientRect ?? props.clientRect ?? (() => null),
       });
     };
 
@@ -99,8 +95,6 @@ export const SlashMenu = Extension.create<
           !state.doc.resolve(range.from).parent.type.spec.code,
         command: ({ editor: target, range, props: item }) =>
           item.run({ editor: target, range }),
-        // Keep the menu inside narrow viewports.
-        floatingUi: { strategy: "fixed", middleware: [shift({ padding: 8 })] },
         render: () => ({
           onStart: (props) => {
             storage.menu = null;
@@ -148,6 +142,11 @@ export function subscribeSlashMenu(editor: Editor, listener: () => void) {
   return () => {
     storage?.listeners.delete(listener);
   };
+}
+
+/** Closes the slash menu, as Escape does, leaving the typed text. */
+export function closeSlashMenu(editor: Editor) {
+  if (getSlashMenu(editor)) exitSuggestion(editor.view, slashMenuKey);
 }
 
 /** Makes the item at `index` the active one, as hovering it does. */

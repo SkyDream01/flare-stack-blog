@@ -1,8 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { CircleAlert } from "lucide-react";
 import type { ReactNode } from "react";
+import { Button, buttonClass } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
 import type { useForgotPasswordForm } from "../hooks/use-forgot-password-form";
-import { AuthField, AuthHeading, AuthStatus } from "./auth-elements";
+import { AuthHeading, AuthStatus } from "./auth-elements";
+import { Callout } from "@/components/ui/callout";
 import { m } from "@/paraglide/messages";
 
 export function ForgotPasswordPage({
@@ -19,7 +23,14 @@ export function ForgotPasswordPage({
         title={m.forgot_password_success_title()}
         description={m.forgot_password_success_desc({ email: form.sentEmail })}
       >
-        <Link to="/login" className="auth-action fuwari-btn-primary">
+        <Link
+          to="/login"
+          className={buttonClass({
+            variant: "primary",
+            size: "lg",
+            className: "auth-action",
+          })}
+        >
           {m.forgot_password_back_to_login()}
         </Link>
       </AuthStatus>
@@ -31,11 +42,12 @@ export function ForgotPasswordPage({
         description={m.forgot_password_header_desc()}
       />
       <form className="auth-form" onSubmit={form.handleSubmit} noValidate>
-        <AuthField
+        <FormField
           label={m.forgot_password_email_label()}
           error={form.errors.email?.message}
+          required
         >
-          <input
+          <Input
             {...form.register("email")}
             type="email"
             autoComplete="email"
@@ -44,23 +56,25 @@ export function ForgotPasswordPage({
             placeholder={m.login_email_placeholder()}
             disabled={form.isSubmitting}
           />
-        </AuthField>
+        </FormField>
         {form.submitError && (
-          <p className="auth-feedback" role="alert">
+          <Callout tone="danger" icon={CircleAlert} role="alert">
             {form.submitError}
-          </p>
+          </Callout>
         )}
         <div className="auth-verification">{turnstileElement}</div>
-        <button
+        <Button
           type="submit"
-          className="auth-action fuwari-btn-primary"
-          disabled={form.isSubmitting || form.turnstilePending}
+          variant="primary"
+          size="lg"
+          className="auth-action"
+          disabled={form.turnstilePending}
+          loading={form.isSubmitting}
         >
-          {form.isSubmitting && <Loader2 size={16} className="animate-spin" />}
           {form.isSubmitting
             ? m.forgot_password_submitting()
             : m.forgot_password_submit()}
-        </button>
+        </Button>
       </form>
       <footer className="auth-register">
         <Link to="/login">{m.register_back_to_login()}</Link>

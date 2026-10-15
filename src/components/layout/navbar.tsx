@@ -2,6 +2,7 @@ import { Link, useLocation, useRouteContext } from "@tanstack/react-router";
 import { ChevronDown, Home, Menu, Search, UserIcon, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/common/theme-toggle";
+import { IconButton } from "@/components/ui/icon-button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { NavOption, UserInfo } from "./layout-props";
 import { MOTION, useMotionPresence } from "@/hooks/use-motion";
@@ -149,10 +150,10 @@ export function Navbar({
           <div className="public-desktop-tools">
             <ThemeToggle className="public-tool-button" />
             <LanguageSwitcher className="public-tool-button" />
-            <button
-              type="button"
-              className="public-tool-button public-account-trigger"
-              aria-label={user ? m.profile_title() : m.nav_login_register()}
+            <IconButton
+              size="lg"
+              className="public-account-trigger"
+              label={user ? m.profile_title() : m.nav_login_register()}
               aria-expanded={open && !mobile}
               aria-controls="public-navigation-panel"
               onClick={(event) => toggle(event.currentTarget, false)}
@@ -165,14 +166,12 @@ export function Navbar({
                 <UserIcon size={18} strokeWidth={1.5} />
               )}
               <ChevronDown size={12} />
-            </button>
+            </IconButton>
           </div>
-          <button
-            type="button"
-            className="public-tool-button public-mobile-trigger"
-            aria-label={
-              open && mobile ? m.common_close() : m.common_open_menu()
-            }
+          <IconButton
+            size="lg"
+            className="public-mobile-trigger"
+            label={open && mobile ? m.common_close() : m.common_open_menu()}
             aria-expanded={open && mobile}
             aria-controls="public-navigation-panel"
             onClick={(event) => toggle(event.currentTarget, true)}
@@ -182,7 +181,7 @@ export function Navbar({
             ) : (
               <Menu size={20} strokeWidth={1.5} />
             )}
-          </button>
+          </IconButton>
         </div>
         {present && (
           <div

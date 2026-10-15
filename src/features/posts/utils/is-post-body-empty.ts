@@ -2,6 +2,7 @@ import type { JSONContent } from "@tiptap/react";
 
 const BODY_NODE_TYPES = new Set([
   "image",
+  "video",
   "codeBlock",
   "table",
   "inlineMath",

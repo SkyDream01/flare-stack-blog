@@ -2,7 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Copy, ExternalLink, FileText, Upload, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
 import { FuwariModal } from "@/components/ui/fuwari-modal";
+import { IconButton } from "@/components/ui/icon-button";
+import { SectionHeading } from "@/components/ui/page-heading";
 import {
   MOTION,
   useContentMotion,
@@ -70,17 +73,21 @@ export function MediaDetail({
 
   const content = (
     <>
-      <header className="media-inspector-header">
-        <h2>{m.media_preview_title()}</h2>
-        <button
-          type="button"
-          aria-label={m.common_close()}
-          disabled={preventClose || busy}
-          onClick={onClose}
-        >
-          <X size={19} />
-        </button>
-      </header>
+      <SectionHeading
+        className="media-inspector-header"
+        size="sm"
+        title={m.media_preview_title()}
+        actions={
+          <IconButton
+            label={m.common_close()}
+            size="md"
+            disabled={preventClose || busy}
+            onClick={onClose}
+          >
+            <X size={19} />
+          </IconButton>
+        }
+      />
       <div ref={contentRef}>
         <div className="media-inspector-preview">
           <img
@@ -115,9 +122,9 @@ export function MediaDetail({
           ) : isError ? (
             <p>
               {m.media_reference_fail()}{" "}
-              <button type="button" onClick={() => void refetch()}>
+              <Button variant="text" size="sm" onClick={() => void refetch()}>
                 {m.media_load_retry()}
-              </button>
+              </Button>
             </p>
           ) : (
             linkedPosts.map((post) => (
@@ -136,9 +143,8 @@ export function MediaDetail({
           )}
         </section>
         <div className="media-inspector-actions">
-          <button
-            type="button"
-            className="fuwari-btn-regular"
+          <Button
+            icon={<Copy size={16} />}
             onClick={async () => {
               try {
                 await navigator.clipboard.writeText(
@@ -150,28 +156,28 @@ export function MediaDetail({
               }
             }}
           >
-            <Copy size={16} />
             {m.media_copy_link()}
-          </button>
-          <button
-            type="button"
-            className="fuwari-btn-regular"
+          </Button>
+          <Button
+            icon={<Upload size={16} />}
+            loading={isReplacing}
             disabled={busy}
             onClick={() => fileRef.current?.click()}
           >
-            <Upload size={16} />
             {isReplacing ? m.common_processing() : m.media_replace()}
-          </button>
+          </Button>
         </div>
         {asset.postCount === 0 ? (
-          <button
-            type="button"
+          <Button
+            variant="text"
+            size="sm"
+            tone="danger"
             className="media-inspector-delete"
             disabled={busy}
             onClick={() => onDelete(asset)}
           >
             {m.media_delete()}
-          </button>
+          </Button>
         ) : null}
         <input
           ref={fileRef}
@@ -201,7 +207,7 @@ export function MediaDetail({
       open={open}
       onClose={onClose}
       busy={preventClose || busy}
-      className="media-inspector media-inspector-dialog"
+      className="media-inspector media-inspector-dialog admin-workspace"
       label={m.media_preview_title()}
     >
       {content}

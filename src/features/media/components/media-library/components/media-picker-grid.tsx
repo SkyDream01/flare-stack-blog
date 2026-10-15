@@ -1,4 +1,6 @@
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/paraglide/messages";
 import type { useMediaPicker } from "../hooks";
 import type { MediaAsset } from "../types";
@@ -29,19 +31,18 @@ export function MediaPickerGrid({
         )}
       >
         {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className="aspect-square rounded-xl bg-(--fuwari-btn-regular-bg) animate-pulse"
-          />
+          <Skeleton key={i} className="aspect-square rounded-xl" />
         ))}
       </div>
     );
   }
   if (mediaItems.length === 0) {
     return (
-      <div className="py-16 text-center text-sm fuwari-text-50">
-        {m.media_empty()}
-      </div>
+      <EmptyState
+        size="compact"
+        className="py-16"
+        description={m.media_empty()}
+      />
     );
   }
   return (

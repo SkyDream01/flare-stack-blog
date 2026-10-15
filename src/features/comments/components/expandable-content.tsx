@@ -1,5 +1,6 @@
 import { useLayoutEffect, useId, useRef, useState } from "react";
 import { CommentBody } from "@/features/comments/components/comment-body";
+import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 
 export function ExpandableContent({
@@ -55,15 +56,16 @@ export function ExpandableContent({
         </div>
       </div>
       {size && size.full > size.collapsed + 1 && (
-        <button
-          type="button"
+        <Button
+          variant="text"
+          size="sm"
           className="comment-thread-toggle"
           aria-expanded={expanded}
           aria-controls={id}
           onClick={() => setExpanded((value) => !value)}
         >
           {expanded ? m.common_collapse() : m.common_expand_all()}
-        </button>
+        </Button>
       )}
     </div>
   );

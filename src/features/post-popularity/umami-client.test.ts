@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createUmamiClient, resolveUmamiApiConfig } from "./data/umami.client";
+import { createUmamiClient, resolveUmamiApiConfig } from "./data/umami-api";
 
 describe("Umami API configuration", () => {
   it("uses a Cloud API key when configured", () => {

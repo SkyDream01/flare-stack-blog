@@ -60,7 +60,11 @@ async function renderPostEditorPage(onSave: PostEditorProps["onSave"]) {
       createElement(
         AdminChromeProvider,
         null,
-        createElement(PostEditor, { initialData: INITIAL, onSave }),
+        createElement(PostEditor, {
+          initialData: INITIAL,
+          publicSlug: null,
+          onSave,
+        }),
       ),
     ),
   );

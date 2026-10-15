@@ -1,5 +1,4 @@
 .friend-workspace {
-  --friend-unit: clamp(1px, 0.07vw, 1.5px);
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -7,51 +6,18 @@
   min-height: 0;
   overflow: hidden;
   color: var(--fuwari-fg-90);
+  --fuwari-field-height: calc(44 * var(--admin-unit));
+  --fuwari-field-font-size: calc(14 * var(--admin-unit));
+  --fuwari-button-height: calc(40 * var(--admin-unit));
+  --fuwari-button-font-size: calc(14 * var(--admin-unit));
+  --fuwari-button-padding-x: calc(18 * var(--admin-unit));
 }
 .friend-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  padding: calc(28 * var(--friend-unit)) calc(30 * var(--friend-unit));
-  flex-shrink: 0;
-}
-.friend-header h1 {
-  font-size: calc(26 * var(--friend-unit));
-  font-weight: 700;
-}
-.friend-header p {
-  color: var(--fuwari-fg-50);
-  font-size: calc(13 * var(--friend-unit));
-  margin-top: 8px;
-}
-.friend-button {
-  min-height: calc(40 * var(--friend-unit));
-  padding: 8px calc(18 * var(--friend-unit));
-  border-radius: 12px;
-  font-size: calc(14 * var(--friend-unit));
-  font-weight: 500;
+  padding: calc(28 * var(--admin-unit)) calc(30 * var(--admin-unit));
 }
 .friend-tabs {
-  display: flex;
-  gap: calc(28 * var(--friend-unit));
-  margin: 0 calc(30 * var(--friend-unit));
-  border-bottom: 1px solid var(--fuwari-input-border);
+  margin: 0 calc(30 * var(--admin-unit));
   flex-shrink: 0;
-}
-.friend-tabs button {
-  padding: 14px 4px;
-  border-bottom: 2px solid transparent;
-  font-size: calc(14 * var(--friend-unit));
-}
-.friend-tabs button.active {
-  color: var(--fuwari-primary);
-  border-color: var(--fuwari-primary);
-}
-.friend-tabs span {
-  margin-left: 8px;
-  font-size: 0.9em;
-  font-variant-numeric: tabular-nums;
 }
 .friend-body {
   display: grid;
@@ -66,34 +32,8 @@
   border-right: 1px solid var(--fuwari-input-border);
 }
 .friend-search {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin: calc(20 * var(--friend-unit));
-  padding: 12px;
-  border: 1px solid var(--fuwari-input-border);
-  border-radius: 10px;
-  color: var(--fuwari-fg-50);
-  background: var(--fuwari-input-bg);
-}
-.friend-search:focus-within {
-  border-color: var(--fuwari-primary);
-  box-shadow: 0 0 0 3px
-    color-mix(in srgb, var(--fuwari-primary) 15%, transparent);
-}
-.friend-search input {
-  width: 100%;
-  min-width: 0;
-  background: transparent;
-  border: 0;
-  outline: none;
-  box-shadow: none;
-  font-size: calc(13 * var(--friend-unit));
-  color: var(--fuwari-fg-90);
-}
-.friend-search input:focus {
-  outline: none;
-  box-shadow: none;
+  width: auto;
+  margin: calc(20 * var(--admin-unit));
 }
 .friend-queue-scroll,
 .friend-detail-scroll {
@@ -111,7 +51,7 @@
   text-align: left;
   width: 100%;
   gap: 14px;
-  padding: calc(20 * var(--friend-unit));
+  padding: calc(20 * var(--admin-unit));
   border-bottom: 1px solid var(--fuwari-input-border);
   border-left: 3px solid transparent;
   transition:
@@ -128,8 +68,8 @@
 .friend-logo {
   display: grid;
   place-items: center;
-  width: calc(48 * var(--friend-unit));
-  height: calc(48 * var(--friend-unit));
+  width: calc(48 * var(--admin-unit));
+  height: calc(48 * var(--admin-unit));
   border-radius: 50%;
   flex-shrink: 0;
   overflow: hidden;
@@ -146,7 +86,7 @@
   flex-direction: column;
   min-width: 0;
   gap: 5px;
-  font-size: calc(14 * var(--friend-unit));
+  font-size: calc(14 * var(--admin-unit));
 }
 .friend-queue-copy strong,
 .friend-queue-copy span {
@@ -167,23 +107,23 @@
 }
 .friend-detail-scroll {
   flex: 1;
-  padding: calc(30 * var(--friend-unit));
+  padding: calc(30 * var(--admin-unit));
 }
 .friend-site-heading {
   display: flex;
   align-items: center;
-  gap: calc(22 * var(--friend-unit));
-  padding-bottom: calc(30 * var(--friend-unit));
+  gap: calc(22 * var(--admin-unit));
+  padding-bottom: calc(30 * var(--admin-unit));
 }
 .friend-site-heading > div {
   min-width: 0;
 }
 .friend-site-heading .friend-logo {
-  width: calc(80 * var(--friend-unit));
-  height: calc(80 * var(--friend-unit));
+  width: calc(80 * var(--admin-unit));
+  height: calc(80 * var(--admin-unit));
 }
 .friend-site-heading h2 {
-  font-size: calc(24 * var(--friend-unit));
+  font-size: calc(24 * var(--admin-unit));
   font-weight: 700;
   overflow-wrap: anywhere;
 }
@@ -193,21 +133,21 @@
   align-items: center;
   gap: 8px;
   color: var(--fuwari-primary);
-  font-size: calc(13 * var(--friend-unit));
+  font-size: calc(13 * var(--admin-unit));
   margin-top: 10px;
   overflow-wrap: anywhere;
 }
 .friend-section {
   border-top: 1px solid var(--fuwari-input-border);
-  padding: calc(24 * var(--friend-unit)) 0;
+  padding: calc(24 * var(--admin-unit)) 0;
 }
 .friend-section h3 {
-  font-size: calc(14 * var(--friend-unit));
+  font-size: calc(14 * var(--admin-unit));
   font-weight: 600;
   margin-bottom: 10px;
 }
 .friend-section p {
-  font-size: calc(14 * var(--friend-unit));
+  font-size: calc(14 * var(--admin-unit));
   line-height: 1.8;
   color: var(--fuwari-fg-75);
   white-space: pre-wrap;
@@ -230,12 +170,12 @@
   min-width: 0;
 }
 .friend-preview strong {
-  font-size: calc(15 * var(--friend-unit));
+  font-size: calc(15 * var(--admin-unit));
   overflow-wrap: anywhere;
 }
 .friend-preview p {
   margin-top: 6px;
-  font-size: calc(13 * var(--friend-unit));
+  font-size: calc(13 * var(--admin-unit));
 }
 .friend-actions {
   display: flex;
@@ -243,7 +183,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: calc(20 * var(--friend-unit));
+  padding: calc(20 * var(--admin-unit));
   border-top: 1px solid var(--fuwari-input-border);
   flex-shrink: 0;
 }
@@ -257,41 +197,27 @@
   color: var(--fuwari-fg-50);
   font-size: 12px;
 }
-.friend-step button {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--fuwari-btn-regular-bg);
-}
-.friend-workspace button:disabled {
+.friend-workspace button:not(.fuwari-button, .fuwari-icon-button):disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
-.friend-workspace button:focus-visible,
-.friend-workspace a:focus-visible {
+.friend-workspace
+  :is(
+    button:not(
+      .fuwari-button,
+      .fuwari-icon-button,
+      .fuwari-tab,
+      .fuwari-segment
+    ),
+    a
+  ):focus-visible {
   outline: 2px solid var(--fuwari-primary);
   outline-offset: 2px;
 }
-.friend-danger {
-  color: var(--fuwari-fg-50);
-  font-size: 13px;
-  padding: 10px;
-}
-.friend-danger:hover {
-  color: var(--fuwari-danger-fg);
-}
 .friend-pagination {
-  padding: 8px calc(24 * var(--friend-unit));
+  padding: 8px calc(24 * var(--admin-unit));
   border-top: 1px solid var(--fuwari-input-border);
   flex-shrink: 0;
-}
-.friend-empty {
-  padding: 40px 20px;
-  text-align: center;
-  color: var(--fuwari-fg-50);
-  font-size: 14px;
 }
 .friend-detail-placeholder {
   flex: 1;
@@ -310,18 +236,14 @@
   .friend-header {
     padding: 18px;
   }
-  .friend-header h1 {
-    font-size: 22px;
-  }
   .friend-header p {
     display: none;
   }
-  .friend-header > button {
+  .friend-header .fuwari-heading-actions {
     display: none;
   }
   .friend-tabs {
     margin: 0 18px;
-    gap: 22px;
   }
   .friend-body {
     display: block;
@@ -386,14 +308,11 @@
   .friend-step {
     gap: 5px;
   }
-  .friend-step button {
-    width: 30px;
-  }
   .friend-decisions {
     gap: 6px;
   }
-  .friend-button {
-    padding: 8px 12px;
+  .friend-workspace {
+    --fuwari-button-padding-x: 12px;
   }
   .friend-pagination {
     padding: 4px 16px;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tableMenuPosition } from "./table-menu-position";
+import { tableMenuAnchor } from "./table-menu-position";
 
 const rect = (left: number, top: number, width: number, height: number) => ({
   left,
@@ -8,49 +8,33 @@ const rect = (left: number, top: number, width: number, height: number) => ({
   bottom: top + height,
 });
 
-const base = {
-  menuWidth: 360,
-  viewportWidth: 1400,
-  visibleTop: 160,
-};
-
-describe("tableMenuPosition", () => {
-  it("sits above the table, aligned to its right edge", () => {
+describe("tableMenuAnchor", () => {
+  it("sits above the table while there is room below the visible top", () => {
+    const table = rect(344, 400, 974, 160);
     expect(
-      tableMenuPosition({
-        ...base,
-        table: rect(344, 400, 974, 160),
+      tableMenuAnchor({
+        table,
         cell: rect(1000, 460, 318, 44),
+        visibleTop: 160,
       }),
-    ).toEqual({ top: 400, left: 958 });
+    ).toBe(table);
   });
 
-  it("falls back to above the active cell once the table top has scrolled away", () => {
+  it("falls back to the active cell once the table top has scrolled away", () => {
+    const cell = rect(344, 500, 318, 44);
     expect(
-      tableMenuPosition({
-        ...base,
+      tableMenuAnchor({
         table: rect(344, 40, 974, 900),
-        cell: rect(344, 500, 318, 44),
+        cell,
+        visibleTop: 160,
       }),
-    ).toEqual({ top: 500, left: 318 + 344 - 360 });
-  });
-
-  it("stays inside the viewport", () => {
+    ).toBe(cell);
     expect(
-      tableMenuPosition({
-        ...base,
-        viewportWidth: 1100,
-        table: rect(344, 400, 974, 160),
-        cell: rect(1000, 460, 318, 44),
+      tableMenuAnchor({
+        table: rect(344, 200, 974, 900),
+        cell,
+        visibleTop: 160,
       }),
-    ).toEqual({ top: 400, left: 1100 - 8 - 360 });
-    expect(
-      tableMenuPosition({
-        ...base,
-        menuWidth: 500,
-        table: rect(0, 400, 300, 160),
-        cell: rect(0, 460, 100, 44),
-      }),
-    ).toEqual({ top: 400, left: 8 });
+    ).toBe(cell);
   });
 });

@@ -15,6 +15,8 @@ it("restores a filtered page and keeps its scroll separate from other pages", ()
     status: "DRAFT" as const,
     sortBy: "publishedAt" as const,
     search: "example",
+    category: "none" as const,
+    tag: 3,
   };
   savePostListLocation(location);
   savePostListPosition(JSON.stringify(location), { top: 350, left: 0 });
@@ -27,6 +29,11 @@ it("restores a filtered page and keeps its scroll separate from other pages", ()
 });
 it("ignores malformed saved state and bounds the position cache", () => {
   sessionStorage.setItem("fuwari:admin:post-list-location", '{"page":-1}');
+  expect(readPostListLocation()).toEqual(DEFAULT_POST_LIST_LOCATION);
+  sessionStorage.setItem(
+    "fuwari:admin:post-list-location",
+    JSON.stringify({ ...DEFAULT_POST_LIST_LOCATION, tag: "rust" }),
+  );
   sessionStorage.setItem("fuwari:admin:post-list-positions", "broken");
   expect(readPostListLocation()).toEqual(DEFAULT_POST_LIST_LOCATION);
   expect(readPostListPosition("a")).toEqual({ top: 0, left: 0 });

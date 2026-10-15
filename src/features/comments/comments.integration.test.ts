@@ -8,6 +8,11 @@ import {
   seedUser,
 } from "tests/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
+import {
+  CommentSelectSchema,
+  GetRootCommentsResponseSchema,
+} from "@/features/comments/comments.schema";
 import * as CommentService from "@/features/comments/comments.service";
 import * as CommentRepo from "@/features/comments/data/comments.data";
 import { DEFAULT_CONFIG } from "@/features/config/config.schema";
@@ -1098,6 +1103,199 @@ describe("Comments Integration", () => {
               }),
             }),
           }),
+        );
+      });
+    });
+
+    describe("Handled Comments", () => {
+      const handledAtOf = async (id: number) =>
+        (await CommentRepo.findCommentById(adminContext.db, id))?.handledAt ??
+        null;
+
+      it("marks a comment handled and unmarks it", async () => {
+        const comment = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "谢谢up主",
+          }),
+        );
+        expect(await handledAtOf(comment.id)).toBeNull();
+
+        expect(
+          unwrap(
+            await CommentService.markCommentHandled(adminContext, {
+              id: comment.id,
+            }),
+          ),
+        ).toEqual({ success: true });
+        expect(await handledAtOf(comment.id)).toBeInstanceOf(Date);
+
+        unwrap(
+          await CommentService.unmarkCommentHandled(adminContext, {
+            id: comment.id,
+          }),
+        );
+        expect(await handledAtOf(comment.id)).toBeNull();
+      });
+
+      it("keeps updatedAt when marking a comment handled", async () => {
+        const comment = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Unchanged",
+          }),
+        );
+        await adminContext.db
+          .update(CommentsTable)
+          .set({ updatedAt: new Date(1_000_000_000_000) })
+          .where(eq(CommentsTable.id, comment.id));
+
+        unwrap(
+          await CommentService.markCommentHandled(adminContext, {
+            id: comment.id,
+          }),
+        );
+
+        const after = await CommentRepo.findCommentById(
+          adminContext.db,
+          comment.id,
+        );
+        expect(after?.handledAt).toBeInstanceOf(Date);
+        expect(after?.updatedAt).toEqual(new Date(1_000_000_000_000));
+      });
+
+      it("reports a missing comment", async () => {
+        const marked = await CommentService.markCommentHandled(adminContext, {
+          id: 999_999,
+        });
+        expect(marked.error?.reason).toBe("COMMENT_NOT_FOUND");
+        const unmarked = await CommentService.unmarkCommentHandled(
+          adminContext,
+          { id: 999_999 },
+        );
+        expect(unmarked.error?.reason).toBe("COMMENT_NOT_FOUND");
+      });
+
+      it("marks the comment an Admin replies to handled, and keeps it after the reply is deleted", async () => {
+        const root = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Question",
+          }),
+        );
+        const followUp = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Follow-up",
+            rootId: root.id,
+            replyToCommentId: root.id,
+          }),
+        );
+
+        const reply = unwrap(
+          await CommentService.createComment(adminContext, {
+            postId,
+            content: "Answer",
+            rootId: root.id,
+            replyToCommentId: followUp.id,
+          }),
+        );
+
+        expect(await handledAtOf(followUp.id)).toBeInstanceOf(Date);
+        expect(await handledAtOf(root.id)).toBeNull();
+
+        unwrap(
+          await CommentService.deleteComment(adminContext, { id: reply.id }),
+        );
+        expect(await handledAtOf(followUp.id)).toBeInstanceOf(Date);
+      });
+
+      it("does not mark the parent handled when a visitor replies", async () => {
+        const root = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Root",
+          }),
+        );
+        unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Me too",
+            rootId: root.id,
+          }),
+        );
+        expect(await handledAtOf(root.id)).toBeNull();
+      });
+
+      it("marks every unreplied comment handled and returns the count", async () => {
+        const first = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "First",
+          }),
+        );
+        const second = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Second",
+          }),
+        );
+        const alreadyHandled = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Handled before",
+          }),
+        );
+        unwrap(
+          await CommentService.markCommentHandled(adminContext, {
+            id: alreadyHandled.id,
+          }),
+        );
+        const adminComment = unwrap(
+          await CommentService.createComment(adminContext, {
+            postId,
+            content: "Admin note",
+          }),
+        );
+
+        expect(
+          await CommentService.markAllUnrepliedCommentsHandled(adminContext),
+        ).toEqual({ count: 2 });
+        expect(await handledAtOf(first.id)).toBeInstanceOf(Date);
+        expect(await handledAtOf(second.id)).toBeInstanceOf(Date);
+        expect(await handledAtOf(adminComment.id)).toBeNull();
+
+        expect(
+          await CommentService.markAllUnrepliedCommentsHandled(adminContext),
+        ).toEqual({ count: 0 });
+      });
+
+      it("keeps handledAt out of public comment responses", async () => {
+        const created = unwrap(
+          await CommentService.createComment(userContext, {
+            postId,
+            content: "Public",
+          }),
+        );
+        expect(created).not.toHaveProperty("handledAt");
+        unwrap(
+          await CommentService.markCommentHandled(adminContext, {
+            id: created.id,
+          }),
+        );
+
+        const roots = await CommentService.getRootCommentsByPostId(
+          userContext,
+          { postId },
+        );
+        expect(roots.items[0]).not.toHaveProperty("handledAt");
+        expect(
+          GetRootCommentsResponseSchema.parse(roots).items[0],
+        ).not.toHaveProperty("handledAt");
+
+        const mine = await CommentService.getMyComments(userContext, {});
+        expect(z.array(CommentSelectSchema).parse(mine)[0]).not.toHaveProperty(
+          "handledAt",
         );
       });
     });

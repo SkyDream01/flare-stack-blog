@@ -1,7 +1,6 @@
 import type { Editor, NodeViewProps } from "@tiptap/react";
 import { NodeViewContent, NodeViewWrapper } from "@tiptap/react";
 import { TextSelection } from "@tiptap/pm/state";
-import { Check, Copy } from "lucide-react";
 import {
   useContext,
   useEffect,
@@ -11,10 +10,10 @@ import {
 } from "react";
 import { ShikiHtml } from "@/components/content/shiki-html";
 import { ThemedMermaidDiagram } from "@/components/content/themed-mermaid-diagram";
+import { CodeCopyButton } from "@/components/ui/copy-button";
 import { codeBlockHighlightKey } from "@/features/posts/utils/apply-code-block-highlighting";
 import { isMermaidLanguage, PLAIN_TEXT } from "@/lib/code-languages";
 import { cn } from "@/lib/utils";
-import { m } from "@/paraglide/messages";
 import { CodeBlockHighlightContext } from "./code-block-highlight-context";
 import {
   codeBlockTextPos,
@@ -57,7 +56,6 @@ export function CodeBlockView({
   updateAttributes,
 }: NodeViewProps) {
   const snapshotHtml = useContext(CodeBlockHighlightContext);
-  const [copied, setCopied] = useState(false);
   const [, rerender] = useReducer((tick: number) => tick + 1, 0);
   const [computedHtml, setComputedHtml] = useState<string | undefined>();
   const [computedKey, setComputedKey] = useState<string | null>(null);
@@ -111,12 +109,6 @@ export function CodeBlockView({
     };
   }, [editing, html, isMermaid, language, code]);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const enterSourceEditing = (
     event: MouseEvent<HTMLDivElement>,
     offset: number,
@@ -147,22 +139,7 @@ export function CodeBlockView({
           contentEditable={false}
           className="absolute top-2 right-2 z-10 flex items-center gap-1"
         >
-          <button
-            type="button"
-            onClick={handleCopy}
-            aria-label={m.common_copy_code()}
-            className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-lg border border-transparent bg-transparent text-gray-400 opacity-0 transition-all duration-300 group-hover:opacity-100",
-              "hover:border-black/10 hover:bg-black/5 hover:text-black dark:hover:border-white/20 dark:hover:bg-white/10 dark:hover:text-white",
-              copied && "scale-110 text-green-500 hover:text-green-500",
-            )}
-          >
-            {copied ? (
-              <Check strokeWidth={2.5} className="h-4 w-4" />
-            ) : (
-              <Copy strokeWidth={2.5} className="h-4 w-4" />
-            )}
-          </button>
+          <CodeCopyButton code={code} />
           {editor.isEditable ? (
             <LanguagePicker
               value={language}

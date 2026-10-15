@@ -1,6 +1,6 @@
 {
   "name": "flare-stack-blog",
-  "version": "3.4.0",
+  "version": "3.6.0",
   "private": true,
   "license": "GPL-3.0-only",
   "author": {
@@ -55,11 +55,11 @@
     "@tanstack/react-devtools": "^0.10.13",
     "@tanstack/react-query": "^5.104.0",
     "@tanstack/react-query-devtools": "^5.104.0",
-    "@tanstack/react-router": "^1.170.40",
+    "@tanstack/react-router": "^1.170.44",
     "@tanstack/react-router-devtools": "^1.167.2",
     "@tanstack/react-router-ssr-query": "^1.167.3",
-    "@tanstack/react-start": "^1.168.59",
-    "@tanstack/router-plugin": "^1.168.41",
+    "@tanstack/react-start": "1.169.2",
+    "@tanstack/router-plugin": "^1.168.46",
     "@tiptap/core": "^3.20.0",
     "@tiptap/extension-blockquote": "^3.20.0",
     "@tiptap/extension-code-block": "^3.20.0",

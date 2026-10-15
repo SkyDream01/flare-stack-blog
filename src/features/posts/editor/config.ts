@@ -10,6 +10,7 @@ import { MathEditing } from "@/features/posts/editor/extensions/math-editing";
 import { createSchemaExtensions } from "@/features/posts/editor/schema";
 import { LinkEditing } from "@/features/posts/editor/extensions/link-editing";
 import { SlashMenu } from "@/features/posts/editor/extensions/slash-menu";
+import { VideoEditing } from "@/features/posts/editor/extensions/video";
 import type { ImageUploadResult } from "@/features/posts/editor/extensions/upload-image";
 import { ImageUpload } from "@/features/posts/editor/extensions/upload-image";
 import { orpcClient } from "@/lib/orpc";
@@ -55,6 +56,16 @@ export const editorSchema = createSchemaExtensions({
   codeBlock: CodeBlockExtension,
   image: ImageExtension,
   mathematics: [MathEditing],
+  video: VideoEditing.configure({
+    fetchMeta: (source) =>
+      orpcClient.posts.admin
+        .videoMeta({
+          provider: source.provider,
+          videoId: source.videoId,
+          page: source.page,
+        })
+        .catch(() => null),
+  }),
 });
 
 export const extensions = [

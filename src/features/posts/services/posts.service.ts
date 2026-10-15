@@ -326,6 +326,9 @@ export async function listAdminPostsPage(
       publicOnly: data.publicOnly,
       search: data.search,
       taxonomy: data.taxonomy,
+      categoryId: data.categoryId,
+      uncategorized: data.uncategorized,
+      tagId: data.tagId,
     }),
   ]);
   const total =
@@ -347,6 +350,9 @@ export async function getPosts(context: DbContext, data: GetPostsInput) {
     publicOnly: data.publicOnly,
     search: data.search,
     taxonomy: data.taxonomy,
+    categoryId: data.categoryId,
+    uncategorized: data.uncategorized,
+    tagId: data.tagId,
     sortDir: data.sortDir,
     sortBy: data.sortBy,
     includeContent: data.includeContent,
@@ -362,6 +368,9 @@ export async function getPostsCount(
     publicOnly: data.publicOnly,
     search: data.search,
     taxonomy: data.taxonomy,
+    categoryId: data.categoryId,
+    uncategorized: data.uncategorized,
+    tagId: data.tagId,
   });
 }
 
@@ -393,6 +402,7 @@ export async function findPostById(
 
   return {
     ...stripPublicSnapshot(post),
+    publicSlug: post.publicSlug,
     coverMediaId: coverMedia ? post.coverMediaId : null,
     cover: coverMedia ? toAdminCover(coverMedia) : null,
     hasPublicSnapshot: post.publicSnapshotJson != null,

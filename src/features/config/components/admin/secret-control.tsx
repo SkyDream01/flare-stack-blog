@@ -1,20 +1,26 @@
 import { SettingsDisclosure } from "./settings-disclosure";
-import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useFormContext } from "react-hook-form";
+import { Button } from "@/components/ui/button";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
+import { PasswordInput } from "@/components/ui/password-input";
 import type { ConfigFormValues } from "./config-editing";
-import { SETTINGS_FIELD_CLASS } from "./settings-pages";
 import { m } from "@/paraglide/messages";
 
 export function SecretControl({
   kind,
   stored,
-  label,
+  canGenerate = false,
+  ...inputProps
 }: {
   kind: "email" | "webhook";
   stored: boolean;
-  label: string;
+  /** Offers a random value, for a signing key the admin makes up. */
+  canGenerate?: boolean;
+  id?: string;
+  "aria-invalid"?: boolean;
+  "aria-required"?: boolean;
+  "aria-describedby"?: string;
 }) {
   const { watch, setValue } = useFormContext<ConfigFormValues>();
   const name =
@@ -24,7 +30,6 @@ export function SecretControl({
   const value = watch(name) ?? "";
   const cleared = watch(clearName);
   const [editing, setEditing] = useState(false);
-  const [visible, setVisible] = useState(false);
   const [removing, setRemoving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -32,10 +37,7 @@ export function SecretControl({
     if (editing) inputRef.current?.focus();
   }, [editing]);
   useEffect(() => {
-    if (!value && !cleared) {
-      setEditing(false);
-      setVisible(false);
-    }
+    if (!value && !cleared) setEditing(false);
   }, [value, cleared]);
   const showInput = !stored || editing || !!value;
   return (
@@ -43,78 +45,59 @@ export function SecretControl({
       {cleared ? (
         <p>{m.settings_design_secret_removed()}</p>
       ) : showInput ? (
-        <div className="settings-secret-input">
-          <input
-            ref={inputRef}
-            aria-label={label}
-            value={value}
-            autoComplete="new-password"
-            type={visible ? "text" : "password"}
-            onChange={(event) =>
-              setValue(name, event.target.value, { shouldDirty: true })
-            }
-            className={SETTINGS_FIELD_CLASS}
-          />
-          <button
-            type="button"
-            onClick={() => setVisible((current) => !current)}
-            aria-label={
-              visible
-                ? m.settings_design_hide_secret()
-                : m.settings_design_show_secret()
-            }
-          >
-            {visible ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
-        </div>
+        <PasswordInput
+          {...inputProps}
+          ref={inputRef}
+          secret
+          value={value}
+          onChange={(event) =>
+            setValue(name, event.target.value, { shouldDirty: true })
+          }
+        />
       ) : (
         <div className="settings-secret-summary">
           <span>{m.settings_design_secret_configured()}</span>
-          <button
+          <Button
             ref={triggerRef}
-            type="button"
-            className="settings-text-action"
+            variant="text"
+            size="sm"
             onClick={() => setEditing(true)}
           >
             {m.settings_design_replace_secret()}
-          </button>
+          </Button>
         </div>
       )}
       {cleared && (
-        <button
-          type="button"
-          className="settings-text-action"
+        <Button
+          variant="text"
+          size="sm"
           onClick={() => {
             setValue(clearName, false, { shouldDirty: true });
             setEditing(true);
           }}
         >
           {m.settings_design_replace_secret()}
-        </button>
+        </Button>
       )}
-      {kind === "webhook" && !cleared && showInput && (
-        <button
-          type="button"
-          className="settings-text-action"
+      {canGenerate && !cleared && showInput && (
+        <Button
+          variant="text"
+          size="sm"
           onClick={() =>
             setValue(name, crypto.randomUUID(), { shouldDirty: true })
           }
         >
           {m.settings_config_secret_generate()}
-        </button>
+        </Button>
       )}
       {stored && !cleared && (
         <SettingsDisclosure
           className="settings-secret-more"
           title={m.settings_design_credential_actions()}
         >
-          <button
-            type="button"
-            className="settings-text-action"
-            onClick={() => setRemoving(true)}
-          >
+          <Button variant="text" size="sm" onClick={() => setRemoving(true)}>
             {m.settings_design_remove_secret()}
-          </button>
+          </Button>
         </SettingsDisclosure>
       )}
       <ConfirmationModal

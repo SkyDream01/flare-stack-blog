@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { SubmitFriendLinkPage } from "@/features/friend-links/components/submit-friend-link-page";
 import { myFriendLinksQuery } from "@/features/friend-links/queries";
-import { authClient } from "@/lib/auth/auth.client";
+import { authClient } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 
 export const Route = createFileRoute("/_public/_user/submit-friend-link")({

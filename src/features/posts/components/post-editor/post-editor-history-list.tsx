@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { cn, formatMonthDayTime } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import {
@@ -21,7 +21,7 @@ export function PostEditorHistoryList({
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 px-5 py-6 text-sm fuwari-text-50">
-        <Loader2 size={14} className="animate-spin" />
+        <Spinner size={14} />
         {m.editor_history_loading()}
       </div>
     );

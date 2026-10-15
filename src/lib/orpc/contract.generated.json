@@ -110,6 +110,19 @@
           }
         }
       },
+      "videoMeta": {
+        "~orpc": {
+          "errorMap": {},
+          "meta": {},
+          "route": {
+            "method": "GET",
+            "path": "/admin/posts/video-meta",
+            "summary": "Look up an embedded video's title, cover and length",
+            "description": "Asks the video's provider once, when the editor embeds it. Returns null when the provider has nothing to give or cannot be reached.",
+            "tags": ["Admin Posts"]
+          }
+        }
+      },
       "create": {
         "~orpc": {
           "errorMap": {},
@@ -471,6 +484,47 @@
           "path": "/me/comments",
           "summary": "List the current user's comments",
           "tags": ["Comments"]
+        }
+      }
+    },
+    "admin": {
+      "markHandled": {
+        "~orpc": {
+          "errorMap": {},
+          "meta": {},
+          "route": {
+            "method": "PUT",
+            "path": "/admin/comments/{id}/handled",
+            "summary": "Mark a comment handled",
+            "description": "Takes the Comment off the dashboard's unreplied list without replying. An Admin reply marks the Comment it answers handled too.",
+            "tags": ["Admin Comments"]
+          }
+        }
+      },
+      "unmarkHandled": {
+        "~orpc": {
+          "errorMap": {},
+          "meta": {},
+          "route": {
+            "method": "DELETE",
+            "path": "/admin/comments/{id}/handled",
+            "summary": "Unmark a handled comment",
+            "description": "Undoes marking the Comment handled. It returns to the unreplied list unless an Admin Comment still answers it.",
+            "tags": ["Admin Comments"]
+          }
+        }
+      },
+      "markAllHandled": {
+        "~orpc": {
+          "errorMap": {},
+          "meta": {},
+          "route": {
+            "method": "POST",
+            "path": "/admin/comments/handled",
+            "summary": "Mark all unreplied comments handled",
+            "description": "Marks every Comment on the dashboard's unreplied list handled and returns how many it marked.",
+            "tags": ["Admin Comments"]
+          }
         }
       }
     }
@@ -1003,6 +1057,19 @@
           "tags": ["Admin Dashboard"]
         }
       }
+    },
+    "unrepliedComments": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {},
+        "route": {
+          "method": "GET",
+          "path": "/admin/dashboard/unreplied-comments",
+          "summary": "List unreplied comments",
+          "description": "Every visitor Comment on a public Post that no Admin has replied to or marked handled, newest first. Pass the previous page's nextBeforeId as beforeId to continue; pages stay stable while Comments leave the list.",
+          "tags": ["Admin Dashboard"]
+        }
+      }
     }
   },
   "cache": {
@@ -1054,7 +1121,20 @@
           "method": "POST",
           "path": "/admin/webhooks/test",
           "summary": "Send a test webhook",
-          "description": "Tests the supplied connection without saving settings. The secret accepts replace with a new value or keep with the notification section expectedRevision; keep resolves the saved secret server-side and rejects stale revisions with CONFIG_CONFLICT. Saved secrets are never returned.",
+          "description": "Tests the supplied connection without saving settings. The secret (the generic or custom signing key, or the Telegram bot token) accepts replace with a new value or keep with the notification section expectedRevision; keep resolves the saved secret server-side, rejects stale revisions with CONFIG_CONFLICT, and rejects a channel other than the saved one with CONFIG_INVALID. Saved secrets are never returned. DELIVERY_FAILED carries the receiving service's error.",
+          "tags": ["Admin Webhooks"]
+        }
+      }
+    },
+    "telegramChats": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {},
+        "route": {
+          "method": "POST",
+          "path": "/admin/webhooks/telegram/chats",
+          "summary": "List the chats a Telegram bot was messaged from",
+          "description": "Reads the bot's pending updates (getUpdates) and returns each chat once, so the Admin can pick a Chat ID. A chat appears after someone messages the bot there or adds it to a group, and updates expire after 24 hours. The token accepts replace or keep, as for the test.",
           "tags": ["Admin Webhooks"]
         }
       }

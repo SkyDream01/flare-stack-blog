@@ -36,11 +36,6 @@
 }
 .friends-apply {
   align-self: start;
-  min-height: 44px;
-  border-radius: 12px;
-  padding: 0 22px;
-  font-size: 14px;
-  font-weight: 700;
 }
 .friends-grid {
   display: grid;
@@ -69,8 +64,7 @@
 .friend-entry:focus-visible {
   background: var(--fuwari-btn-plain-bg-hover);
 }
-.friend-entry:focus-visible,
-.friends-apply:focus-visible {
+.friend-entry:focus-visible {
   outline: 2px solid var(--fuwari-primary);
   outline-offset: 3px;
 }
@@ -134,11 +128,6 @@
   color: var(--fuwari-fg-50);
   overflow-wrap: anywhere;
 }
-.friends-empty {
-  padding: 64px 0;
-  text-align: center;
-  color: var(--fuwari-fg-50);
-}
 @media (max-width: 639px) {
   .friends-page {
     padding: 24px;
@@ -154,9 +143,6 @@
   .friends-heading p {
     padding-left: 0;
     font-size: 14px;
-  }
-  .friends-apply {
-    padding: 0 16px;
   }
   .friends-grid {
     grid-template-columns: minmax(0, 1fr);

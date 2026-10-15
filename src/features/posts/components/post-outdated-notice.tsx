@@ -1,4 +1,5 @@
 import { History } from "lucide-react";
+import { Callout } from "@/components/ui/callout";
 import { formatPublicPostDate } from "@/features/posts/utils/format-public-post-date";
 import { m } from "@/paraglide/messages";
 
@@ -21,8 +22,7 @@ export function PostOutdatedNotice({
   if (days < OUTDATED_AFTER_DAYS) return null;
 
   return (
-    <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-amber-950 dark:text-amber-100">
-      <History className="w-5 h-5 shrink-0 mt-0.5" strokeWidth={2} />
+    <Callout tone="warning" icon={History} className="mb-6">
       {/* A cached page can be a day behind the client's clock. */}
       <p
         className="text-sm leading-relaxed font-medium"
@@ -33,6 +33,6 @@ export function PostOutdatedNotice({
           days,
         })}
       </p>
-    </div>
+    </Callout>
   );
 }

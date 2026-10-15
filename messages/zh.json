@@ -38,7 +38,10 @@
   "posts_all": "全部",
   "posts_count": [
     {
-      "declarations": ["input count", "local formattedCountZh = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
       "match": {
         "count=*": "{formattedCountZh} 篇文章"
       }
@@ -46,7 +49,10 @@
   ],
   "format_month_day": [
     {
-      "declarations": ["input date", "local formattedDateZh = date: datetime month=2-digit day=2-digit"],
+      "declarations": [
+        "input date",
+        "local formattedDateZh = date: datetime month=2-digit day=2-digit"
+      ],
       "match": {
         "date=*": "{formattedDateZh}"
       }
@@ -82,7 +88,10 @@
   "post_outdated_notice": "本文最后更新于 {date}，距今已有 {days} 天，文中部分信息可能已经过时。",
   "post_word_count": [
     {
-      "declarations": ["input count", "local formattedCountZh = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
       "match": {
         "count=*": "约 {formattedCountZh} 字"
       }
@@ -92,7 +101,10 @@
   "post_uncategorized": "未分类",
   "read_time": [
     {
-      "declarations": ["input count", "local formattedCountZh = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
       "match": {
         "count=*": "{formattedCountZh} 分钟"
       }
@@ -100,7 +112,10 @@
   ],
   "post_views_count": [
     {
-      "declarations": ["input count", "local formattedCountZh = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
       "match": {
         "count=*": "{formattedCountZh} 次浏览"
       }
@@ -108,7 +123,10 @@
   ],
   "format_date": [
     {
-      "declarations": ["input date", "local formattedDateZh = date: datetime year=numeric month=long day=numeric"],
+      "declarations": [
+        "input date",
+        "local formattedDateZh = date: datetime year=numeric month=long day=numeric"
+      ],
       "match": {
         "date=*": "{formattedDateZh}"
       }
@@ -116,7 +134,10 @@
   ],
   "format_datetime": [
     {
-      "declarations": ["input date", "local formattedDateZh = date: datetime year=numeric month=long day=numeric hour=2-digit minute=2-digit hour12=false"],
+      "declarations": [
+        "input date",
+        "local formattedDateZh = date: datetime year=numeric month=long day=numeric hour=2-digit minute=2-digit hour12=false"
+      ],
       "match": {
         "date=*": "{formattedDateZh}"
       }
@@ -125,7 +146,10 @@
   "time_ago_just_now": "刚刚",
   "time_ago_minutes": [
     {
-      "declarations": ["input count", "local formattedCountZh = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
       "match": {
         "count=*": "{formattedCountZh} 分钟前"
       }
@@ -133,7 +157,10 @@
   ],
   "time_ago_hours": [
     {
-      "declarations": ["input count", "local formattedCountZh = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
       "match": {
         "count=*": "{formattedCountZh} 小时前"
       }
@@ -141,7 +168,10 @@
   ],
   "time_ago_days": [
     {
-      "declarations": ["input count", "local formattedCountZh = count: number"],
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
       "match": {
         "count=*": "{formattedCountZh} 天前"
       }
@@ -154,7 +184,9 @@
   "search_no_results": "未找到相关文章",
   "search_no_results_with_query": [
     {
-      "declarations": ["input query"],
+      "declarations": [
+        "input query"
+      ],
       "match": {
         "query=*": "没有找到与 \"{query}\" 相关的文章，换个关键词试试吧。"
       }
@@ -194,7 +226,9 @@
   "friend_link_validation_required": "站点名称不能为空",
   "friend_link_validation_too_long": [
     {
-      "declarations": ["input max"],
+      "declarations": [
+        "input max"
+      ],
       "match": {
         "max=*": "最长{max}字"
       }
@@ -301,7 +335,9 @@
   "request_error_rate_limited_title": "请求过于频繁",
   "request_error_rate_limited_desc": [
     {
-      "declarations": ["input seconds"],
+      "declarations": [
+        "input seconds"
+      ],
       "match": {
         "seconds=*": "请在 {seconds} 秒后重试。"
       }
@@ -467,7 +503,10 @@
   "theme_toggle_title": "主题：{theme}",
   "format_month_day_time": [
     {
-      "declarations": ["input date", "local formattedDateTimeZh = date: datetime month=2-digit day=2-digit hour=2-digit minute=2-digit hour12=false"],
+      "declarations": [
+        "input date",
+        "local formattedDateTimeZh = date: datetime month=2-digit day=2-digit hour=2-digit minute=2-digit hour12=false"
+      ],
       "match": {
         "date=*": "{formattedDateTimeZh}"
       }
@@ -480,10 +519,8 @@
   "admin_sidebar_close_navigation": "关闭导航",
   "admin_sidebar_dashboard": "概览",
   "admin_sidebar_posts": "文章管理",
-  "admin_sidebar_tags": "分类和标签",
   "admin_sidebar_media": "媒体库",
   "admin_sidebar_friend_links": "友链管理",
-  "admin_sidebar_muted_users": "禁言名单",
   "admin_sidebar_admin_fallback": "管理员",
   "admin_sidebar_role_admin": "管理员",
   "admin_sidebar_role_user": "用户",
@@ -495,8 +532,6 @@
   "admin_sidebar_logout_failed": "注销失败",
   "admin_sidebar_logout_failed_desc": "请重试。",
   "admin_overview_title": "概览",
-  "admin_overview_continue_writing": "接着写",
-  "admin_overview_recent_comments": "新评论",
   "admin_overview_popularity_failed": "热度同步失败",
   "admin_overview_popularity_expired": "热度数据已过期",
   "admin_overview_activity_anonymous": "匿名用户",
@@ -532,7 +567,6 @@
   "admin_posts_sort_recent_upd": "最近修改",
   "admin_posts_no_match": "没有符合条件的文章",
   "admin_posts_clear_filters": "清除筛选",
-  "admin_posts_col_status": "当前状态",
   "admin_posts_delete_confirm_title": "删除文章",
   "admin_posts_delete_confirm_desc": "确定删除「{title}」吗？此操作无法撤销。",
   "admin_posts_delete_confirm_btn": "删除",
@@ -546,7 +580,11 @@
   "admin_posts_time_modified": "修改",
   "admin_pagination_info": [
     {
-      "declarations": ["input startItem", "input endItem", "input totalItems"],
+      "declarations": [
+        "input startItem",
+        "input endItem",
+        "input totalItems"
+      ],
       "match": {
         "startItem=*": "第 {startItem} - {endItem} 条 / 共 {totalItems} 条"
       }
@@ -561,7 +599,9 @@
   "editor_status_unsaved": "未保存",
   "editor_status_saved": [
     {
-      "declarations": ["input time"],
+      "declarations": [
+        "input time"
+      ],
       "match": {
         "time=*": "已保存 {time}"
       }
@@ -631,7 +671,9 @@
   "editor_action_slug_set": "URL slug 已设置",
   "editor_action_slug_set_desc": [
     {
-      "declarations": ["input slug"],
+      "declarations": [
+        "input slug"
+      ],
       "match": {
         "slug=*": "URL slug 已设置为 \"{slug}\""
       }
@@ -687,16 +729,13 @@
   "tag_selector_no_match": "无匹配标签",
   "tag_selector_empty": "暂无标签 (输入以创建)",
   "tag_manager_title": "标签",
-  "taxonomy_manager_title": "分类和标签",
   "taxonomy_manager_create_category": "新建分类",
   "category_manager_title": "分类",
   "category_manager_create": "新建",
-  "category_manager_rename": "重命名",
   "category_manager_save": "保存",
   "category_manager_cancel": "取消",
   "category_manager_delete": "删除",
   "category_manager_delete_title": "删除分类",
-  "category_manager_delete_message": "确定删除分类「{name}」吗？删除后，该分类下的文章将变为未分类。",
   "category_manager_created": "创建成功",
   "category_manager_renamed": "已重命名",
   "category_manager_deleted": "删除成功",
@@ -707,17 +746,9 @@
   "tag_manager_name_exists": "标签名称已存在",
   "tag_manager_unknown_error": "操作失败，请重试",
   "tag_manager_renamed": "已重命名",
-  "tag_manager_delete_fail": "删除失败",
   "tag_manager_deleted": "删除成功",
-  "tag_manager_search_placeholder": "搜索标签",
-  "tag_manager_empty": "暂无标签",
-  "tag_manager_edit": "编辑",
-  "tag_manager_edit_title": "编辑标签",
-  "tag_manager_no_match": "未找到相关标签",
   "tag_manager_clear_search": "清除搜索",
   "tag_manager_delete_title": "删除标签",
-  "tag_manager_delete_desc": "确定删除标签「{tagName}」吗？删除后，文章将不再显示该标签。",
-  "tag_manager_delete_confirm": "删除",
   "media_title": "媒体库",
   "media_upload": "上传",
   "media_stats": "{count} 张 · {size}",
@@ -752,7 +783,9 @@
   "media_validation_file_invalid_type": "仅支持上传图片文件",
   "media_upload_fail": [
     {
-      "declarations": ["input name"],
+      "declarations": [
+        "input name"
+      ],
       "match": {
         "name=*": "上传失败: {name}"
       }
@@ -873,7 +906,9 @@
   "settings_site_field_primary_hue": "主色 Hue",
   "settings_site_validation_too_long": [
     {
-      "declarations": ["input max"],
+      "declarations": [
+        "input max"
+      ],
       "match": {
         "max=*": "最长{max}字"
       }
@@ -896,7 +931,7 @@
   "settings_asset_upload_fail": "上传失败",
   "settings_asset_upload_btn": "上传",
   "settings_asset_uploading": "上传中...",
-  "settings_webhook_endpoint_title": "Webhook Endpoint",
+  "settings_webhook_endpoint_title": "Webhook 推送",
   "settings_api_keys_name_label": "名称",
   "settings_api_keys_name_ph": "用于识别此密钥",
   "settings_api_keys_create": "创建",
@@ -937,18 +972,9 @@
   "settings_webhook_toast_test_sent": "测试请求已发送",
   "settings_webhook_toast_test_fail": "测试请求发送失败",
   "settings_webhook_toast_test_fail_msg": "测试请求发送失败: {message}",
-  "settings_webhook_delivery_failed": [
-    {
-      "declarations": ["input status", "input statusText", "input detail"],
-      "match": {
-        "detail=": "Webhook 投递失败: {status} {statusText}",
-        "detail=*": "Webhook 投递失败: {status} {statusText} - {detail}"
-      }
-    }
-  ],
+  "settings_webhook_delivery_failed": "Webhook 投递失败: {status} {statusText}",
   "settings_webhook_endpoint_btn_test": "发送测试",
   "settings_webhook_endpoint_field_url": "URL",
-  "settings_webhook_endpoint_field_url_ph": "https://hooks.example.com/notify",
   "settings_webhook_endpoint_field_secret": "签名密钥",
   "webhook_example_post_title": "欢迎使用通知系统",
   "webhook_example_commenter_name": "测试用户",
@@ -1051,17 +1077,6 @@
   "media_unused_confirm": "确定删除这 {count} 张未被文章引用的图片吗？此操作无法撤销。",
   "media_reference_fail": "无法加载引用信息",
   "media_image_unavailable": "无法预览图片",
-  "taxonomy_workspace_hint": "选中分类或标签，查看对应的文章。",
-  "taxonomy_scope_current": "当前归属",
-  "taxonomy_scope_public": "公开使用",
-  "taxonomy_scope_current_hint": "包含草稿和已发布文章的编辑内容。",
-  "taxonomy_scope_public_hint": "只统计当前关联的已发布文章，分类和标签修改无需重新发布。",
-  "taxonomy_public_short": "公开 {count}",
-  "taxonomy_empty_selection": "选择一个分类或标签，查看相关文章。",
-  "taxonomy_current_empty": "当前没有归属到这里的文章。",
-  "taxonomy_public_empty": "当前没有公开版本使用这个分类或标签。",
-  "taxonomy_usage_summary": "当前归属 {current} 篇 · 公开使用 {public} 篇",
-  "taxonomy_posts_search": "搜索关联文章",
   "friend_review_hint": "查看申请，决定哪些站点出现在你的友链页",
   "friend_review_queue": "申请列表",
   "friend_review_search": "搜索站点名称或域名",
@@ -1074,12 +1089,8 @@
   "friend_review_preview_hint": "通过后将以这些资料展示在前台友链页",
   "friend_review_previous": "上一条",
   "friend_review_next": "下一条",
-  "dashboard_intro": "专注创作，记录和分享生活中的思考",
-  "dashboard_resume": "继续编辑",
   "dashboard_first_post": "从第一篇文章开始",
   "dashboard_recent_edits": "最近编辑",
-  "dashboard_tasks": "待办事项",
-  "dashboard_pending_links": "{count} 条友链申请待审核",
   "muted_manager_hint": "管理被禁言的用户，必要时恢复其评论权限。",
   "muted_manager_count": "{count} 人",
   "muted_manager_search": "搜索用户名",
@@ -1116,8 +1127,6 @@
   "settings_design_remove_secret": "移除已保存的凭据",
   "settings_design_remove_email_hint": "保存通知设置后将移除邮件密码，邮件发送将不可用。替换密码无需先移除。",
   "settings_design_remove_webhook_hint": "将清空端点地址并标记移除密钥，保存通知设置后 Webhook 停用。",
-  "settings_design_hide_secret": "隐藏新凭据",
-  "settings_design_show_secret": "显示新凭据",
   "settings_design_keys_hint": "为脚本和外部工具创建访问凭据。",
   "settings_design_key_prefix": "密钥前缀",
   "settings_design_created_at": "创建时间",
@@ -1276,5 +1285,304 @@
   "editor_unpublish_confirm_desc": "下架后公开页面会立即消失，文章变回草稿。重新发布即可恢复，链接和发布日期保持不变。",
   "settings_email_last_test_verified": "上次测试通过：{time}",
   "settings_email_last_test_failed": "上次测试失败：{time}，{error}",
-  "account_avatar_pick_media": "从媒体库选择"
+  "account_avatar_pick_media": "从媒体库选择",
+  "common_code_copied": "已复制代码",
+  "admin_overview_comment_mute": "禁言该用户",
+  "admin_overview_reply_sent": "回复已发送",
+  "admin_overview_view_muted_users": "查看禁言名单",
+  "admin_posts_filter_category": "分类",
+  "admin_posts_filter_category_all": "全部分类",
+  "admin_posts_filter_tag": "标签",
+  "admin_posts_filter_tag_all": "全部标签",
+  "admin_posts_manage_taxonomy": "管理分类与标签",
+  "admin_posts_action_view_live": "查看线上页面",
+  "admin_posts_action_pin": "置顶",
+  "admin_posts_action_unpin": "取消置顶",
+  "admin_posts_toast_pinned": "已置顶",
+  "admin_posts_toast_unpinned": "已取消置顶",
+  "admin_posts_toast_pin_failed": "置顶状态更新失败，请重试。",
+  "editor_meta_category_create": "+ 新建分类…",
+  "editor_toolbar_video": "插入视频",
+  "editor_slash_video": "视频",
+  "editor_video_input": "视频链接或嵌入代码",
+  "editor_video_placeholder": "粘贴视频链接或嵌入代码",
+  "editor_video_hint": "支持哔哩哔哩和 YouTube 的视频链接或嵌入代码",
+  "editor_video_recognized": "已识别：{provider} · {video}",
+  "editor_video_short_link": "暂不支持 b23.tv 短链接，请粘贴完整的视频链接",
+  "editor_video_unsupported": "无法识别，暂只支持哔哩哔哩和 YouTube",
+  "editor_video_insert": "插入视频",
+  "editor_video_edit": "修改视频",
+  "editor_video_update": "更新",
+  "editor_video_open": "打开原视频",
+  "video_provider_bilibili": "哔哩哔哩",
+  "video_provider_youtube": "YouTube",
+  "post_video_play": "播放{provider}视频",
+  "post_video_play_title": "播放{provider}视频：{title}",
+  "post_video_player": "{provider}视频播放器",
+  "post_video_open": "在{provider}打开",
+  "editor_formula_display": "显示方式",
+  "media_filter_label": "筛选媒体",
+  "settings_webhook_delivery_failed_detail": "Webhook 投递失败: {status} {statusText} - {detail}",
+  "settings_webhook_provider": "推送渠道",
+  "settings_webhook_provider_generic": "通用 JSON（签名）",
+  "settings_webhook_provider_feishu": "飞书",
+  "settings_webhook_provider_dingtalk": "钉钉",
+  "settings_webhook_provider_wecom": "企业微信",
+  "settings_webhook_provider_custom": "自定义",
+  "settings_webhook_hint_generic": "发送带 HMAC 签名的固定格式 JSON，适合自己编写的接收服务。",
+  "settings_webhook_hint_telegram": "在 Telegram 里找 @BotFather 发送 /newbot 获取 Bot Token。给 bot 发一条消息，或把它拉进群，再点「查找」选择要接收通知的对话。",
+  "settings_webhook_hint_discord": "频道设置 → 整合 → Webhook → 新 Webhook，然后复制 Webhook URL。",
+  "settings_webhook_hint_feishu": "群设置 → 群机器人 → 添加机器人 → 自定义机器人，复制 Webhook 地址。如果开启「自定义关键词」，请填写「博客通知」。",
+  "settings_webhook_hint_dingtalk": "群设置 → 机器人 → 添加机器人 → 自定义，安全设置选「自定义关键词」并填写「博客通知」，然后复制 Webhook 地址。",
+  "settings_webhook_hint_wecom": "在群聊右上角 → 添加群机器人 → 新创建一个机器人，复制 Webhook 地址。",
+  "settings_webhook_hint_bark": "在 Bark App 首页复制推送地址，形如 https://api.day.app/你的Key。",
+  "settings_webhook_hint_ntfy": "填写主题地址，并在 ntfy App 里订阅同一个主题。知道主题名的人都能订阅，请起一个不容易猜到的名字。",
+  "settings_webhook_hint_custom": "按目标服务的要求编写请求体，发送时会替换其中的变量；请求体是 JSON 时，变量会自动转义。填写签名密钥后会附带 X-Flare-Signature 请求头。",
+  "settings_webhook_field_webhook_url": "Webhook 地址",
+  "settings_webhook_field_bark_url": "推送地址",
+  "settings_webhook_field_ntfy_url": "主题地址",
+  "settings_webhook_field_bot_token": "Bot Token",
+  "settings_webhook_field_chat_id": "Chat ID",
+  "settings_webhook_field_chat_id_ph": "例如 123456789 或 -1001234567890",
+  "settings_webhook_find_chats": "查找",
+  "settings_webhook_chats_empty": "没有找到对话。先给 bot 发一条消息，或把它拉进群，再点一次「查找」。",
+  "settings_webhook_chat_private": "私聊",
+  "settings_webhook_chat_group": "群组",
+  "settings_webhook_chat_channel": "频道",
+  "settings_webhook_toast_chats_fail": "查找对话失败：{message}",
+  "settings_webhook_field_template": "请求体模板",
+  "settings_webhook_template_variables": "可用变量",
+  "settings_webhook_field_secret_optional": "签名密钥（可选）",
+  "settings_webhook_docs_link": "格式与签名说明",
+  "webhook_title_comment": "博客通知 · 新评论",
+  "webhook_title_reply": "博客通知 · 评论回复",
+  "webhook_title_friend_link_submitted": "博客通知 · 友链申请",
+  "webhook_title_friend_link_reviewed": "博客通知 · 友链审核",
+  "taxonomy_sheet_title": "分类与标签",
+  "taxonomy_sheet_search_category": "搜索或新建分类",
+  "taxonomy_sheet_search_tag": "搜索或新建标签",
+  "taxonomy_sheet_create_hint": "按回车新建「{name}」",
+  "taxonomy_sheet_category_created": "已新建分类「{name}」",
+  "taxonomy_sheet_tag_created": "已新建标签「{name}」",
+  "taxonomy_sheet_category_empty": "还没有分类，输入名称后按回车新建。",
+  "taxonomy_sheet_tag_empty": "还没有标签，输入名称后按回车新建。",
+  "taxonomy_sheet_no_match": "没有匹配「{query}」的结果",
+  "taxonomy_sheet_load_error": "加载失败",
+  "taxonomy_sheet_pick": "筛选「{name}」的文章，共 {count} 篇",
+  "taxonomy_sheet_row_actions": "「{name}」的操作",
+  "taxonomy_sheet_rename": "改名",
+  "taxonomy_sheet_rename_label": "「{name}」的新名称",
+  "taxonomy_sheet_rename_hint": "回车保存，Esc 取消",
+  "taxonomy_sheet_delete_category_desc": "确定删除分类「{name}」吗？{count} 篇文章将失去这个分类。",
+  "taxonomy_sheet_delete_tag_desc": "确定删除标签「{name}」吗？{count} 篇文章将失去这个标签。",
+  "taxonomy_sheet_purge": "删除全部未使用标签（{count} 个）",
+  "taxonomy_sheet_purge_title": "删除未使用的标签",
+  "taxonomy_sheet_purge_desc": "将删除 {count} 个没有任何文章使用的标签，此操作无法撤销。",
+  "taxonomy_sheet_purge_progress": "正在删除 {done}/{total}",
+  "taxonomy_sheet_purged": "已删除 {count} 个未使用标签",
+  "taxonomy_sheet_purge_partial": "已删除 {done} 个，{failed} 个删除失败",
+  "admin_overview_email_needs_setup_desc": "新评论和友链申请不会发邮件提醒你",
+  "admin_overview_popularity_failed_desc": "去维护页查看原因并重新同步",
+  "admin_overview_popularity_expired_desc": "超过 7 天没有同步，首页热门已改用置顶和最新文章",
+  "admin_overview_default_site_identity_desc": "换成你自己的站点名称和作者",
+  "admin_overview_update_available": "有新版本 {version}",
+  "admin_overview_update_available_desc": "当前是 v{current}，看看更新了什么",
+  "dashboard_stats_label": "博客数据",
+  "dashboard_stat_posts": "文章",
+  "dashboard_stat_drafts": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "{formattedCountZh} 篇草稿"
+      }
+    }
+  ],
+  "dashboard_stat_no_drafts": "没有草稿",
+  "dashboard_stat_views": "近 30 天访问",
+  "dashboard_stat_views_unconfigured": "未接入 Umami",
+  "dashboard_stat_views_missing": "还没有同步数据",
+  "dashboard_stat_views_expired": "数据已过期",
+  "dashboard_stat_comments": "评论",
+  "dashboard_stat_comments_recent": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "近 7 天 +{formattedCountZh}"
+      }
+    }
+  ],
+  "dashboard_stat_comments_none_recent": "近 7 天没有新评论",
+  "dashboard_stat_friend_links": "友链",
+  "dashboard_stat_friend_links_pending": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "{formattedCountZh} 个待审核"
+      }
+    }
+  ],
+  "dashboard_stat_friend_links_none_pending": "没有待审核",
+  "dashboard_popular_title": "近 30 天热门",
+  "dashboard_popular_expired": "已过期",
+  "dashboard_popular_open_public": "打开公开页面",
+  "dashboard_popular_unconfigured_title": "还没接入 Umami",
+  "dashboard_popular_unconfigured_desc": "接入后，这里会按近 30 天的阅读量列出最受欢迎的文章",
+  "dashboard_popular_missing_title": "还没有热度数据",
+  "dashboard_popular_missing_desc": "热度每天自动同步一次，也可以现在手动同步",
+  "dashboard_popular_sync": "去同步",
+  "dashboard_popular_no_views": "近 30 天还没有文章被阅读",
+  "dashboard_unreplied_title": "待回复评论",
+  "dashboard_unreplied_more": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "还有 {formattedCountZh} 条待回复"
+      }
+    }
+  ],
+  "dashboard_unreplied_empty_title": "都回复完了",
+  "dashboard_unreplied_empty_desc": "新的访客评论会出现在这里",
+  "dashboard_comment_mark_handled": "标为已处理",
+  "dashboard_comment_marked_handled": "已标为已处理",
+  "dashboard_comment_handled_undo": "撤销",
+  "dashboard_comment_handled_error": "操作失败，请重试",
+  "dashboard_unreplied_handle_all": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "全部标为已处理（{formattedCountZh}）"
+      }
+    }
+  ],
+  "dashboard_unreplied_handle_all_title": "全部标为已处理？",
+  "dashboard_unreplied_handle_all_desc": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "这 {formattedCountZh} 条评论会离开待回复列表。评论本身不受影响，也不会通知评论者。"
+      }
+    }
+  ],
+  "dashboard_unreplied_handle_all_confirm": "全部标为已处理",
+  "dashboard_unreplied_handled_all": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "已将 {formattedCountZh} 条评论标为已处理"
+      }
+    }
+  ],
+  "dashboard_unreplied_load_more": "加载更多",
+  "dashboard_unreplied_load_error": "待回复评论加载失败",
+  "dashboard_pending_links_title": "待审核友链",
+  "dashboard_pending_links_more": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "还有 {formattedCountZh} 条申请"
+      }
+    }
+  ],
+  "dashboard_greeting_morning": "上午好，{name}",
+  "dashboard_greeting_afternoon": "下午好，{name}",
+  "dashboard_greeting_evening": "晚上好，{name}",
+  "dashboard_summary_views": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "近 30 天 {formattedCountZh} 次访问"
+      }
+    }
+  ],
+  "dashboard_summary_unreplied": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "{formattedCountZh} 条评论等你回复"
+      }
+    }
+  ],
+  "dashboard_summary_pending_links": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "{formattedCountZh} 个友链待审核"
+      }
+    }
+  ],
+  "dashboard_summary_clear": "都处理好了，今天适合写点什么",
+  "dashboard_hero_continue": "继续写《{title}》",
+  "dashboard_writing_title": "写作记录",
+  "dashboard_writing_days": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "近半年写作 {formattedCountZh} 天"
+      }
+    }
+  ],
+  "dashboard_writing_streak": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number"
+      ],
+      "match": {
+        "count=*": "最长连续 {formattedCountZh} 天"
+      }
+    }
+  ],
+  "dashboard_writing_none": "近半年还没有写作记录",
+  "dashboard_writing_basis": "按新建文章、发布和保存的版本统计，以本地日期分天",
+  "dashboard_writing_less": "少",
+  "dashboard_writing_more": "多",
+  "dashboard_writing_day": [
+    {
+      "declarations": [
+        "input count",
+        "local formattedCountZh = count: number",
+        "input date"
+      ],
+      "match": {
+        "count=*": "{date}：{formattedCountZh} 次写作"
+      }
+    }
+  ],
+  "dashboard_writing_day_none": "{date}：没有写作"
 }

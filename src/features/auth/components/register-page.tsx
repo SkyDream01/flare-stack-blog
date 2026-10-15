@@ -1,9 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { CircleAlert } from "lucide-react";
 import type { ReactNode } from "react";
+import { Button, buttonClass } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import type { useRegisterForm } from "../hooks/use-register-form";
-import { AuthField, AuthHeading, AuthStatus } from "./auth-elements";
+import { AuthHeading, AuthStatus } from "./auth-elements";
+import { Callout } from "@/components/ui/callout";
 import { m } from "@/paraglide/messages";
 
 export function RegisterPage({
@@ -21,7 +25,14 @@ export function RegisterPage({
         title={m.register_success_title()}
         description={m.register_success_desc()}
       >
-        <Link to="/login" className="auth-action fuwari-btn-primary">
+        <Link
+          to="/login"
+          className={buttonClass({
+            variant: "primary",
+            size: "lg",
+            className: "auth-action",
+          })}
+        >
           {m.register_back_to_login()}
         </Link>
       </AuthStatus>
@@ -34,22 +45,24 @@ export function RegisterPage({
       />
       <form className="auth-form" onSubmit={form.handleSubmit} noValidate>
         <fieldset disabled={form.isSubmitting}>
-          <AuthField
+          <FormField
             label={m.register_nickname()}
             error={form.errors.name?.message}
+            required
           >
-            <input
+            <Input
               {...form.register("name")}
               autoComplete="nickname"
               maxLength={20}
               placeholder={m.register_nickname_placeholder()}
             />
-          </AuthField>
-          <AuthField
+          </FormField>
+          <FormField
             label={m.login_email_address()}
             error={form.errors.email?.message}
+            required
           >
-            <input
+            <Input
               {...form.register("email")}
               type="email"
               autoComplete="username"
@@ -57,10 +70,11 @@ export function RegisterPage({
               spellCheck={false}
               placeholder={m.login_email_placeholder()}
             />
-          </AuthField>
-          <AuthField
+          </FormField>
+          <FormField
             label={m.register_password()}
             error={form.errors.password?.message}
+            required
           >
             <PasswordInput
               {...form.register("password")}
@@ -68,10 +82,11 @@ export function RegisterPage({
               placeholder={m.login_password_placeholder()}
               disabled={form.isSubmitting}
             />
-          </AuthField>
-          <AuthField
+          </FormField>
+          <FormField
             label={m.register_confirm_password()}
             error={form.errors.confirmPassword?.message}
+            required
           >
             <PasswordInput
               {...form.register("confirmPassword")}
@@ -79,22 +94,24 @@ export function RegisterPage({
               placeholder={m.login_password_placeholder()}
               disabled={form.isSubmitting}
             />
-          </AuthField>
+          </FormField>
         </fieldset>
         {form.submitError && (
-          <p className="auth-feedback" role="alert">
+          <Callout tone="danger" icon={CircleAlert} role="alert">
             {form.submitError}
-          </p>
+          </Callout>
         )}
         <div className="auth-verification">{turnstileElement}</div>
-        <button
+        <Button
           type="submit"
-          className="auth-action fuwari-btn-primary"
-          disabled={form.isSubmitting || form.turnstilePending}
+          variant="primary"
+          size="lg"
+          className="auth-action"
+          disabled={form.turnstilePending}
+          loading={form.isSubmitting}
         >
-          {form.isSubmitting && <Loader2 size={16} className="animate-spin" />}
           {form.isSubmitting ? m.register_submitting() : m.register_submit()}
-        </button>
+        </Button>
       </form>
       <footer className="auth-register">
         {m.register_have_account()}{" "}

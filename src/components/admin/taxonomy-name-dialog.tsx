@@ -1,8 +1,12 @@
 import { ClientOnly } from "@tanstack/react-router";
 import { X } from "lucide-react";
 import { useRef } from "react";
+import { Button } from "@/components/ui/button";
 import { FuwariModal } from "@/components/ui/fuwari-modal";
+import { IconButton } from "@/components/ui/icon-button";
+import { Input } from "@/components/ui/input";
 import { m } from "@/paraglide/messages";
+import "./taxonomy-name-dialog.css";
 
 export function TaxonomyNameDialog({
   open,
@@ -11,9 +15,7 @@ export function TaxonomyNameDialog({
   onNameChange,
   onClose,
   onSave,
-  onDelete,
   busy,
-  description,
   submitLabel = m.category_manager_save(),
   maxLength,
   fallbackFocus,
@@ -24,9 +26,7 @@ export function TaxonomyNameDialog({
   onNameChange: (name: string) => void;
   onClose: () => void;
   onSave: () => void;
-  onDelete?: () => void;
   busy: boolean;
-  description?: string;
   submitLabel?: string;
   maxLength?: number;
   fallbackFocus?: () => HTMLElement | null;
@@ -45,23 +45,21 @@ export function TaxonomyNameDialog({
       >
         <header>
           <h2>{title}</h2>
-          <button
-            type="button"
-            aria-label={m.common_close()}
+          <IconButton
+            label={m.common_close()}
             disabled={busy}
             onClick={onClose}
           >
             <X size={18} />
-          </button>
+          </IconButton>
         </header>
-        {description ? <p>{description}</p> : null}
         <form
           onSubmit={(event) => {
             event.preventDefault();
             if (!busy && name.trim()) onSave();
           }}
         >
-          <input
+          <Input
             ref={inputRef}
             aria-label={title}
             value={name}
@@ -71,31 +69,17 @@ export function TaxonomyNameDialog({
             autoComplete="off"
           />
           <footer>
-            {onDelete ? (
-              <button
-                type="button"
-                className="taxonomy-delete"
-                disabled={busy}
-                onClick={onDelete}
-              >
-                {m.category_manager_delete()}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="fuwari-btn-regular"
-              disabled={busy}
-              onClick={onClose}
-            >
+            <Button disabled={busy} onClick={onClose}>
               {m.category_manager_cancel()}
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="fuwari-btn-primary"
-              disabled={busy || !name.trim()}
+              variant="primary"
+              loading={busy}
+              disabled={!name.trim()}
             >
               {busy ? m.common_processing() : submitLabel}
-            </button>
+            </Button>
           </footer>
         </form>
       </FuwariModal>

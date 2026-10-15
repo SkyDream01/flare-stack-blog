@@ -1,6 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { FileText, Home, LayoutDashboard, Search } from "lucide-react";
 import { StatusPage } from "@/components/common/status-page";
+import { buttonClass } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 
 export function NotFound() {
@@ -13,7 +14,10 @@ export function NotFound() {
       description={admin ? m.admin_not_found_desc() : m.not_found_desc()}
       action={
         <>
-          <Link to={admin ? "/admin" : "/"} className="fuwari-btn-primary">
+          <Link
+            to={admin ? "/admin" : "/"}
+            className={buttonClass({ variant: "primary", size: "lg" })}
+          >
             {admin ? (
               <LayoutDashboard size={18} aria-hidden="true" />
             ) : (
@@ -23,7 +27,7 @@ export function NotFound() {
           </Link>
           <Link
             to={admin ? "/admin/posts" : "/search"}
-            className="fuwari-btn-regular"
+            className={buttonClass({ size: "lg" })}
           >
             {admin ? (
               <FileText size={18} aria-hidden="true" />

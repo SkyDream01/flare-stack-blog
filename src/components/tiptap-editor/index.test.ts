@@ -6,6 +6,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
+import { findInPopover } from "tests/popover";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   pressKey,
@@ -31,7 +32,7 @@ it("opens the slash menu on / and closes it on Escape", async () => {
   editor.commands.focus("end");
 
   act(() => typeText(editor, "/"));
-  const menu = await screen.findByRole("listbox", {
+  const menu = await findInPopover("listbox", {
     name: m.editor_slash_menu(),
   });
   const options = within(menu).getAllByRole("option");
@@ -60,7 +61,7 @@ it("inserts the clicked item", async () => {
   editor.commands.focus("end");
 
   act(() => typeText(editor, "/quote"));
-  const menu = await screen.findByRole("listbox", {
+  const menu = await findInPopover("listbox", {
     name: m.editor_slash_menu(),
   });
   act(() => {

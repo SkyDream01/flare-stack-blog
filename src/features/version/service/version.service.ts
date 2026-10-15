@@ -34,6 +34,8 @@ type CheckForUpdateResult = Result<
 export type VersionChecker = {
   check: (context: VersionContext) => Promise<CheckForUpdateResult>;
   refresh: (context: VersionContext) => Promise<CheckForUpdateResult>;
+  /** The last checked release from the cache; never calls GitHub. */
+  cached: (context: BaseContext) => Promise<UpdateCheckResult | null>;
 };
 
 export function createVersionChecker({
@@ -112,9 +114,30 @@ export function createVersionChecker({
     }
   }
 
+  async function cached(
+    context: BaseContext,
+  ): Promise<UpdateCheckResult | null> {
+    const stored = await kvStore.get(context, VERSION_CACHE_KEYS.latestRelease);
+    if (!stored) return null;
+    try {
+      const latestRelease = ApplicationReleaseSchema.parse(JSON.parse(stored));
+      const runningVersion =
+        RunningApplicationReleaseVersionSchema.parse(getCurrentVersion());
+      return UpdateCheckResultSchema.parse({
+        latestVersion: latestRelease.version,
+        currentVersion: runningVersion,
+        hasUpdate: isNewer(latestRelease.version, runningVersion),
+        releaseUrl: latestRelease.releaseUrl,
+      });
+    } catch {
+      return null;
+    }
+  }
+
   return {
     check: (context) => resolve(context, false),
     refresh: (context) => resolve(context, true),
+    cached,
   };
 }
 

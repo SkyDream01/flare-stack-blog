@@ -74,7 +74,7 @@ export function HomePagination({
           type="button"
           disabled
           aria-label={m.home_previous_page()}
-          className={`${buttonClass} opacity-40`}
+          className={`${buttonClass} cursor-not-allowed opacity-50`}
         >
           <ChevronLeft size={28} />
         </button>
@@ -100,7 +100,7 @@ export function HomePagination({
           type="button"
           disabled
           aria-label={m.home_next_page()}
-          className={`${buttonClass} opacity-40`}
+          className={`${buttonClass} cursor-not-allowed opacity-50`}
         >
           <ChevronRight size={28} />
         </button>

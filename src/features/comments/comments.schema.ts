@@ -6,10 +6,11 @@ import { CommentsTable } from "@/lib/db/schema";
 // Date fields need to accept both Date objects and ISO strings (for JSON serialization)
 const coercedDate = z.union([z.date(), z.string().pipe(z.coerce.date())]);
 
+/** A Comment as public APIs return it; when an Admin handled it stays private. */
 export const CommentSelectSchema = createSelectSchema(CommentsTable, {
   createdAt: coercedDate,
   updatedAt: coercedDate,
-});
+}).omit({ handledAt: true });
 
 // User info schema for joined queries
 const CommentUserSchema = z.object({
@@ -104,6 +105,15 @@ export const GetMyCommentsInputSchema = z.object({
   offset: z.number().optional(),
   limit: z.number().optional(),
   status: z.custom<CommentStatus>().optional(),
+});
+
+// Admin API Schemas
+export const CommentHandledInputSchema = z.object({
+  id: z.number().int().positive(),
+});
+
+export const CommentsHandledCountSchema = z.object({
+  count: z.number().int().nonnegative(),
 });
 
 // Types

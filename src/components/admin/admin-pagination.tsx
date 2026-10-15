@@ -1,5 +1,5 @@
 import React from "react";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
 
 interface AdminPaginationProps {
@@ -10,6 +10,8 @@ interface AdminPaginationProps {
   currentPageItemCount: number;
   onPageChange: (page: number) => void;
 }
+
+const PAGE_BUTTON_CLASS = "w-8 px-0";
 
 function getPageNumbers(
   currentPage: number,
@@ -71,44 +73,40 @@ export function AdminPagination({
       </div>
 
       <div className="flex items-center gap-1">
-        <button
-          type="button"
+        <Button
+          size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="fuwari-btn-regular rounded-xl h-8 w-8 text-sm disabled:opacity-40"
+          className={PAGE_BUTTON_CLASS}
         >
           {"<"}
-        </button>
+        </Button>
 
         {pageNumbers.map((pageNumber, index) => (
           <React.Fragment key={index}>
             {pageNumber === "..." ? (
               <div className="w-8 text-center text-sm fuwari-text-50">...</div>
             ) : (
-              <button
-                type="button"
+              <Button
+                size="sm"
+                variant={currentPage === pageNumber ? "primary" : "regular"}
                 onClick={() => onPageChange(pageNumber)}
-                className={cn(
-                  "rounded-xl h-8 w-8 text-sm",
-                  currentPage === pageNumber
-                    ? "fuwari-btn-primary"
-                    : "fuwari-btn-regular",
-                )}
+                className={PAGE_BUTTON_CLASS}
               >
                 {pageNumber}
-              </button>
+              </Button>
             )}
           </React.Fragment>
         ))}
 
-        <button
-          type="button"
+        <Button
+          size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="fuwari-btn-regular rounded-xl h-8 w-8 text-sm disabled:opacity-40"
+          className={PAGE_BUTTON_CLASS}
         >
           {">"}
-        </button>
+        </Button>
       </div>
     </div>
   );

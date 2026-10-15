@@ -114,12 +114,17 @@ export function resolveSiteConfig(
 function resolveWebhookEndpoint(
   notification: SystemConfig["notification"] | null | undefined,
 ): WebhookEndpoint {
-  const currentUrl = notification?.webhook?.url?.trim() ?? "";
-  const currentSecret = notification?.webhook?.secret ?? "";
-  if (currentUrl) {
+  const current = notification?.webhook;
+  const currentUrl = current?.url?.trim() ?? "";
+  const currentSecret = current?.secret ?? "";
+  const provider = current?.provider ?? "generic";
+  if (currentUrl || provider !== "generic") {
     return {
+      ...(provider !== "generic" && { provider }),
       url: currentUrl,
       secret: currentSecret,
+      ...(current?.chatId && { chatId: current.chatId }),
+      ...(current?.template && { template: current.template }),
     };
   }
 

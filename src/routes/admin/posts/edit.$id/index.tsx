@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { StatusPage } from "@/components/common/status-page";
+import { buttonClass } from "@/components/ui/button";
 import { PostEditor } from "@/features/posts/components/post-editor";
 import { persistableTagIds } from "@/features/posts/components/post-editor/post-editor.model";
 import { PostEditorSkeleton } from "@/features/posts/components/post-editor/post-editor-skeleton";
@@ -53,7 +54,7 @@ function EditPost() {
         action={
           <Link
             to="/admin/posts"
-            className="fuwari-btn-primary h-10 rounded-xl px-6 text-sm font-medium"
+            className={buttonClass({ variant: "primary", size: "lg" })}
           >
             {m.common_back()}
           </Link>
@@ -111,6 +112,11 @@ function EditPost() {
   };
 
   return (
-    <PostEditor key={post.id} initialData={initialData} onSave={handleSave} />
+    <PostEditor
+      key={post.id}
+      initialData={initialData}
+      publicSlug={post.publicSlug}
+      onSave={handleSave}
+    />
   );
 }

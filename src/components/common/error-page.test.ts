@@ -75,7 +75,7 @@ it("disables retry while loading and resets the boundary only after invalidation
   await act(async () => pending.resolve());
   expect(reset).toHaveBeenCalledOnce();
   expect(button.disabled).toBe(false);
-  expect(button.getAttribute("aria-busy")).toBe("false");
+  expect(button.getAttribute("aria-busy")).toBeNull();
   expect(screen.queryByRole("status")).toBeNull();
 });
 
@@ -93,7 +93,7 @@ it("shows safe feedback after rejection and allows another retry", async () => {
   await act(async () => pending.reject(new Error(rawError)));
   expect(reset).not.toHaveBeenCalled();
   expect(button.disabled).toBe(false);
-  expect(button.getAttribute("aria-busy")).toBe("false");
+  expect(button.getAttribute("aria-busy")).toBeNull();
   expect(screen.getByRole("status").textContent).toBe(m.error_retry_failed());
   expect(screen.queryByText(rawError, { exact: false })).toBeNull();
 

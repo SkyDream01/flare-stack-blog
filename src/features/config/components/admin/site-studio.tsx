@@ -12,9 +12,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { OverlayUpload } from "@/features/config/components/admin/overlay-upload";
-import { SETTINGS_FIELD_CLASS } from "@/features/config/components/admin/settings-pages";
 import type { SystemConfig } from "@/features/config/config.schema";
 import {
   FUWARI_THEME_HUE_MAX,
@@ -213,46 +215,41 @@ export function SiteStudio() {
         <div className="grid gap-4 md:grid-cols-2">
           <label className="site-section-copy">
             <span>{m.settings_site_field_home_image()}</span>
-            <input
+            <Input
               {...register("site.theme.cuckoo.bg")}
-              className={SETTINGS_FIELD_CLASS}
               placeholder="/images/themes/cuckoo/bg.svg"
             />
           </label>
           <label className="site-section-copy">
             <span>{m.settings_site_field_avatar()}</span>
-            <input
+            <Input
               {...register("site.theme.cuckoo.avatar")}
-              className={SETTINGS_FIELD_CLASS}
               placeholder="/images/themes/cuckoo/avatar.svg"
             />
           </label>
           <label className="site-section-copy">
             <span>{m.settings_site_field_sidebar_image_cuckoo()}</span>
-            <input
+            <Input
               {...register("site.theme.cuckoo.sidebarBg")}
-              className={SETTINGS_FIELD_CLASS}
               placeholder="/images/themes/cuckoo/sidebar.svg"
             />
           </label>
           <label className="site-section-copy">
             <span>{m.settings_site_field_default_cover_cuckoo()}</span>
-            <input
+            <Input
               {...register("site.theme.cuckoo.defaultCover")}
-              className={SETTINGS_FIELD_CLASS}
               placeholder="https://picsum.photos/seed/{slug}/1200/630"
             />
           </label>
           <label className="site-section-copy">
             <span>{m.settings_site_field_primary_hue()}</span>
-            <input
+            <Input
               {...register("site.theme.cuckoo.primaryHue", {
                 valueAsNumber: true,
               })}
               type="number"
               min={0}
               max={360}
-              className={SETTINGS_FIELD_CLASS}
             />
           </label>
         </div>
@@ -340,14 +337,13 @@ function NavLinksEditor() {
                 >
                   <GripVertical size={18} />
                 </button>
-                <input
+                <Input
                   {...register(`site.navLinks.${index}.label`)}
                   placeholder={m.settings_site_nav_label_ph()}
                   aria-label={m.settings_site_nav_name()}
-                  className={SETTINGS_FIELD_CLASS}
                 />
                 <div className="relative min-w-0 flex-1">
-                  <input
+                  <Input
                     {...register(`site.navLinks.${index}.href`, {
                       onBlur: (event) => {
                         const next = canonicalizeNavHref(event.target.value);
@@ -361,10 +357,7 @@ function NavLinksEditor() {
                     })}
                     aria-label={m.settings_site_nav_url()}
                     placeholder={m.settings_site_nav_href_ph()}
-                    className={cn(
-                      SETTINGS_FIELD_CLASS,
-                      isExternalNavHref(canonicalHref) && "pr-10",
-                    )}
+                    className={cn(isExternalNavHref(canonicalHref) && "pr-10")}
                   />
                   {isExternalNavHref(canonicalHref) ? (
                     <ExternalLink
@@ -373,17 +366,17 @@ function NavLinksEditor() {
                     />
                   ) : null}
                 </div>
-                <button
-                  type="button"
+                <IconButton
+                  size="md"
+                  tone="danger"
                   onClick={() => remove(index)}
-                  className="h-10 w-10 rounded-xl fuwari-text-50 hover:text-(--fuwari-danger-fg) grid place-items-center shrink-0"
-                  aria-label={m.settings_site_nav_remove()}
+                  label={m.settings_site_nav_remove()}
                 >
                   <Trash2 size={16} />
-                </button>
+                </IconButton>
               </div>
               {labelError || hrefError ? (
-                <p className="text-xs text-(--fuwari-danger-fg)">
+                <p className="fuwari-form-field-error">
                   {hrefError || labelError}
                 </p>
               ) : null}
@@ -393,14 +386,15 @@ function NavLinksEditor() {
       </div>
 
       {fields.length < NAV_LINKS_MAX ? (
-        <button
-          type="button"
+        <Button
+          variant="text"
+          size="sm"
           onClick={() => append({ label: "", href: "" })}
+          icon={<Plus size={14} />}
           className="site-add-link"
         >
-          <Plus size={14} />
           {m.settings_site_nav_add()}
-        </button>
+        </Button>
       ) : null}
     </section>
   );
@@ -433,14 +427,12 @@ function SocialPills() {
           const Icon = preset?.icon;
           const iconSrc = watch(`site.social.${index}.icon`);
           return (
-            <button
+            <IconButton
               key={field.id}
-              type="button"
               onClick={() =>
                 setSelected((current) => (current === index ? null : index))
               }
-              className={cn("site-social-icon", selected === index && "active")}
-              aria-label={preset?.label ?? field.label ?? ""}
+              label={preset?.label ?? field.label ?? ""}
               aria-expanded={selected === index}
             >
               {Icon ? (
@@ -450,23 +442,23 @@ function SocialPills() {
               ) : (
                 <Plus size={16} />
               )}
-            </button>
+            </IconButton>
           );
         })}
         {unused.length > 0 ? (
-          <button
-            type="button"
+          <Button
+            variant="text"
+            size="sm"
             onClick={() => {
               const next = unused[0];
               if (!next) return;
               append({ platform: next, url: "" });
               setSelected(fields.length);
             }}
-            className="site-add-link"
+            icon={<Plus size={14} />}
           >
-            <Plus size={14} />
             {m.settings_social_add()}
-          </button>
+          </Button>
         ) : null}
       </div>
 
@@ -502,35 +494,34 @@ function SocialPills() {
                       disabled: taken(key, selected),
                     }))}
                   />
-                  <input
+                  <Input
                     {...register(`site.social.${selected}.url`)}
                     placeholder={urlPlaceholder}
-                    className={SETTINGS_FIELD_CLASS}
                   />
-                  <button
-                    type="button"
+                  <IconButton
+                    size="md"
+                    tone="danger"
                     onClick={() => {
                       remove(selected);
                       setSelected(null);
                     }}
-                    className="h-10 w-10 rounded-xl fuwari-text-50 hover:text-(--fuwari-danger-fg) grid place-items-center shrink-0"
-                    aria-label={m.settings_social_remove()}
+                    label={m.settings_social_remove()}
                   >
                     <X size={16} />
-                  </button>
+                  </IconButton>
                 </div>
                 {platform === "custom" ? (
                   <div className="flex gap-2">
-                    <input
+                    <Input
                       {...register(`site.social.${selected}.label`)}
                       placeholder={m.settings_social_label_ph()}
-                      className={cn(SETTINGS_FIELD_CLASS, "w-36 shrink-0")}
+                      className="w-36 shrink-0"
                     />
                     <OverlayUpload
                       name={`site.social.${selected}.icon`}
                       assetPath={`social/custom-${selected}`}
                       accept=".svg,.png,.webp"
-                      className="relative bg-(--fuwari-btn-regular-bg) text-(--fuwari-btn-content)"
+                      variant="regular"
                       label={
                         watch(`site.social.${selected}.icon`)
                           ? m.settings_replace()

@@ -7,6 +7,7 @@ import {
 } from "react";
 import type { AppTheme } from "@/components/common/theme-provider";
 import { cn } from "@/lib/utils";
+import { StatusText } from "@/components/ui/status-text";
 import { m } from "@/paraglide/messages";
 import { renderMermaid } from "./mermaid-render";
 import { mermaidThemeVariables } from "./mermaid-theme";
@@ -83,13 +84,10 @@ export function MermaidDiagram({
         </pre>
       )}
       {state.status === "failed" && (
-        <div
-          role="alert"
-          className="mt-2 px-5 pb-4 text-sm whitespace-pre-wrap text-(--fuwari-danger-fg)"
-        >
+        <StatusText error className="mt-2 px-5 pb-4 whitespace-pre-wrap">
           {m.common_mermaid_render_failed()}
           {state.message && `: ${state.message}`}
-        </div>
+        </StatusText>
       )}
     </div>
   );

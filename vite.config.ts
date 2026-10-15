@@ -17,9 +17,14 @@ const buildEnvSchema = z.object({
 const config = defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const buildEnv = buildEnvSchema.parse(env);
+
   return {
     define: {
       __APP_VERSION__: JSON.stringify(packageJson.version),
+      // Unique per build, so cached pages never outlive the assets they name.
+      __BUILD_ID__: JSON.stringify(
+        process.env.WORKERS_CI_BUILD_UUID || Date.now().toString(36),
+      ),
       __THEME_NAME__: JSON.stringify(buildEnv.THEME),
       __THEME_CONFIG__: JSON.stringify(themes[buildEnv.THEME]),
     },
@@ -33,34 +38,6 @@ const config = defineConfig(({ mode }) => {
         ),
       },
     },
-    // workerd throws "Top-level await in module is unsettled" when the SSR
-    // entry dynamically imports a chunk that statically imports that same
-    // entry. Keep the worker graph in one module.
-    environments: {
-      ssr: {
-        // TanStack Devtools' shell is Solid. Cloudflare SSR resolves
-        // solid-js/web to dist/server.js, which has no DOM exports like `use`.
-        // Exclude it from the SSR optimizer only; the client still prebundles
-        // so nested CJS (dayjs) is converted to ESM. @tanstack/devtools already
-        // ships a workerd stub, but @tanstack/devtools-ui does not.
-        optimizeDeps: {
-          exclude: [
-            "@tanstack/react-devtools",
-            "@tanstack/devtools",
-            "@tanstack/devtools-ui",
-            "solid-js",
-            "solid-js/web",
-          ],
-        },
-        build: {
-          rolldownOptions: {
-            output: {
-              codeSplitting: false,
-            },
-          },
-        },
-      },
-    },
     plugins: [
       paraglideVitePlugin({
         project: "./project.inlang",
@@ -69,18 +46,15 @@ const config = defineConfig(({ mode }) => {
         cookieName: "LOCALE",
       }),
       cloudflare({
-        experimental: { newConfig: true },
         viteEnvironment: {
           name: "ssr",
         },
+        // Read the Worker from cloudflare.config.ts instead of wrangler.jsonc.
+        experimental: { newConfig: true },
       }),
       tailwindcss(),
       devtools(),
-      tanstackStart({
-        importProtection: {
-          enabled: false,
-        },
-      }),
+      tanstackStart(),
       viteReact(),
     ],
   };

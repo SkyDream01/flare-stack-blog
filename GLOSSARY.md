@@ -105,8 +105,8 @@ A periodically refreshed ranking of **Published Posts** that received public vie
 _Avoid_: Traffic Metrics, Analytics, Pageview
 
 **Webhook Endpoint**:
-A configured external URL that receives admin **Notification Events**.
-_Avoid_: Webhook, callback URL
+The one configured external destination for admin **Notification Events**: a chat bot, a push app, or a receiver the **Admin** runs, each sent the event in its own format.
+_Avoid_: Webhook, callback URL, push channel
 
 **Application Release**:
 A stable Flare Stack Blog release published by the official upstream project and identified by a `vMAJOR.MINOR.PATCH` version. Fork releases, prereleases, and unreleased commits are not **Application Releases**.

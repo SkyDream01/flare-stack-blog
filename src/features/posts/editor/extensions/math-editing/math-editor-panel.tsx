@@ -1,6 +1,9 @@
 import katex from "katex";
 import type { Ref } from "react";
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/input";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import type { MathType } from "./state";
@@ -56,9 +59,13 @@ export function MathEditorPanel({
   return (
     <div
       data-math-editor=""
-      className={cn("flex flex-col gap-2 text-left", className)}
+      className={cn(
+        "flex flex-col gap-2 text-left [--fuwari-field-font-size:13px] [--fuwari-field-height:36px] [--fuwari-field-radius:8px]",
+        className,
+      )}
     >
-      <textarea
+      <Textarea
+        mono
         ref={inputRef}
         aria-label="LaTeX"
         value={value}
@@ -80,7 +87,6 @@ export function MathEditorPanel({
             apply();
           }
         }}
-        className="w-full resize-y rounded-lg border border-(--fuwari-input-border) bg-(--fuwari-input-bg) p-2 font-mono text-sm fuwari-text-90 outline-none placeholder:fuwari-text-30 focus:border-(--fuwari-primary)"
       />
       <output
         aria-label={m.editor_formula_preview()}
@@ -96,7 +102,7 @@ export function MathEditorPanel({
             {m.editor_formula_preview_empty()}
           </span>
         ) : "error" in preview ? (
-          <span className="text-sm wrap-break-word text-(--fuwari-danger-fg)">
+          <span className="fuwari-form-field-error wrap-break-word">
             {preview.error}
           </span>
         ) : (
@@ -107,43 +113,26 @@ export function MathEditorPanel({
         )}
       </output>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1">
-          {(["inline", "block"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={shownAs === option}
-              onClick={() => setShownAs(option)}
-              className={cn(
-                "h-7 rounded-lg px-2.5 text-xs font-medium",
-                shownAs === option
-                  ? "fuwari-btn-primary"
-                  : "fuwari-btn-regular",
-              )}
-            >
-              {option === "inline"
-                ? m.editor_formula_inline()
-                : m.editor_formula_block()}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          aria-label={m.editor_formula_display()}
+          track={false}
+          size="sm"
+          value={shownAs}
+          onValueChange={setShownAs}
+          items={[
+            { value: "inline", label: m.editor_formula_inline() },
+            { value: "block", label: m.editor_formula_block() },
+          ]}
+        />
         <span className="mr-auto hidden text-xs fuwari-text-50 sm:inline">
           {m.editor_formula_shortcut()}
         </span>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="fuwari-btn-regular h-7 rounded-lg px-2.5 text-xs font-medium"
-        >
+        <Button size="sm" onClick={onCancel}>
           {m.editor_formula_cancel()}
-        </button>
-        <button
-          type="button"
-          onClick={apply}
-          className="fuwari-btn-primary h-7 rounded-lg px-2.5 text-xs font-medium"
-        >
+        </Button>
+        <Button variant="primary" size="sm" onClick={apply}>
           {m.editor_formula_apply()}
-        </button>
+        </Button>
       </div>
     </div>
   );

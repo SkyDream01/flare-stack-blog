@@ -20,6 +20,11 @@ import {
 } from "@/features/posts/utils/toc";
 import { CodeBlock as DefaultCodeBlock } from "@/features/posts/components/content/code-block";
 import { ImageDisplay as DefaultImageDisplay } from "@/features/posts/components/content/image-display";
+import { VideoEmbed } from "@/features/posts/components/content/video-embed";
+import {
+  videoMetaOf,
+  videoSourceOf,
+} from "@/features/posts/utils/video-source";
 import { m } from "@/paraglide/messages";
 
 // Only posts with a Mermaid code block load the diagram renderer (ADR 0027).
@@ -61,6 +66,12 @@ export function renderReact(
               ) : null}
             </Tag>
           );
+        },
+        video: ({ node }) => {
+          const source = videoSourceOf(node.attrs);
+          return source ? (
+            <VideoEmbed source={source} meta={videoMetaOf(node.attrs)} />
+          ) : null;
         },
         image: ({ node }) => {
           const attrs = node.attrs as {

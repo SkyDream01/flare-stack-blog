@@ -53,7 +53,11 @@ export default {
   async fetch(request, _env, ctx) {
     const locale = extractLocaleFromRequest(request);
     return ctx.exports.App({ props: { locale } }).fetch(request, {
-      cf: { cacheKey: workersCacheKey(request.url) },
+      // Cached pages name the hashed assets of the build that rendered them,
+      // and a deploy removes those assets, so each build gets its own keys.
+      cf: {
+        cacheKey: `/_build/${__BUILD_ID__}${workersCacheKey(request.url)}`,
+      },
     });
   },
   async queue(batch, env, ctx) {

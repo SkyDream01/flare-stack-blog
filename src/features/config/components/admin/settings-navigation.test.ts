@@ -20,6 +20,7 @@ import {
   DEFAULT_CONFIG,
   type SystemConfig,
 } from "@/features/config/config.schema";
+import { m } from "@/paraglide/messages";
 import { Route as SettingsRoute } from "@/routes/admin/settings/route";
 import { settingsSectionFromPath } from "./settings-pages";
 
@@ -146,3 +147,41 @@ it.each(["site", "notifications"])(
     expect(caught).toEqual([]);
   },
 );
+
+it("shows the muted users list as a settings tab without a save bar", async () => {
+  const root = createRootRoute({
+    component: () =>
+      createElement(AdminChromeProvider, null, createElement(Outlet)),
+  });
+  const settings = createRoute({
+    getParentRoute: () => root,
+    path: "/admin/settings",
+    component: SettingsRoute.options.component as RouteComponent,
+  });
+  const mutedUsers = createRoute({
+    getParentRoute: () => settings,
+    path: "muted-users",
+    component: () => createElement("h2", null, "Muted list"),
+  });
+  const router = createRouter({
+    routeTree: root.addChildren([settings.addChildren([mutedUsers])]),
+    history: createMemoryHistory({
+      initialEntries: ["/admin/settings/muted-users"],
+    }),
+    context: { queryClient: new QueryClient() },
+  });
+  render(createElement(RouterProvider, { router }));
+  await screen.findByRole("heading", { name: "Muted list" });
+  expect(
+    screen
+      .getByRole("link", { name: m.muted_users_title() })
+      .getAttribute("aria-current"),
+  ).toBe("page");
+  expect(document.querySelector(".settings-savebar")).toBeNull();
+});
+
+it("maps the muted users path to its settings tab", () => {
+  expect(settingsSectionFromPath("/admin/settings/muted-users/")).toBe(
+    "muted-users",
+  );
+});

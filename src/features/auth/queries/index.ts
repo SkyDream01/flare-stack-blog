@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
-import { authClient } from "@/lib/auth/auth.client";
+import { authClient } from "@/lib/auth/auth-client";
 import { orpc } from "@/lib/orpc";
 
 const AUTH_KEYS = {

@@ -1,4 +1,5 @@
 import { Link, useRouteContext } from "@tanstack/react-router";
+import { iconButtonClass } from "@/components/ui/icon-button";
 import {
   getPublicImageSrc,
   PUBLIC_IMAGE_WIDTH,
@@ -59,7 +60,7 @@ export function Profile() {
                   target={link.platform === "email" ? undefined : "_blank"}
                   rel={link.platform === "email" ? undefined : "me noreferrer"}
                   aria-label={label}
-                  className="fuwari-btn-regular rounded-lg h-10 w-10 active:scale-90 hover:text-(--fuwari-primary) transition-colors"
+                  className={iconButtonClass({ size: "lg" })}
                 >
                   {Icon ? (
                     <Icon size={20} strokeWidth={1.5} />

@@ -1,11 +1,12 @@
 .media-workspace,
 .media-inspector {
-  --admin-unit: clamp(1px, 0.07vw, 1.5px);
+  --fuwari-button-height: calc(40 * var(--admin-unit));
+  --fuwari-button-font-size: calc(14 * var(--admin-unit));
+  --fuwari-button-padding-x: calc(18 * var(--admin-unit));
 }
 .media-workspace {
   --media-layout-duration: 420ms;
   --media-layout-ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --media-rule: color-mix(in srgb, var(--fuwari-fg-50) 20%, transparent);
   position: relative;
   min-height: calc(100dvh - 32px);
   padding: calc(28 * var(--admin-unit)) calc(32 * var(--admin-unit));
@@ -13,29 +14,7 @@
   container-type: inline-size;
 }
 .media-workspace-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: calc(24 * var(--admin-unit));
   margin-bottom: calc(12 * var(--admin-unit));
-}
-.media-workspace-header h1 {
-  font-size: calc(26 * var(--admin-unit));
-  font-weight: 600;
-  line-height: 1.4;
-  color: var(--fuwari-fg-90);
-}
-.media-workspace-header p {
-  margin-top: calc(8 * var(--admin-unit));
-  font-size: calc(13 * var(--admin-unit));
-  color: var(--fuwari-fg-50);
-}
-.media-workspace-header > button {
-  height: calc(42 * var(--admin-unit));
-  padding: 0 calc(18 * var(--admin-unit));
-  border-radius: calc(12 * var(--admin-unit));
-  gap: calc(8 * var(--admin-unit));
-  font-size: calc(14 * var(--admin-unit));
 }
 .media-workspace-toolbar {
   display: flex;
@@ -46,55 +25,7 @@
   min-height: calc(46 * var(--admin-unit));
 }
 .media-workspace-tabs {
-  display: flex;
   align-self: stretch;
-  gap: calc(26 * var(--admin-unit));
-  border-bottom: 1px solid var(--media-rule);
-}
-.media-workspace-tabs button {
-  display: flex;
-  align-items: center;
-  gap: calc(8 * var(--admin-unit));
-  border-bottom: 2px solid transparent;
-  padding: calc(9 * var(--admin-unit)) 4px calc(11 * var(--admin-unit));
-  margin-bottom: -1px;
-  font-size: calc(14 * var(--admin-unit));
-  white-space: nowrap;
-}
-.media-workspace-tabs button[aria-pressed="true"] {
-  color: var(--fuwari-primary);
-  border-bottom-color: var(--fuwari-primary);
-  font-weight: 600;
-}
-.media-workspace-tabs span {
-  font-size: calc(12 * var(--admin-unit));
-}
-.media-view-switch {
-  display: flex;
-  padding: 4px;
-  gap: 3px;
-  border-radius: calc(11 * var(--admin-unit));
-  background: color-mix(
-    in srgb,
-    var(--fuwari-btn-regular-bg) 35%,
-    var(--fuwari-card-bg)
-  );
-}
-.media-view-switch button {
-  display: flex;
-  align-items: center;
-  gap: calc(7 * var(--admin-unit));
-  padding: calc(8 * var(--admin-unit)) calc(12 * var(--admin-unit));
-  border-radius: calc(8 * var(--admin-unit));
-  font-size: calc(14 * var(--admin-unit));
-  white-space: nowrap;
-  transition:
-    background-color 0.2s,
-    color 0.2s;
-}
-.media-view-switch button.selected {
-  color: var(--fuwari-primary);
-  background: var(--fuwari-btn-regular-bg);
 }
 .media-workspace-body {
   display: grid;
@@ -203,7 +134,7 @@
 }
 .media-table td {
   padding: calc(12 * var(--admin-unit)) calc(10 * var(--admin-unit));
-  border-bottom: 1px solid var(--media-rule);
+  border-bottom: 1px solid var(--admin-rule);
   color: var(--fuwari-fg-50);
 }
 .media-table tr[data-selected="true"] td {
@@ -246,29 +177,8 @@
   font-size: calc(12 * var(--admin-unit));
   color: var(--fuwari-fg-50);
 }
-.media-browser-footer > button:not(.media-cleanup),
-.media-empty button {
-  padding: calc(10 * var(--admin-unit)) calc(16 * var(--admin-unit));
-  border-radius: calc(10 * var(--admin-unit));
-  font-size: calc(14 * var(--admin-unit));
-}
 .media-cleanup {
   margin-left: auto;
-  color: var(--fuwari-danger-fg);
-  padding: calc(10 * var(--admin-unit)) 0;
-}
-.media-empty {
-  min-height: calc(360 * var(--admin-unit));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: calc(14 * var(--admin-unit));
-  text-align: center;
-  font-size: calc(14 * var(--admin-unit));
-}
-.media-empty > span {
-  color: var(--fuwari-fg-50);
 }
 .media-upload-progress {
   margin-bottom: calc(20 * var(--admin-unit));
@@ -296,35 +206,12 @@ aside.media-inspector {
   max-height: calc(100dvh - 80px);
   overflow-y: auto;
   padding-left: calc(24 * var(--admin-unit));
-  border-left: 1px solid var(--media-rule);
+  border-left: 1px solid var(--admin-rule);
   scrollbar-width: thin;
   animation: media-inspector-enter 0.24s ease-out;
 }
 .media-inspector-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   margin-bottom: calc(16 * var(--admin-unit));
-  gap: calc(14 * var(--admin-unit));
-}
-.media-inspector-header h2 {
-  font-size: calc(16 * var(--admin-unit));
-  font-weight: 600;
-  color: var(--fuwari-fg-90);
-}
-.media-inspector-header button,
-.media-inspector-name button {
-  display: grid;
-  place-items: center;
-  width: calc(34 * var(--admin-unit));
-  height: calc(34 * var(--admin-unit));
-  flex-shrink: 0;
-  border-radius: calc(8 * var(--admin-unit));
-}
-.media-inspector-header button:hover,
-.media-inspector-name button:hover {
-  color: var(--fuwari-primary);
-  background: var(--fuwari-btn-regular-bg);
 }
 .media-inspector-preview {
   display: flex;
@@ -369,9 +256,6 @@ aside.media-inspector {
   font-size: calc(13 * var(--admin-unit));
   color: var(--fuwari-fg-50);
 }
-.media-inspector-usage > p button {
-  color: var(--fuwari-primary);
-}
 .media-reference {
   display: flex;
   align-items: center;
@@ -397,17 +281,8 @@ aside.media-inspector {
   flex-wrap: wrap;
   margin-top: calc(22 * var(--admin-unit));
 }
-.media-inspector-actions button {
-  gap: calc(8 * var(--admin-unit));
-  padding: calc(11 * var(--admin-unit)) calc(14 * var(--admin-unit));
-  border-radius: calc(10 * var(--admin-unit));
-  font-size: calc(13 * var(--admin-unit));
-}
 .media-inspector-delete {
   margin-top: calc(20 * var(--admin-unit));
-  padding: calc(10 * var(--admin-unit)) 0;
-  font-size: calc(13 * var(--admin-unit));
-  color: var(--fuwari-danger-fg);
 }
 .media-inspector-dialog {
   position: fixed;
@@ -431,24 +306,28 @@ aside.media-inspector {
   background: #0005;
   backdrop-filter: blur(3px);
 }
-:is(.media-workspace, .media-inspector) :is(button, a, input):focus-visible {
+:is(.media-workspace, .media-inspector)
+  :is(
+    button:not(
+      .fuwari-button,
+      .fuwari-icon-button,
+      .fuwari-tab,
+      .fuwari-segment
+    ),
+    a,
+    input
+  ):focus-visible {
   outline: 2px solid var(--fuwari-primary);
   outline-offset: 3px;
-}
-:is(.media-workspace, .media-inspector) button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 .media-skeleton-image {
   aspect-ratio: 1.12;
   border-radius: calc(10 * var(--admin-unit));
-  background: var(--fuwari-btn-regular-bg);
 }
 .media-skeleton-label {
   height: calc(15 * var(--admin-unit));
   width: 65%;
   margin-top: calc(12 * var(--admin-unit));
-  background: var(--fuwari-btn-regular-bg);
   border-radius: calc(6 * var(--admin-unit));
 }
 .media-list-skeleton > div {
@@ -495,16 +374,12 @@ aside.media-inspector {
     gap: calc(14 * var(--admin-unit));
     margin-bottom: calc(22 * var(--admin-unit));
   }
-  .media-workspace-tabs {
-    gap: calc(22 * var(--admin-unit));
-    min-height: calc(42 * var(--admin-unit));
-  }
   .media-view-switch {
     margin-left: auto;
   }
-  .media-view-switch button {
-    padding: calc(8 * var(--admin-unit)) calc(10 * var(--admin-unit));
-    font-size: calc(13 * var(--admin-unit));
+  .media-view-switch {
+    --fuwari-segment-padding-x: calc(10 * var(--admin-unit));
+    --fuwari-segment-font-size: calc(13 * var(--admin-unit));
   }
   .media-gallery {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -529,8 +404,7 @@ aside.media-inspector {
   .media-inspector-dialog[open] {
     animation: none;
   }
-  .media-gallery .media-thumbnail,
-  .media-view-switch button {
+  .media-gallery .media-thumbnail {
     transition: none;
   }
 }
@@ -717,10 +591,7 @@ aside.media-inspector {
     row-gap: 10px;
   }
   .media-workspace-tabs {
-    gap: 12px;
-  }
-  .media-workspace-tabs button {
-    gap: 5px;
-    padding-inline: 0;
+    --fuwari-tabs-gap: 12px;
+    --fuwari-tab-padding-x: 0;
   }
 }

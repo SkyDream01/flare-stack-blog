@@ -215,6 +215,71 @@ describe("versioned System Config", () => {
     ).rejects.toMatchObject({ code: "CONFIG_INVALID" });
     expect((await getAdminConfig(context)).revisions.notifications).toBe(0);
   });
+  it("keeps a secret only on the channel it was saved for", async () => {
+    const context = createTestContext();
+    await updateSystemConfig(context, delivery());
+    const base = delivery(1);
+    if (base.section !== "notifications") throw new Error("Wrong fixture");
+    const keep = {
+      emailPassword: { action: "keep" as const },
+      webhookSecret: { action: "keep" as const },
+    };
+    // The generic signing key is no Telegram bot token.
+    await expect(
+      updateSystemConfig(context, {
+        ...base,
+        notification: {
+          ...base.notification,
+          webhook: { provider: "telegram", url: "", chatId: "42" },
+        },
+        secrets: keep,
+      }),
+    ).rejects.toMatchObject({
+      code: "CONFIG_INVALID",
+      data: { field: "notification.webhook.secret" },
+    });
+    await expect(
+      resolveTestSecret(
+        context,
+        "webhookSecret",
+        { action: "keep", expectedRevision: 1 },
+        "telegram",
+      ),
+    ).rejects.toMatchObject({ code: "CONFIG_INVALID" });
+
+    const telegram = await updateSystemConfig(context, {
+      ...base,
+      notification: {
+        ...base.notification,
+        webhook: { provider: "telegram", url: "", chatId: "42" },
+      },
+      secrets: { ...keep, webhookSecret: { action: "replace", value: "1:t" } },
+    });
+    expect(telegram.config.notification?.webhook).toEqual({
+      provider: "telegram",
+      url: "",
+      secret: "",
+      chatId: "42",
+    });
+    expect(telegram.secrets.webhookSecretConfigured).toBe(true);
+
+    // Discord needs no secret, so the bot token is dropped.
+    await updateSystemConfig(context, {
+      ...base,
+      expectedRevision: 2,
+      notification: {
+        ...base.notification,
+        webhook: {
+          provider: "discord",
+          url: "https://discord.com/api/webhooks/1/x",
+        },
+      },
+      secrets: keep,
+    });
+    expect(
+      (await getSystemConfig(context.db))?.notification?.webhook,
+    ).toMatchObject({ provider: "discord", secret: "", chatId: "42" });
+  });
   it("enforces singleton identity in the database", async () => {
     const context = createTestContext();
     await expect(

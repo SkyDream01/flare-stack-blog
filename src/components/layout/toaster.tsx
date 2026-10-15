@@ -1,4 +1,5 @@
 import { Toaster as Sonner } from "sonner";
+import { buttonClass } from "@/components/ui/button";
 
 export function Toaster() {
   return (
@@ -16,10 +17,8 @@ export function Toaster() {
           title: "text-sm font-medium fuwari-text-90 tracking-tight",
           description: "text-xs fuwari-text-50 mt-1",
           content: "flex flex-col gap-0.5 flex-1 min-w-0 pr-2",
-          actionButton:
-            "shrink-0 fuwari-btn-primary text-xs font-medium px-4 py-2 rounded-(--fuwari-radius-large)",
-          cancelButton:
-            "shrink-0 fuwari-btn-regular text-xs font-medium px-4 py-2 rounded-(--fuwari-radius-large)",
+          actionButton: buttonClass({ variant: "primary", size: "sm" }),
+          cancelButton: buttonClass({ size: "sm" }),
         },
       }}
     />

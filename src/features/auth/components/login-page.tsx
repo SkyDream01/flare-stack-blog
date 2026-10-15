@@ -1,10 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { Check, Loader2 } from "lucide-react";
+import { Check, CircleAlert } from "lucide-react";
 import { type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { GithubIcon } from "@/components/common/brand-icon";
 import type { useLoginForm } from "../hooks/use-login-form";
 import type { useSocialLogin } from "../hooks/use-social-login";
+import { Callout } from "@/components/ui/callout";
+import { StatusText } from "@/components/ui/status-text";
 import { m } from "@/paraglide/messages";
 
 interface LoginPageProps {
@@ -43,25 +48,21 @@ export function LoginPage({
         <h1>{m.login_title()}</h1>
         <p>{m.login_welcome_back()}</p>
       </header>
-      <button
-        type="button"
+      <Button
+        variant={isEmailConfigured ? "regular" : "primary"}
+        size="lg"
         onClick={socialLogin.handleGithubLogin}
         disabled={busy}
-        className={`auth-action ${isEmailConfigured ? "fuwari-btn-regular" : "fuwari-btn-primary"}`}
+        loading={socialLogin.isLoading}
+        icon={<GithubIcon size={18} />}
+        className="auth-action"
       >
-        {socialLogin.isLoading ? (
-          <Loader2 size={18} className="animate-spin" />
-        ) : (
-          <GithubIcon size={18} />
-        )}
         {socialLogin.isLoading
           ? m.login_social_connecting()
           : m.login_github_continue()}
-      </button>
+      </Button>
       {socialLogin.errorMessage && (
-        <p className="auth-error" role="alert">
-          {socialLogin.errorMessage}
-        </p>
+        <StatusText error>{socialLogin.errorMessage}</StatusText>
       )}
       {isEmailConfigured && (
         <>
@@ -69,10 +70,12 @@ export function LoginPage({
             <span>{m.login_email_alternative()}</span>
           </div>
           <form className="auth-form" onSubmit={handleSubmit} noValidate>
-            <div className="auth-field">
-              <label htmlFor="auth-email">{m.login_email_address()}</label>
-              <input
-                id="auth-email"
+            <FormField
+              label={m.login_email_address()}
+              error={errors.email?.message}
+              required
+            >
+              <Input
                 {...register("email")}
                 type="email"
                 autoComplete="username"
@@ -80,57 +83,46 @@ export function LoginPage({
                 spellCheck={false}
                 placeholder={m.login_email_placeholder()}
                 disabled={busy}
-                aria-required="true"
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? "auth-email-error" : undefined}
               />
-              {errors.email && (
-                <p id="auth-email-error" className="auth-error">
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-            <div className="auth-field">
-              <div className="auth-password-label">
-                <label htmlFor="auth-password">{m.login_password()}</label>
-                <Link to="/forgot-password">
+            </FormField>
+            <FormField
+              label={m.login_password()}
+              error={errors.password?.message}
+              required
+              action={
+                <Link to="/forgot-password" className="auth-field-link">
                   {m.login_forgot_password_fuwari()}
                 </Link>
-              </div>
+              }
+            >
               <PasswordInput
-                id="auth-password"
                 {...register("password")}
                 autoComplete="current-password"
                 placeholder={m.login_password_placeholder()}
                 disabled={busy}
-                aria-required="true"
-                aria-invalid={!!errors.password}
-                aria-describedby={
-                  errors.password ? "auth-password-error" : undefined
-                }
               />
-              {errors.password && (
-                <p id="auth-password-error" className="auth-error">
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
+            </FormField>
             {loginError && (
-              <div className="auth-feedback" role="alert">
-                <p>{loginError.message}</p>
-                {loginError.unverified && (
-                  <button
-                    type="button"
-                    onClick={resendVerification}
-                    disabled={busy || turnstilePending}
-                  >
-                    {isResending ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : null}
-                    {m.login_resend_verification()}
-                  </button>
-                )}
-              </div>
+              <Callout
+                tone="danger"
+                icon={CircleAlert}
+                role="alert"
+                action={
+                  loginError.unverified && (
+                    <Button
+                      variant="text"
+                      size="sm"
+                      onClick={resendVerification}
+                      disabled={busy || turnstilePending}
+                      loading={isResending}
+                    >
+                      {m.login_resend_verification()}
+                    </Button>
+                  )
+                }
+              >
+                {loginError.message}
+              </Callout>
             )}
             {resendFeedback && (
               <p className="auth-note" role="status">
@@ -138,22 +130,21 @@ export function LoginPage({
               </p>
             )}
             <div className="auth-verification">{turnstileElement}</div>
-            <button
+            <Button
               type="submit"
-              className="auth-action fuwari-btn-primary"
+              variant="primary"
+              size="lg"
+              className="auth-action"
               disabled={busy || turnstilePending}
+              loading={loginStep === "VERIFYING"}
+              icon={loginStep === "SUCCESS" ? <Check size={16} /> : null}
             >
-              {loginStep === "VERIFYING" ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : loginStep === "SUCCESS" ? (
-                <Check size={16} />
-              ) : null}
               {loginStep === "VERIFYING"
                 ? m.login_submitting()
                 : loginStep === "SUCCESS"
                   ? m.login_toast_success()
                   : m.login_email_submit()}
-            </button>
+            </Button>
           </form>
           <footer className="auth-register">
             {m.login_no_account()}{" "}

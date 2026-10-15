@@ -13,17 +13,18 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import type { SortDirection, SortField } from "@/features/posts/data/helper";
+import type {
+  PostFilters,
+  SortDirection,
+  SortField,
+} from "@/features/posts/data/helper";
 import {
   adminPostTextColumns,
   buildPostOrderByClause,
   buildPostWhereClause,
 } from "@/features/posts/data/helper";
 import { mapSnapshotToPublicPost } from "@/features/posts/public-snapshot";
-import type {
-  AdminTaxonomyFilter,
-  PostItem,
-} from "@/features/posts/schema/posts.schema";
+import type { PostItem } from "@/features/posts/schema/posts.schema";
 import { HOME_POSTS_PER_PAGE } from "@/features/posts/schema/posts.schema";
 import { isPostBodyEmpty } from "@/features/posts/utils/is-post-body-empty";
 import type { PostStatus, PublicPostSnapshot } from "@/lib/db/schema";
@@ -88,13 +89,9 @@ export async function insertPost(db: DB, data: typeof PostsTable.$inferInsert) {
 
 export async function getPosts(
   db: DB,
-  options: {
+  options: PostFilters & {
     offset?: number;
     limit?: number;
-    status?: PostStatus;
-    publicOnly?: boolean;
-    search?: string;
-    taxonomy?: AdminTaxonomyFilter;
     sortDir?: SortDirection;
     sortBy?: SortField;
     includeContent?: boolean;
@@ -122,6 +119,7 @@ export async function getPosts(
     .select({
       id: PostsTable.id,
       ...adminPostTextColumns(filters.taxonomy),
+      publicSlug: PostsTable.publicSlug,
       status: PostsTable.status,
       publishedAt: publicScope
         ? snapshotDate("publishedAt")
@@ -145,15 +143,7 @@ export async function getPosts(
   return posts;
 }
 
-export async function getPostsCount(
-  db: DB,
-  options: {
-    status?: PostStatus;
-    publicOnly?: boolean;
-    search?: string;
-    taxonomy?: AdminTaxonomyFilter;
-  } = {},
-) {
+export async function getPostsCount(db: DB, options: PostFilters = {}) {
   const whereClause = buildPostWhereClause(options);
   const totalNumberofPosts = await db
     .select({ count: count() })
@@ -165,11 +155,7 @@ export async function getPostsCount(
 /** Status facets use the same search predicate as the paginated Admin list. */
 export async function getAdminPostStatusCounts(
   db: DB,
-  options: {
-    publicOnly?: boolean;
-    search?: string;
-    taxonomy?: AdminTaxonomyFilter;
-  } = {},
+  options: Omit<PostFilters, "status"> = {},
 ) {
   const rows = await db
     .select({ status: PostsTable.status, count: count() })

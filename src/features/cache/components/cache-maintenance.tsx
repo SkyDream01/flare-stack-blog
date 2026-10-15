@@ -1,8 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
 import { orpcClient } from "@/lib/orpc";
+import { StatusText } from "@/components/ui/status-text";
 import { m } from "@/paraglide/messages";
 
 export function CacheMaintenance() {
@@ -30,30 +32,24 @@ export function CacheMaintenance() {
             {m.settings_maintenance_cache_desc_short()}
           </p>
           {mutation.isSuccess && (
-            <p role="status" className="settings-operation-result">
+            <StatusText className="mt-2">
               {m.settings_maintenance_cache_toast_success()}
-            </p>
+            </StatusText>
           )}
           {mutation.isError && (
-            <p
-              role="alert"
-              className="settings-operation-result"
-              data-error="true"
-            >
+            <StatusText error className="mt-2">
               {m.settings_maintenance_cache_toast_error()}
-            </p>
+            </StatusText>
           )}
         </div>
-        <button
-          type="button"
+        <Button
           onClick={() => setIsModalOpen(true)}
-          disabled={mutation.isPending}
-          className="fuwari-btn-regular rounded-xl h-9 px-3 text-sm font-medium shrink-0"
+          loading={mutation.isPending}
         >
           {mutation.isPending
             ? m.common_processing()
             : m.settings_maintenance_cache_btn()}
-        </button>
+        </Button>
       </div>
       <ConfirmationModal
         isOpen={isModalOpen}

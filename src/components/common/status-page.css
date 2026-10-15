@@ -57,27 +57,6 @@
   gap: 12px;
   margin-top: 28px;
 }
-.site-status-actions > a,
-.site-status-actions > button {
-  min-height: 44px;
-  height: auto;
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  gap: 8px;
-}
-.site-status-actions svg {
-  flex-shrink: 0;
-}
-.site-status-actions :is(a, button):focus-visible {
-  outline: 2px solid var(--fuwari-primary);
-  outline-offset: 3px;
-}
-.site-status-actions button:disabled {
-  opacity: 0.5;
-  cursor: wait;
-}
 .site-status-feedback {
   flex-basis: 100%;
   font-size: 13px;

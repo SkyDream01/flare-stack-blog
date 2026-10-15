@@ -1,3 +1,4 @@
+import { SectionHeading } from "@/components/ui/page-heading";
 import { m } from "@/paraglide/messages";
 import { CacheMaintenance } from "@/features/cache/components/cache-maintenance";
 import { PostPopularityMaintenance } from "@/features/post-popularity/components/post-popularity-maintenance";
@@ -7,14 +8,11 @@ import { VersionMaintenance } from "@/features/version/components/version-mainte
 export function MaintenanceSection() {
   return (
     <div className="settings-maintenance">
-      <div className="settings-section-heading">
-        <div>
-          <h2>{m.settings_nav_maintenance()}</h2>
-          <p className="settings-muted">
-            {m.settings_design_maintenance_hint()}
-          </p>
-        </div>
-      </div>
+      <SectionHeading
+        className="settings-section-heading"
+        title={m.settings_nav_maintenance()}
+        description={m.settings_design_maintenance_hint()}
+      />
       <VersionMaintenance />
       <PostPopularityMaintenance />
       <SearchMaintenance />

@@ -1,33 +1,67 @@
 import { formatPublicPostDate } from "@/features/posts/utils/format-public-post-date";
 import { ClientOnly, Link } from "@tanstack/react-router";
-import { MoreHorizontal, Pin, Trash2 } from "lucide-react";
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
-import { createPortal } from "react-dom";
-import { MOTION, useMotionPresence } from "@/hooks/use-motion";
+import { ExternalLink, EyeOff, Pin, PinOff, Trash2 } from "lucide-react";
+import { ActionMenu, type ActionMenuItem } from "@/components/ui/action-menu";
+import { PostStatusBadge } from "@/features/posts/components/post-status-badge";
+import { openPublicPost } from "@/features/posts/utils/open-public-post";
 import { formatDate } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
-import type { TaxonomyReturn } from "@/components/admin/taxonomy-state";
 import type { AdminPostListItem, SortField } from "../types";
 
 interface PostRowProps {
   post: AdminPostListItem;
   sortBy: SortField;
-  editorState?: () => { taxonomyReturn: TaxonomyReturn };
   onDelete: (
     post: AdminPostListItem,
     trigger: HTMLButtonElement | null,
   ) => void;
+  onTogglePin?: (post: AdminPostListItem) => void;
+  pinPending?: boolean;
+  onUnpublish?: (post: AdminPostListItem, trigger: HTMLButtonElement) => void;
 }
 
-export function PostRow({ post, sortBy, onDelete, editorState }: PostRowProps) {
+export function PostRow({
+  post,
+  sortBy,
+  onDelete,
+  onTogglePin,
+  pinPending,
+  onUnpublish,
+}: PostRowProps) {
   const title = post.title.trim() || m.common_untitled();
   const date = post[sortBy];
+  const published = post.status === "published";
+  const { publicSlug } = post;
+  const actions: Array<ActionMenuItem> = [];
+  if (published && publicSlug)
+    actions.push({
+      label: m.admin_posts_action_view_live(),
+      icon: ExternalLink,
+      onSelect: () => openPublicPost(publicSlug),
+    });
+  if (onTogglePin)
+    actions.push({
+      label: post.pinnedAt
+        ? m.admin_posts_action_unpin()
+        : m.admin_posts_action_pin(),
+      icon: post.pinnedAt ? PinOff : Pin,
+      disabled: pinPending,
+      onSelect: () => onTogglePin(post),
+    });
+  if (published && onUnpublish)
+    actions.push({
+      label: m.editor_header_unpublish(),
+      icon: EyeOff,
+      danger: true,
+      onSelect: (trigger) => onUnpublish(post, trigger),
+    });
+  actions.push({
+    label: m.admin_posts_action_delete_post(),
+    icon: Trash2,
+    danger: true,
+    separator: actions.length > 0,
+    onSelect: (trigger) => onDelete(post, trigger),
+  });
   return (
     <tr>
       <td>
@@ -40,7 +74,6 @@ export function PostRow({ post, sortBy, onDelete, editorState }: PostRowProps) {
           <Link
             to="/admin/posts/edit/$id"
             params={{ id: String(post.id) }}
-            state={editorState}
             className="post-list-title-link"
           >
             <strong>{title}</strong>
@@ -49,11 +82,7 @@ export function PostRow({ post, sortBy, onDelete, editorState }: PostRowProps) {
         </div>
       </td>
       <td>
-        <span className={`post-list-status ${post.status}`}>
-          {post.status === "published"
-            ? m.admin_posts_status_published()
-            : m.admin_posts_status_draft()}
-        </span>
+        <PostStatusBadge published={post.status === "published"} />
       </td>
       <td className="post-list-date">
         <span className="post-list-mobile-date-label">
@@ -78,119 +107,16 @@ export function PostRow({ post, sortBy, onDelete, editorState }: PostRowProps) {
           <Link
             to="/admin/posts/edit/$id"
             params={{ id: String(post.id) }}
-            state={editorState}
             aria-label={m.admin_posts_edit_named({ title })}
           >
             {m.admin_posts_action_edit()}
           </Link>
-          <PostRowMenu
-            title={title}
-            onDelete={(trigger) => onDelete(post, trigger)}
+          <ActionMenu
+            label={m.admin_posts_more_named({ title })}
+            items={actions}
           />
         </div>
       </td>
     </tr>
-  );
-}
-
-function PostRowMenu({
-  title,
-  onDelete,
-}: {
-  title: string;
-  onDelete: (trigger: HTMLButtonElement | null) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const present = useMotionPresence(open, MOTION.popover);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<CSSProperties | null>(null);
-  useLayoutEffect(() => {
-    if (!present) {
-      setPosition(null);
-      return;
-    }
-    if (!open) return;
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const above = window.innerHeight - rect.bottom < 100;
-    setPosition({
-      right: Math.max(8, window.innerWidth - rect.right),
-      top: above ? undefined : rect.bottom + 4,
-      bottom: above ? window.innerHeight - rect.top + 4 : undefined,
-      transformOrigin: above ? "bottom right" : "top right",
-    });
-    const close = () => setOpen(false);
-    document.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
-    return () => {
-      document.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
-    };
-  }, [open, present]);
-  useEffect(() => {
-    if (!open) return;
-    menuRef.current
-      ?.querySelector<HTMLElement>('[role="menuitem"]')
-      ?.focus({ preventScroll: true });
-    const outside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (
-        !menuRef.current?.contains(target) &&
-        !triggerRef.current?.contains(target)
-      )
-        setOpen(false);
-    };
-    document.addEventListener("mousedown", outside);
-    return () => document.removeEventListener("mousedown", outside);
-  }, [open, position]);
-  return (
-    <div className="post-list-menu">
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-label={m.admin_posts_more_named({ title })}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <MoreHorizontal size={18} />
-      </button>
-      {present && position
-        ? createPortal(
-            <div
-              ref={menuRef}
-              role="menu"
-              aria-label={m.admin_posts_more_named({ title })}
-              className="post-row-menu fuwari-popover-motion"
-              data-state={open ? "open" : "closing"}
-              inert={!open}
-              aria-hidden={!open}
-              style={position}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setOpen(false);
-                  triggerRef.current?.focus({ preventScroll: true });
-                }
-              }}
-            >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  onDelete(triggerRef.current);
-                }}
-              >
-                <Trash2 size={15} />
-                {m.admin_posts_action_delete_post()}
-              </button>
-            </div>,
-            document.body,
-          )
-        : null}
-    </div>
   );
 }

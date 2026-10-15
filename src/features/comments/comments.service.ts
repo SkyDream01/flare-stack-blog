@@ -7,6 +7,7 @@ import type {
 } from "@/features/comments/comments.schema";
 import { publicCommentUrl } from "@/features/comments/comment-url";
 import * as CommentRepo from "@/features/comments/data/comments.data";
+import * as DashboardRepo from "@/features/dashboard/data/dashboard.data";
 import { sendReplyNotification } from "@/features/comments/workflows/helpers";
 import { publishNotificationEvent } from "@/features/notification/service/notification.publisher";
 import * as MutedUserRepo from "@/features/muted-users/data/muted-users.data";
@@ -219,6 +220,15 @@ export async function createComment(
     status: "published",
   });
 
+  // An Admin's reply handles what it answers, even if later deleted.
+  if (isAdmin && replyToCommentId) {
+    await CommentRepo.markCommentHandledOnce(
+      context.db,
+      replyToCommentId,
+      new Date(),
+    );
+  }
+
   if (replyToCommentId) {
     await sendReplyNotification(context, {
       comment: {
@@ -248,7 +258,8 @@ export async function createComment(
     });
   }
 
-  return ok(comment);
+  const { handledAt: _private, ...publicComment } = comment;
+  return ok(publicComment);
 }
 
 export async function deleteComment(
@@ -271,6 +282,47 @@ export async function deleteComment(
   });
 
   return ok({ success: true });
+}
+
+/** Takes a Comment off the unreplied list without replying to it. */
+export async function markCommentHandled(
+  context: DbContext,
+  data: { id: number },
+) {
+  const marked = await CommentRepo.setCommentHandledAt(
+    context.db,
+    data.id,
+    new Date(),
+  );
+  if (!marked) {
+    return err({ reason: "COMMENT_NOT_FOUND" });
+  }
+  return ok({ success: true });
+}
+
+/** Undoes `markCommentHandled`; a Comment an Admin answered stays answered. */
+export async function unmarkCommentHandled(
+  context: DbContext,
+  data: { id: number },
+) {
+  const unmarked = await CommentRepo.setCommentHandledAt(
+    context.db,
+    data.id,
+    null,
+  );
+  if (!unmarked) {
+    return err({ reason: "COMMENT_NOT_FOUND" });
+  }
+  return ok({ success: true });
+}
+
+/** Marks every Comment still waiting for a reply handled. */
+export async function markAllUnrepliedCommentsHandled(context: DbContext) {
+  const count = await DashboardRepo.markUnrepliedCommentsHandled(
+    context.db,
+    new Date(),
+  );
+  return { count };
 }
 
 export async function getMyComments(

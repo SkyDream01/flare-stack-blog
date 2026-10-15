@@ -17,6 +17,7 @@
   min-height: var(--post-editor-header-height);
   padding: 1rem 1.75rem;
   border-bottom: 1px solid var(--post-editor-rule);
+  --fuwari-button-height: 2.25rem;
 }
 .post-editor-back {
   align-items: center;
@@ -30,9 +31,7 @@
 .post-history-header .post-editor-back {
   display: inline-flex;
 }
-.post-editor-back:hover,
-.post-editor-text-button:hover,
-.post-editor-icon-button:hover {
+.post-editor-back:hover {
   background: var(--fuwari-btn-regular-bg);
   color: var(--fuwari-btn-content);
 }
@@ -58,58 +57,6 @@
   justify-content: flex-end;
   gap: 0.375rem;
   margin-left: auto;
-}
-.post-editor-text-button {
-  align-items: center;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  white-space: nowrap;
-  color: var(--fuwari-fg-75);
-}
-.post-editor-icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.5rem;
-  flex-shrink: 0;
-  color: var(--fuwari-fg-50);
-}
-.post-editor-more {
-  position: relative;
-}
-.post-editor-more > summary {
-  list-style: none;
-  cursor: pointer;
-}
-.post-editor-more > summary::-webkit-details-marker {
-  display: none;
-}
-.post-editor-more-menu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.375rem);
-  z-index: 50;
-  min-width: 8rem;
-  padding: 0.375rem;
-  border-radius: 0.75rem;
-  background: var(--fuwari-card-bg);
-  border: 1px solid var(--post-editor-rule);
-  box-shadow: 0 6px 24px rgb(0 0 0 / 0.1);
-}
-.post-editor-more-menu button {
-  display: block;
-  width: 100%;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  text-align: left;
-  color: var(--fuwari-warning-fg);
-}
-.post-editor-more-menu button:hover {
-  background: var(--fuwari-warning-bg);
 }
 .post-editor-body,
 .post-editor-surface {
@@ -206,34 +153,20 @@ button.post-editor-summary:hover {
   position: absolute;
   z-index: 35;
   inset: var(--post-editor-header-height) 0 0;
-  background: rgb(20 35 50 / 0.12);
 }
 .post-editor-info-panel {
   position: absolute;
   z-index: 40;
-  right: 0;
   top: var(--post-editor-header-height);
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
   width: 23rem;
-  background: var(--fuwari-card-bg);
   border-left: 1px solid var(--post-editor-rule);
   box-shadow: -6px 0 24px rgb(0 0 0 / 0.05);
+  --fuwari-field-height: 40px;
+  --fuwari-field-font-size: 14px;
+  --fuwari-label-font-size: 13px;
 }
 .post-editor-panel-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
   padding: 1rem 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--fuwari-fg-50);
-}
-.post-editor-panel-heading h2 {
-  color: var(--fuwari-fg);
-  font-size: 1rem;
 }
 .post-editor-info-panel > header {
   border-bottom: 1px solid var(--post-editor-rule);
@@ -335,23 +268,18 @@ button.post-editor-summary:hover {
   background: var(--fuwari-primary);
 }
 .post-history-delete {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
+  justify-content: flex-start;
   width: 100%;
   padding: 1.25rem 1.5rem;
   border-top: 1px solid var(--post-editor-rule);
-  font-size: 0.8125rem;
-  color: var(--fuwari-danger-fg);
+  border-radius: 0;
 }
-.post-history-delete:hover {
-  background: var(--fuwari-danger-bg);
-}
-.post-history-delete:disabled {
-  opacity: 0.4;
-}
-.post-editor-workspace :is(button, a, summary):focus-visible {
+.post-editor-workspace
+  :is(
+    button:not(.fuwari-button, .fuwari-icon-button),
+    a,
+    summary
+  ):focus-visible {
   outline: 2px solid var(--fuwari-primary);
   outline-offset: 2px;
 }
@@ -376,14 +304,12 @@ button.post-editor-summary:hover {
   .post-editor-header {
     gap: 0.5rem;
     padding: 0.5rem 0.875rem;
+    --fuwari-button-padding-x: 0.5rem;
+    --fuwari-button-font-size: 0.8125rem;
   }
   .post-editor-save {
     margin-left: 0;
     font-size: 0.75rem;
-  }
-  .post-editor-text-button {
-    padding-inline: 0.5rem;
-    font-size: 0.8125rem;
   }
   .post-editor-toolbar {
     padding: 0.5rem 0.875rem;
@@ -442,45 +368,8 @@ button.post-editor-summary:hover {
   animation: fuwari-content-in var(--fuwari-motion-content)
     var(--fuwari-motion-ease) both;
 }
-.post-editor-info-panel[data-state="open"] {
-  animation: post-info-in var(--fuwari-motion-panel) var(--fuwari-motion-ease)
-    both;
-}
-.post-editor-info-panel[data-state="closing"] {
-  animation: post-info-out var(--fuwari-motion-panel) var(--fuwari-motion-ease)
-    both;
-}
-.post-editor-info-backdrop[data-state="open"] {
-  animation: fuwari-backdrop-in var(--fuwari-motion-panel) ease-out both;
-}
-.post-editor-info-backdrop[data-state="closing"] {
-  animation: fuwari-backdrop-out var(--fuwari-motion-panel) ease-out both;
-  pointer-events: none;
-}
-@keyframes post-info-in {
-  from {
-    opacity: 0;
-    transform: translateX(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-@keyframes post-info-out {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(24px);
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .post-editor-document,
-  .post-editor-info-panel,
-  .post-editor-info-backdrop {
+  .post-editor-document {
     animation: none !important;
   }
 }

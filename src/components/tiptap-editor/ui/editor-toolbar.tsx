@@ -19,6 +19,7 @@ import {
   Terminal,
   Underline as UnderlineIcon,
   Undo,
+  Video,
 } from "lucide-react";
 import type React from "react";
 import { m } from "@/paraglide/messages";
@@ -30,6 +31,7 @@ interface EditorToolbarProps {
   editor: Editor | null;
   onLinkClick: () => void;
   onImageClick: () => void;
+  onVideoClick: () => void;
   onFormulaInlineClick: () => void;
   onFormulaBlockClick: () => void;
 }
@@ -39,6 +41,7 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
   className,
   onLinkClick,
   onImageClick,
+  onVideoClick,
   onFormulaInlineClick,
   onFormulaBlockClick,
 }) => {
@@ -225,6 +228,12 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({
         isActive={false}
         icon={ImageIcon}
         label={m.editor_toolbar_image()}
+      />
+      <ToolbarButton
+        onClick={onVideoClick}
+        isActive={false}
+        icon={Video}
+        label={m.editor_toolbar_video()}
       />
 
       <div className="ml-auto flex gap-1">

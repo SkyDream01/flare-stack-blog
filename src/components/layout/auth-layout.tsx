@@ -1,5 +1,6 @@
 import "@/features/auth/components/auth-pages.css";
 import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { AuthLayoutProps } from "@/components/layout/layout-props";
 import { m } from "@/paraglide/messages";
 
@@ -11,14 +12,15 @@ export function AuthLayout({ onBack, children }: AuthLayoutProps) {
         style={{ animationDelay: "calc(var(--fuwari-content-delay) + 50ms)" }}
       >
         <div className="auth-card fuwari-card-base p-8 md:p-10 w-full">
-          <button
-            type="button"
+          <Button
+            variant="plain"
+            size="sm"
             onClick={onBack}
-            className="fuwari-expand-animation rounded-lg -mt-1 -ml-2 mb-6 px-2 py-1 text-sm fuwari-text-50 hover:text-(--fuwari-primary) inline-flex items-center gap-1"
+            icon={<ArrowLeft size={16} strokeWidth={1.5} />}
+            className="-mt-1 -ml-3 mb-6"
           >
-            <ArrowLeft size={16} strokeWidth={1.5} />
             {m.common_back()}
-          </button>
+          </Button>
           {children}
         </div>
       </div>

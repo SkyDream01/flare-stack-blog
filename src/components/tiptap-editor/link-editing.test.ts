@@ -8,6 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import type { Editor, JSONContent } from "@tiptap/core";
+import { findInPopover } from "tests/popover";
 import { afterEach, expect, it, vi } from "vitest";
 import { pressKey, renderPostEditor } from "@/features/posts/editor/test-utils";
 import { m } from "@/paraglide/messages";
@@ -43,7 +44,7 @@ it("opens the link input beside the selection on Ctrl+K and applies on Enter", a
   act(() => {
     pressKey(editor, "k", { ctrlKey: true });
   });
-  const input = await screen.findByRole("textbox", {
+  const input = await findInPopover("textbox", {
     name: m.editor_link_url(),
   });
   expect(document.activeElement).toBe(input);
@@ -64,7 +65,7 @@ it("cancels on Escape and returns focus to the editor", async () => {
     editor.commands.setTextSelection({ from: 5, to: 13 });
     pressKey(editor, "k", { ctrlKey: true });
   });
-  const input = await screen.findByRole("textbox", {
+  const input = await findInPopover("textbox", {
     name: m.editor_link_url(),
   });
 
@@ -92,7 +93,7 @@ it("opens the in-place input from the toolbar's link button, filled with the lin
     );
   });
 
-  const input = await screen.findByRole("textbox", {
+  const input = await findInPopover("textbox", {
     name: m.editor_link_url(),
   });
   expect((input as HTMLInputElement).value).toBe("https://old.example");
@@ -107,7 +108,7 @@ async function hoverLink(editor: Editor) {
   act(() => {
     fireEvent.mouseOver(link);
   });
-  return screen.findByRole("group", { name: m.editor_link_card() });
+  return findInPopover("group", { name: m.editor_link_card() });
 }
 
 it("shows the address on hovering a link, with a new-tab open link", async () => {
@@ -132,7 +133,7 @@ it("edits the hovered link in place", async () => {
       within(card).getByRole("button", { name: m.editor_link_edit() }),
     );
   });
-  const input = await screen.findByRole("textbox", {
+  const input = await findInPopover("textbox", {
     name: m.editor_link_url(),
   });
   expect((input as HTMLInputElement).value).toBe("https://old.example/docs");

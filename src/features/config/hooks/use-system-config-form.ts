@@ -11,6 +11,7 @@ import {
 import type { ConfigFormValues } from "../components/admin/config-editing";
 import type { SettingsPageId } from "../components/admin/settings-pages";
 import { useSystemSetting } from "./use-system-setting";
+import type { WebhookEndpoint } from "@/features/webhook/webhook.schema";
 import { m } from "@/paraglide/messages";
 
 const emptySnapshot: AdminConfigSnapshot = {
@@ -35,6 +36,17 @@ const secretChange = (
     : value
       ? { action: "replace", value }
       : { action: "keep" };
+
+function webhookInput(webhook: WebhookEndpoint | undefined) {
+  const provider = webhook?.provider ?? "generic";
+  return {
+    provider,
+    // Telegram's URL is built from the bot token.
+    url: provider === "telegram" ? "" : (webhook?.url.trim() ?? ""),
+    chatId: webhook?.chatId?.trim() ?? "",
+    template: webhook?.template ?? "",
+  };
+}
 
 export function useSystemConfigForm(nav: SettingsPageId | null = null) {
   const { snapshot, saveSettings, isLoading, reload } = useSystemSetting();
@@ -168,7 +180,7 @@ export function useSystemConfigForm(nav: SettingsPageId | null = null) {
                 },
               },
               user: { emailEnabled: notification?.user?.emailEnabled ?? true },
-              webhook: { url: notification?.webhook?.url.trim() ?? "" },
+              webhook: webhookInput(notification?.webhook),
             },
             secrets: {
               emailPassword: secretChange(

@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { handleORPCError } from "@/lib/orpc/error-handler";
 import { orpc, orpcClient } from "@/lib/orpc";
@@ -31,15 +32,30 @@ function invalidateMuteViews(
   return Promise.all(invalidations);
 }
 
-export function useMutedUsers(postId?: number) {
+export function useMutedUsers(
+  postId?: number,
+  options: { linkMutedList?: boolean } = {},
+) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const muteMutation = useMutation({
     mutationFn: (input: { userId: string }) =>
       orpcClient.mutedUsers.mute(input),
     onSuccess: async () => {
       await invalidateMuteViews(queryClient, postId);
-      toast.success(m.comments_toast_mute_success());
+      toast.success(
+        m.comments_toast_mute_success(),
+        options.linkMutedList
+          ? {
+              action: {
+                label: m.admin_overview_view_muted_users(),
+                onClick: () =>
+                  void navigate({ to: "/admin/settings/muted-users" }),
+              },
+            }
+          : undefined,
+      );
     },
     onError: (error) => {
       handleORPCError(error, {

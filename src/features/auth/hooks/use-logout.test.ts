@@ -10,7 +10,7 @@ import { m } from "@/paraglide/messages";
 import { useLogout } from "./use-logout";
 
 const { signOut } = vi.hoisted(() => ({ signOut: vi.fn() }));
-vi.mock("@/lib/auth/auth.client", () => ({ authClient: { signOut } }));
+vi.mock("@/lib/auth/auth-client", () => ({ authClient: { signOut } }));
 vi.mock("@/lib/orpc", async () => {
   const { createTanstackQueryUtils } = await import("@orpc/tanstack-query");
   const unusedProcedure = async () => {

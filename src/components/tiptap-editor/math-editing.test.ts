@@ -8,6 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import type { Editor, JSONContent } from "@tiptap/core";
+import { findInPopover } from "tests/popover";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderPostEditor, typeText } from "@/features/posts/editor/test-utils";
 import { m } from "@/paraglide/messages";
@@ -54,12 +55,12 @@ it("edits a clicked inline formula in a popover, applying on Ctrl+Enter", async 
   const { editor } = await renderPostEditor({ content: INLINE });
 
   clickFormula(editor, "inline-math");
-  const panel = await screen.findByRole("dialog", {
+  const panel = await findInPopover("dialog", {
     name: m.editor_formula_edit(),
   });
   const input = within(panel).getByRole("textbox", { name: "LaTeX" });
   expect((input as HTMLTextAreaElement).value).toBe("x^2");
-  await waitFor(() => expect(document.activeElement).toBe(input));
+  expect(document.activeElement).toBe(input);
   expect(document.querySelector("dialog[open]")).toBeNull();
 
   act(() => {
@@ -80,7 +81,7 @@ it("edits a clicked inline formula in a popover, applying on Ctrl+Enter", async 
 it("shows LaTeX errors in the preview", async () => {
   const { editor } = await renderPostEditor({ content: INLINE });
   clickFormula(editor, "inline-math");
-  const input = await screen.findByRole("textbox", { name: "LaTeX" });
+  const input = await findInPopover("textbox", { name: "LaTeX" });
 
   act(() => {
     fireEvent.change(input, { target: { value: "\\frac{1}{" } });
@@ -95,13 +96,13 @@ it("shows LaTeX errors in the preview", async () => {
 it("switches a formula from inline to block", async () => {
   const { editor } = await renderPostEditor({ content: INLINE });
   clickFormula(editor, "inline-math");
-  const panel = await screen.findByRole("dialog", {
+  const panel = await findInPopover("dialog", {
     name: m.editor_formula_edit(),
   });
 
   act(() => {
     fireEvent.click(
-      within(panel).getByRole("button", { name: m.editor_formula_block() }),
+      within(panel).getByRole("radio", { name: m.editor_formula_block() }),
     );
   });
   act(() => {
@@ -116,7 +117,7 @@ it("switches a formula from inline to block", async () => {
 it("cancels on Escape and returns focus to the editor", async () => {
   const { editor } = await renderPostEditor({ content: INLINE });
   clickFormula(editor, "inline-math");
-  const input = await screen.findByRole("textbox", { name: "LaTeX" });
+  const input = await findInPopover("textbox", { name: "LaTeX" });
 
   act(() => {
     fireEvent.change(input, { target: { value: "y" } });
@@ -191,7 +192,7 @@ it("opens block math from the slash menu in place", async () => {
   editor.commands.focus("end");
 
   act(() => typeText(editor, "/公式"));
-  await screen.findByRole("listbox", { name: m.editor_slash_menu() });
+  await findInPopover("listbox", { name: m.editor_slash_menu() });
   act(() => {
     fireEvent.keyDown(editor.view.dom, { key: "Enter" });
   });

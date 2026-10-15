@@ -1,6 +1,7 @@
 import {
   SORT_FIELDS,
   STATUS_FILTERS,
+  type CategoryFilter,
   type SortField,
   type StatusFilter,
 } from "./types";
@@ -10,7 +11,10 @@ export type PostListLocation = {
   status: StatusFilter;
   sortBy: SortField;
   search: string;
+  category?: CategoryFilter;
+  tag?: number;
 };
+const isId = (value: unknown) => Number.isInteger(value) && Number(value) > 0;
 const LOCATION_KEY = "fuwari:admin:post-list-location";
 const POSITIONS_KEY = "fuwari:admin:post-list-positions";
 export const DEFAULT_POST_LIST_LOCATION: PostListLocation = {
@@ -28,7 +32,11 @@ export function readPostListLocation(): PostListLocation {
       value.page > 0 &&
       STATUS_FILTERS.includes(value.status) &&
       SORT_FIELDS.includes(value.sortBy) &&
-      typeof value.search === "string"
+      typeof value.search === "string" &&
+      (value.category === undefined ||
+        value.category === "none" ||
+        isId(value.category)) &&
+      (value.tag === undefined || isId(value.tag))
     )
       return value;
   } catch {

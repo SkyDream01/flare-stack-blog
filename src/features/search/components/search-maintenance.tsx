@@ -1,9 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
 import { orpcClient } from "@/lib/orpc";
+import { StatusText } from "@/components/ui/status-text";
 import { m } from "@/paraglide/messages";
 
 export function SearchMaintenance() {
@@ -42,34 +43,25 @@ export function SearchMaintenance() {
             {m.settings_maintenance_search_desc_short()}
           </p>
           {rebuildSearchIndexMutation.isSuccess && (
-            <p role="status" className="settings-operation-result">
+            <StatusText className="mt-2">
               {m.settings_maintenance_search_toast_success({
                 duration: rebuildSearchIndexMutation.data.duration,
                 indexed: rebuildSearchIndexMutation.data.indexed,
               })}
-            </p>
+            </StatusText>
           )}
           {rebuildSearchIndexMutation.isError && (
-            <p
-              role="alert"
-              className="settings-operation-result"
-              data-error="true"
-            >
+            <StatusText error className="mt-2">
               {rebuildSearchIndexMutation.error.message}
-            </p>
+            </StatusText>
           )}
         </div>
-        <button
-          type="button"
+        <Button
           onClick={() => setIsModalOpen(true)}
-          disabled={rebuildSearchIndexMutation.isPending}
-          className="fuwari-btn-regular rounded-xl h-9 px-3 text-sm font-medium shrink-0 inline-flex items-center gap-1.5 disabled:opacity-50"
+          loading={rebuildSearchIndexMutation.isPending}
         >
-          {rebuildSearchIndexMutation.isPending ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : null}
           {m.settings_maintenance_search_btn()}
-        </button>
+        </Button>
       </div>
       <ConfirmationModal
         isOpen={isModalOpen}

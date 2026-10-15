@@ -26,23 +26,37 @@ export function adminPostTextColumns(taxonomy?: AdminTaxonomyFilter) {
     slug: sql<string>`coalesce(json_extract(${PostsTable.publicSnapshotJson}, '$.slug'), ${PostsTable.publicSlug}, ${PostsTable.slug})`,
   };
 }
+function uncategorized(): SQL {
+  return sql`${PostsTable.categoryId} IS NULL`;
+}
+function hasTag(tagId: number): SQL {
+  return sql`EXISTS (SELECT 1 FROM ${PostTagsTable} WHERE ${PostTagsTable.postId} = ${PostsTable.id} AND ${PostTagsTable.tagId} = ${tagId})`;
+}
 function taxonomyWhereClause(taxonomy: AdminTaxonomyFilter): SQL {
   if (taxonomy.kind === "category")
     return eq(PostsTable.categoryId, taxonomy.id);
-  if (taxonomy.kind === "uncategorized")
-    return sql`${PostsTable.categoryId} IS NULL`;
-  return sql`EXISTS (SELECT 1 FROM ${PostTagsTable} WHERE ${PostTagsTable.postId} = ${PostsTable.id} AND ${PostTagsTable.tagId} = ${taxonomy.id})`;
+  if (taxonomy.kind === "uncategorized") return uncategorized();
+  return hasTag(taxonomy.id);
 }
 
-export function buildPostWhereClause(options: {
+export type PostFilters = {
   status?: PostStatus;
   publicOnly?: boolean;
   search?: string;
   taxonomy?: AdminTaxonomyFilter;
-}) {
+  categoryId?: number;
+  uncategorized?: boolean;
+  tagId?: number;
+};
+
+export function buildPostWhereClause(options: PostFilters) {
   const whereClauses = [];
   if (options.taxonomy)
     whereClauses.push(taxonomyWhereClause(options.taxonomy));
+  if (options.categoryId !== undefined)
+    whereClauses.push(eq(PostsTable.categoryId, options.categoryId));
+  if (options.uncategorized) whereClauses.push(uncategorized());
+  if (options.tagId !== undefined) whereClauses.push(hasTag(options.tagId));
 
   if (options.status) {
     whereClauses.push(eq(PostsTable.status, options.status));

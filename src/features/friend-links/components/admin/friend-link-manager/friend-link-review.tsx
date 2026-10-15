@@ -1,15 +1,13 @@
 import { ClientOnly } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  ArrowRight,
-  ExternalLink,
-  Globe,
-  Search,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, Globe } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
+import { SearchField } from "@/components/ui/search-field";
 import type { FriendLinkWithUser } from "@/features/friend-links/friend-links.schema";
 import { useContentMotion } from "@/hooks/use-motion";
 import { formatDate } from "@/lib/utils";
+import { EmptyState } from "@/components/ui/empty-state";
 import { m } from "@/paraglide/messages";
 import { FriendLinkManagerSkeleton } from "./friend-link-manager-skeleton";
 
@@ -119,31 +117,33 @@ export function FriendLinkReview({
     <>
       <div className="friend-body" data-detail={detailOpen && !!selected}>
         <aside className="friend-queue" aria-label={m.friend_review_queue()}>
-          <label className="friend-search">
-            <Search size={18} aria-hidden="true" />
-            <input
-              value={input}
-              maxLength={200}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder={m.friend_review_search()}
-              aria-label={m.friend_review_search()}
-            />
-          </label>
+          <SearchField
+            className="friend-search"
+            value={input}
+            onValueChange={setInput}
+            clearLabel={m.search_clear()}
+            maxLength={200}
+            placeholder={m.friend_review_search()}
+            aria-label={m.friend_review_search()}
+          />
           <div
             className="friend-queue-scroll"
             ref={queueRef}
             aria-busy={loading}
           >
             {error ? (
-              <p className="friend-empty" role="alert">
-                {m.friend_links_admin_load_fail()}
-              </p>
+              <EmptyState
+                size="compact"
+                role="alert"
+                description={m.friend_links_admin_load_fail()}
+              />
             ) : loading ? (
               <FriendLinkManagerSkeleton />
             ) : items.length === 0 ? (
-              <p className="friend-empty">
-                {search ? m.friend_review_no_results() : emptyCopy}
-              </p>
+              <EmptyState
+                size="compact"
+                description={search ? m.friend_review_no_results() : emptyCopy}
+              />
             ) : (
               items.map((item) => (
                 <button
@@ -242,55 +242,48 @@ export function FriendLinkReview({
               </div>
               <footer className="friend-actions">
                 <div className="friend-step">
-                  <button
-                    type="button"
+                  <IconButton
+                    size="md"
+                    label={m.friend_review_previous()}
                     disabled={index <= 0 || busy}
                     onClick={() => choose(items[index - 1])}
-                    aria-label={m.friend_review_previous()}
-                    title={m.friend_review_previous()}
                   >
                     <ArrowLeft size={18} />
-                  </button>
+                  </IconButton>
                   <span>
                     {index + 1} / {items.length}
                   </span>
-                  <button
-                    type="button"
+                  <IconButton
+                    size="md"
+                    label={m.friend_review_next()}
                     disabled={index >= items.length - 1 || busy}
                     onClick={() => choose(items[index + 1])}
-                    aria-label={m.friend_review_next()}
-                    title={m.friend_review_next()}
                   >
                     <ArrowRight size={18} />
-                  </button>
+                  </IconButton>
                 </div>
                 <div className="friend-decisions">
                   {selected.status !== "pending" && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="plain"
+                      tone="danger"
+                      size="sm"
                       disabled={busy}
-                      className="friend-danger"
                       onClick={() => onDelete(selected)}
                     >
                       {m.friend_links_action_delete()}
-                    </button>
+                    </Button>
                   )}
                   {selected.status !== "rejected" && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      className="fuwari-btn-regular friend-button"
-                      onClick={() => onReject(selected)}
-                    >
+                    <Button disabled={busy} onClick={() => onReject(selected)}>
                       {selected.status === "approved"
                         ? m.friend_links_action_remove()
                         : m.friend_links_action_reject()}
-                    </button>
+                    </Button>
                   )}
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
                     disabled={busy}
-                    className="fuwari-btn-primary friend-button"
                     onClick={() =>
                       selected.status === "approved"
                         ? onEdit(selected)
@@ -300,7 +293,7 @@ export function FriendLinkReview({
                     {selected.status === "approved"
                       ? m.friend_links_action_edit()
                       : m.friend_links_action_pass()}
-                  </button>
+                  </Button>
                 </div>
               </footer>
             </>

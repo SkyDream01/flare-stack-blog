@@ -1,3 +1,20 @@
+/* Every Admin workspace scales with one unit and draws one hairline rule. */
+.admin-workspace {
+  --admin-unit: clamp(1px, 0.07vw, 1.5px);
+  --admin-rule: color-mix(in srgb, var(--fuwari-fg-50) 20%, transparent);
+  --fuwari-tabs-gap: calc(28 * var(--admin-unit));
+  --fuwari-tabs-rule: var(--admin-rule);
+  --fuwari-tab-height: calc(46 * var(--admin-unit));
+  --fuwari-tab-font-size: calc(14 * var(--admin-unit));
+  --fuwari-segment-height: calc(36 * var(--admin-unit));
+  --fuwari-segment-padding-x: calc(12 * var(--admin-unit));
+  --fuwari-segment-font-size: calc(14 * var(--admin-unit));
+}
+@media (max-width: 767px) {
+  .admin-workspace {
+    --fuwari-tabs-gap: 22px;
+  }
+}
 .admin-list-region {
   position: relative;
 }
@@ -18,7 +35,6 @@
     :is(
       .post-manager,
       .media-workspace,
-      .taxonomy-workspace,
       .friend-workspace,
       .muted-workspace,
       .settings-workspace
@@ -32,9 +48,6 @@
     :is(
       .post-list-scroll,
       .media-browser,
-      .taxonomy-scroll,
-      .taxonomy-nav-scroll,
-      .taxonomy-post-scroll,
       .friend-queue-scroll,
       .friend-detail-scroll,
       .muted-list-scroll,

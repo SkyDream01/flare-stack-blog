@@ -3,30 +3,25 @@ import {
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
+  useMemo,
   useRef,
-  useState,
   useSyncExternalStore,
-  type CSSProperties,
 } from "react";
-import { createPortal } from "react-dom";
-import { ListboxOption } from "@/components/ui/listbox-option";
 import {
-  POPOVER_PANEL_CLASS,
-  popoverMotionOrigin,
-} from "@/components/ui/use-anchored-popover";
-import { MOTION, useMotionPresence } from "@/hooks/use-motion";
+  FloatingPopover,
+  virtualAnchor,
+} from "@/components/ui/floating-popover";
+import { ListboxOption } from "@/components/ui/listbox-option";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import type { SlashMenuState } from ".";
 import {
+  closeSlashMenu,
   getSlashMenu,
   highlightSlashMenuItem,
   pickSlashMenuItem,
   subscribeSlashMenu,
 } from ".";
-
-const MENU_WIDTH = 14 * 16;
 
 /**
  * The slash menu's popover. It lists the items the typed `/query` matches,
@@ -45,35 +40,18 @@ export function SlashMenuView({ editor }: { editor: Editor | null }) {
     () => null,
   );
   const open = menu !== null && menu.items.length > 0;
-  const present = useMotionPresence(open, MOTION.popover);
 
   // Keep showing the last items while the menu animates out.
   const lastMenu = useRef<SlashMenuState | null>(null);
   if (open) lastMenu.current = menu;
   const shown = open ? menu : lastMenu.current;
 
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<CSSProperties | null>(null);
-  const mount = open ? menu.mount : null;
-
-  useLayoutEffect(() => {
-    const panel = panelRef.current;
-    if (!mount || !panel) return;
-    return mount(panel, {
-      onPosition: ({ x, y, strategy, placement }) => {
-        setPosition({
-          position: strategy,
-          left: x,
-          top: y,
-          ...popoverMotionOrigin(placement.startsWith("top"), "left"),
-        });
-      },
-    });
-  }, [mount, present]);
-
-  useEffect(() => {
-    if (!present) setPosition(null);
-  }, [present]);
+  const clientRect = open ? menu.clientRect : null;
+  const anchor = useMemo(
+    () =>
+      editor && clientRect ? virtualAnchor(clientRect, editor.view.dom) : null,
+    [editor, clientRect],
+  );
 
   const listId = useId();
   const optionId = (index: number) => `${listId}-${index}`;
@@ -86,26 +64,19 @@ export function SlashMenuView({ editor }: { editor: Editor | null }) {
       ?.scrollIntoView?.({ block: "nearest" });
   });
 
-  if (!editor || !present || !shown) return null;
+  if (!editor || !shown) return null;
 
-  return createPortal(
-    <div
-      ref={panelRef}
+  return (
+    <FloatingPopover
+      open={open}
+      anchor={anchor}
+      // The extension handles Escape; a click in the editor moves the cursor.
+      onDismiss={() => closeSlashMenu(editor)}
+      ignoreOutside={(target) => editor.view.dom.contains(target)}
       id={listId}
       role="listbox"
       aria-label={m.editor_slash_menu()}
-      data-state={open ? "open" : "closing"}
-      inert={!open}
-      aria-hidden={!open}
-      style={{
-        ...(position ?? { position: "fixed", left: 0, top: 0 }),
-        width: MENU_WIDTH,
-        visibility: position ? undefined : "hidden",
-      }}
-      className={cn(
-        POPOVER_PANEL_CLASS,
-        "max-h-80 overflow-y-auto p-1 custom-scrollbar",
-      )}
+      className="max-h-80 w-56 overflow-y-auto p-1 custom-scrollbar"
     >
       {shown.items.map((item, index) => {
         const Icon = item.icon;
@@ -132,7 +103,6 @@ export function SlashMenuView({ editor }: { editor: Editor | null }) {
           </ListboxOption>
         );
       })}
-    </div>,
-    document.body,
+    </FloatingPopover>
   );
 }

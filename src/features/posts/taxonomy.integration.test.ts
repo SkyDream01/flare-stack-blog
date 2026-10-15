@@ -194,3 +194,115 @@ describe("Admin taxonomy scopes", () => {
     expect(publicUse.total).toBe(1);
   });
 });
+
+describe("Admin post list category and tag filters", () => {
+  it("combines current category, uncategorized and tag filters with search and status, counting statuses inside the filters", async () => {
+    const context = createTestContext();
+    const db = context.db;
+    const [notes, essays] = await db
+      .insert(CategoriesTable)
+      .values([{ name: "Notes" }, { name: "Essays" }])
+      .returning();
+    const [rust, go] = await db
+      .insert(TagsTable)
+      .values([{ name: "Rust" }, { name: "Go" }])
+      .returning();
+    const [rustNote, goNote, rustEssay, looseRust, loose] = await db
+      .insert(PostsTable)
+      .values([
+        {
+          title: "Rust note",
+          slug: "rust-note",
+          categoryId: notes.id,
+          status: "published",
+          publishedAt: new Date("2026-09-01"),
+          publicSnapshotJson: snapshot(
+            essays.id,
+            [go.id],
+            "Rust note",
+            "rust-note",
+          ),
+        },
+        {
+          title: "Go note",
+          slug: "go-note",
+          categoryId: notes.id,
+          status: "draft",
+        },
+        {
+          title: "Rust essay",
+          slug: "rust-essay",
+          categoryId: essays.id,
+          status: "draft",
+        },
+        { title: "Loose rust", slug: "loose-rust", status: "draft" },
+        { title: "Loose", slug: "loose", status: "published" },
+      ])
+      .returning();
+    await db.insert(PostTagsTable).values([
+      { postId: rustNote.id, tagId: rust.id },
+      { postId: goNote.id, tagId: go.id },
+      { postId: rustEssay.id, tagId: rust.id },
+      { postId: looseRust.id, tagId: rust.id },
+      { postId: looseRust.id, tagId: go.id },
+    ]);
+    const ids = (page: { items: Array<{ id: number }> }) =>
+      page.items.map((item) => item.id).sort((a, b) => a - b);
+    const sorted = (...values: Array<number>) => values.sort((a, b) => a - b);
+
+    const inNotes = await Posts.listAdminPostsPage(context, {
+      categoryId: notes.id,
+    });
+    expect(ids(inNotes)).toEqual(sorted(rustNote.id, goNote.id));
+    expect(inNotes.statusCounts).toEqual({ draft: 1, published: 1 });
+    expect(inNotes.total).toBe(2);
+
+    const rustPosts = await Posts.listAdminPostsPage(context, {
+      tagId: rust.id,
+    });
+    expect(ids(rustPosts)).toEqual(
+      sorted(rustNote.id, rustEssay.id, looseRust.id),
+    );
+    expect(rustPosts.statusCounts).toEqual({ draft: 2, published: 1 });
+
+    const rustNotes = await Posts.listAdminPostsPage(context, {
+      categoryId: notes.id,
+      tagId: rust.id,
+    });
+    expect(ids(rustNotes)).toEqual([rustNote.id]);
+
+    const uncategorized = await Posts.listAdminPostsPage(context, {
+      uncategorized: true,
+    });
+    expect(ids(uncategorized)).toEqual(sorted(looseRust.id, loose.id));
+    expect(uncategorized.statusCounts).toEqual({ draft: 1, published: 1 });
+
+    const draftUncategorizedGo = await Posts.listAdminPostsPage(context, {
+      uncategorized: true,
+      tagId: go.id,
+      status: "draft",
+    });
+    expect(ids(draftUncategorizedGo)).toEqual([looseRust.id]);
+    expect(draftUncategorizedGo.total).toBe(1);
+
+    const searched = await Posts.listAdminPostsPage(context, {
+      tagId: rust.id,
+      search: "essay",
+    });
+    expect(ids(searched)).toEqual([rustEssay.id]);
+    expect(searched.statusCounts).toEqual({ draft: 1, published: 0 });
+
+    const publishedEssays = await Posts.listAdminPostsPage(context, {
+      categoryId: essays.id,
+      status: "published",
+    });
+    expect(publishedEssays.items).toEqual([]);
+    expect(publishedEssays.statusCounts).toEqual({ draft: 1, published: 0 });
+    expect(
+      await Posts.getPostsCount(context, {
+        categoryId: notes.id,
+        tagId: go.id,
+      }),
+    ).toBe(1);
+  });
+});

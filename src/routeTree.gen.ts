@@ -44,14 +44,13 @@ import { Route as PublicUserSubmitFriendLinkRouteImport } from './routes/_public
 import { Route as PublicPostSlugRouteImport } from './routes/_public/post/$slug'
 import { Route as AdminFriendLinksIndexRouteImport } from './routes/admin/friend-links/index'
 import { Route as AdminMediaIndexRouteImport } from './routes/admin/media/index'
-import { Route as AdminMutedUsersIndexRouteImport } from './routes/admin/muted-users/index'
 import { Route as AdminPostsIndexRouteImport } from './routes/admin/posts/index'
 import { Route as AdminSettingsIndexRouteImport } from './routes/admin/settings/index'
 import { Route as AdminSettingsApiKeysRouteImport } from './routes/admin/settings/api-keys'
 import { Route as AdminSettingsMaintenanceRouteImport } from './routes/admin/settings/maintenance'
+import { Route as AdminSettingsMutedUsersRouteImport } from './routes/admin/settings/muted-users'
 import { Route as AdminSettingsNotificationsRouteImport } from './routes/admin/settings/notifications'
 import { Route as AdminSettingsSiteRouteImport } from './routes/admin/settings/site'
-import { Route as AdminTagsIndexRouteImport } from './routes/admin/tags/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api.auth.$'
 import { Route as AdminPostsEditIdRouteRouteImport } from './routes/admin/posts/edit.$id/route'
 import { Route as AdminPostsEditIdIndexRouteImport } from './routes/admin/posts/edit.$id/index'
@@ -232,11 +231,6 @@ const AdminMediaIndexRoute = AdminMediaIndexRouteImport.update({
   path: '/media/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
-const AdminMutedUsersIndexRoute = AdminMutedUsersIndexRouteImport.update({
-  id: '/muted-users/',
-  path: '/muted-users/',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
 const AdminPostsIndexRoute = AdminPostsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -258,6 +252,11 @@ const AdminSettingsMaintenanceRoute =
     path: '/maintenance',
     getParentRoute: () => AdminSettingsRouteRoute,
   } as any)
+const AdminSettingsMutedUsersRoute = AdminSettingsMutedUsersRouteImport.update({
+  id: '/muted-users',
+  path: '/muted-users',
+  getParentRoute: () => AdminSettingsRouteRoute,
+} as any)
 const AdminSettingsNotificationsRoute =
   AdminSettingsNotificationsRouteImport.update({
     id: '/notifications',
@@ -268,11 +267,6 @@ const AdminSettingsSiteRoute = AdminSettingsSiteRouteImport.update({
   id: '/site',
   path: '/site',
   getParentRoute: () => AdminSettingsRouteRoute,
-} as any)
-const AdminTagsIndexRoute = AdminTagsIndexRouteImport.update({
-  id: '/tags/',
-  path: '/tags/',
-  getParentRoute: () => AdminRouteRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/$',
@@ -334,15 +328,14 @@ export interface FileRoutesByFullPath {
   '/post/$slug': typeof PublicPostSlugRoute
   '/admin/settings/api-keys': typeof AdminSettingsApiKeysRoute
   '/admin/settings/maintenance': typeof AdminSettingsMaintenanceRoute
+  '/admin/settings/muted-users': typeof AdminSettingsMutedUsersRoute
   '/admin/settings/notifications': typeof AdminSettingsNotificationsRoute
   '/admin/settings/site': typeof AdminSettingsSiteRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/friend-links/': typeof AdminFriendLinksIndexRoute
   '/admin/media/': typeof AdminMediaIndexRoute
-  '/admin/muted-users/': typeof AdminMutedUsersIndexRoute
   '/admin/posts/': typeof AdminPostsIndexRoute
   '/admin/settings/': typeof AdminSettingsIndexRoute
-  '/admin/tags/': typeof AdminTagsIndexRoute
   '/admin/posts/edit/$id': typeof AdminPostsEditIdRouteRouteWithChildren
   '/admin/posts/edit/$id/history': typeof AdminPostsEditIdHistoryRoute
   '/admin/posts/edit/$id/': typeof AdminPostsEditIdIndexRoute
@@ -378,15 +371,14 @@ export interface FileRoutesByTo {
   '/post/$slug': typeof PublicPostSlugRoute
   '/admin/settings/api-keys': typeof AdminSettingsApiKeysRoute
   '/admin/settings/maintenance': typeof AdminSettingsMaintenanceRoute
+  '/admin/settings/muted-users': typeof AdminSettingsMutedUsersRoute
   '/admin/settings/notifications': typeof AdminSettingsNotificationsRoute
   '/admin/settings/site': typeof AdminSettingsSiteRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/friend-links': typeof AdminFriendLinksIndexRoute
   '/admin/media': typeof AdminMediaIndexRoute
-  '/admin/muted-users': typeof AdminMutedUsersIndexRoute
   '/admin/posts': typeof AdminPostsIndexRoute
   '/admin/settings': typeof AdminSettingsIndexRoute
-  '/admin/tags': typeof AdminTagsIndexRoute
   '/admin/posts/edit/$id/history': typeof AdminPostsEditIdHistoryRoute
   '/admin/posts/edit/$id': typeof AdminPostsEditIdIndexRoute
   '/admin/posts/edit/$id/history/$revisionId': typeof AdminPostsEditIdHistoryRevisionIdRoute
@@ -428,15 +420,14 @@ export interface FileRoutesById {
   '/_public/post/$slug': typeof PublicPostSlugRoute
   '/admin/settings/api-keys': typeof AdminSettingsApiKeysRoute
   '/admin/settings/maintenance': typeof AdminSettingsMaintenanceRoute
+  '/admin/settings/muted-users': typeof AdminSettingsMutedUsersRoute
   '/admin/settings/notifications': typeof AdminSettingsNotificationsRoute
   '/admin/settings/site': typeof AdminSettingsSiteRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/admin/friend-links/': typeof AdminFriendLinksIndexRoute
   '/admin/media/': typeof AdminMediaIndexRoute
-  '/admin/muted-users/': typeof AdminMutedUsersIndexRoute
   '/admin/posts/': typeof AdminPostsIndexRoute
   '/admin/settings/': typeof AdminSettingsIndexRoute
-  '/admin/tags/': typeof AdminTagsIndexRoute
   '/admin/posts/edit/$id': typeof AdminPostsEditIdRouteRouteWithChildren
   '/admin/posts/edit/$id/history': typeof AdminPostsEditIdHistoryRoute
   '/admin/posts/edit/$id/': typeof AdminPostsEditIdIndexRoute
@@ -477,15 +468,14 @@ export interface FileRouteTypes {
     | '/post/$slug'
     | '/admin/settings/api-keys'
     | '/admin/settings/maintenance'
+    | '/admin/settings/muted-users'
     | '/admin/settings/notifications'
     | '/admin/settings/site'
     | '/api/auth/$'
     | '/admin/friend-links/'
     | '/admin/media/'
-    | '/admin/muted-users/'
     | '/admin/posts/'
     | '/admin/settings/'
-    | '/admin/tags/'
     | '/admin/posts/edit/$id'
     | '/admin/posts/edit/$id/history'
     | '/admin/posts/edit/$id/'
@@ -521,15 +511,14 @@ export interface FileRouteTypes {
     | '/post/$slug'
     | '/admin/settings/api-keys'
     | '/admin/settings/maintenance'
+    | '/admin/settings/muted-users'
     | '/admin/settings/notifications'
     | '/admin/settings/site'
     | '/api/auth/$'
     | '/admin/friend-links'
     | '/admin/media'
-    | '/admin/muted-users'
     | '/admin/posts'
     | '/admin/settings'
-    | '/admin/tags'
     | '/admin/posts/edit/$id/history'
     | '/admin/posts/edit/$id'
     | '/admin/posts/edit/$id/history/$revisionId'
@@ -570,15 +559,14 @@ export interface FileRouteTypes {
     | '/_public/post/$slug'
     | '/admin/settings/api-keys'
     | '/admin/settings/maintenance'
+    | '/admin/settings/muted-users'
     | '/admin/settings/notifications'
     | '/admin/settings/site'
     | '/api/auth/$'
     | '/admin/friend-links/'
     | '/admin/media/'
-    | '/admin/muted-users/'
     | '/admin/posts/'
     | '/admin/settings/'
-    | '/admin/tags/'
     | '/admin/posts/edit/$id'
     | '/admin/posts/edit/$id/history'
     | '/admin/posts/edit/$id/'
@@ -848,13 +836,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminMediaIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
-    '/admin/muted-users/': {
-      id: '/admin/muted-users/'
-      path: '/muted-users'
-      fullPath: '/admin/muted-users/'
-      preLoaderRoute: typeof AdminMutedUsersIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
     '/admin/posts/': {
       id: '/admin/posts/'
       path: '/'
@@ -883,6 +864,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsMaintenanceRouteImport
       parentRoute: typeof AdminSettingsRouteRoute
     }
+    '/admin/settings/muted-users': {
+      id: '/admin/settings/muted-users'
+      path: '/muted-users'
+      fullPath: '/admin/settings/muted-users'
+      preLoaderRoute: typeof AdminSettingsMutedUsersRouteImport
+      parentRoute: typeof AdminSettingsRouteRoute
+    }
     '/admin/settings/notifications': {
       id: '/admin/settings/notifications'
       path: '/notifications'
@@ -896,13 +884,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/settings/site'
       preLoaderRoute: typeof AdminSettingsSiteRouteImport
       parentRoute: typeof AdminSettingsRouteRoute
-    }
-    '/admin/tags/': {
-      id: '/admin/tags/'
-      path: '/tags'
-      fullPath: '/admin/tags/'
-      preLoaderRoute: typeof AdminTagsIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -1039,6 +1020,7 @@ const AdminPostsRouteRouteWithChildren = AdminPostsRouteRoute._addFileChildren(
 interface AdminSettingsRouteRouteChildren {
   AdminSettingsApiKeysRoute: typeof AdminSettingsApiKeysRoute
   AdminSettingsMaintenanceRoute: typeof AdminSettingsMaintenanceRoute
+  AdminSettingsMutedUsersRoute: typeof AdminSettingsMutedUsersRoute
   AdminSettingsNotificationsRoute: typeof AdminSettingsNotificationsRoute
   AdminSettingsSiteRoute: typeof AdminSettingsSiteRoute
   AdminSettingsIndexRoute: typeof AdminSettingsIndexRoute
@@ -1047,6 +1029,7 @@ interface AdminSettingsRouteRouteChildren {
 const AdminSettingsRouteRouteChildren: AdminSettingsRouteRouteChildren = {
   AdminSettingsApiKeysRoute: AdminSettingsApiKeysRoute,
   AdminSettingsMaintenanceRoute: AdminSettingsMaintenanceRoute,
+  AdminSettingsMutedUsersRoute: AdminSettingsMutedUsersRoute,
   AdminSettingsNotificationsRoute: AdminSettingsNotificationsRoute,
   AdminSettingsSiteRoute: AdminSettingsSiteRoute,
   AdminSettingsIndexRoute: AdminSettingsIndexRoute,
@@ -1062,8 +1045,6 @@ interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminFriendLinksIndexRoute: typeof AdminFriendLinksIndexRoute
   AdminMediaIndexRoute: typeof AdminMediaIndexRoute
-  AdminMutedUsersIndexRoute: typeof AdminMutedUsersIndexRoute
-  AdminTagsIndexRoute: typeof AdminTagsIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
@@ -1073,8 +1054,6 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   AdminFriendLinksIndexRoute: AdminFriendLinksIndexRoute,
   AdminMediaIndexRoute: AdminMediaIndexRoute,
-  AdminMutedUsersIndexRoute: AdminMutedUsersIndexRoute,
-  AdminTagsIndexRoute: AdminTagsIndexRoute,
 }
 
 const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(

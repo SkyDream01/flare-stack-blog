@@ -1,7 +1,8 @@
 import type { Editor } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
-import type { Mappable, Step } from "@tiptap/pm/transform";
+import type { Step } from "@tiptap/pm/transform";
 import { createInPlaceEditing, useInPlaceEditing } from "../in-place-editing";
+import { mapSteps } from "../insertion";
 
 export type MathType = "inline" | "block";
 
@@ -30,17 +31,6 @@ export function mathTypeOf(node: PMNode | null | undefined): MathType | null {
   if (node?.type.name === NODE_NAMES.inline) return "inline";
   if (node?.type.name === NODE_NAMES.block) return "block";
   return null;
-}
-
-/** `steps` mapped through `mapping`; none once one of them no longer fits. */
-function mapSteps(steps: readonly Step[], mapping: Mappable) {
-  const mapped: Step[] = [];
-  for (const step of steps) {
-    const next = step.map(mapping);
-    if (!next) return [];
-    mapped.push(next);
-  }
-  return mapped;
 }
 
 /** The formula open for editing, following it; closed once it is gone. */

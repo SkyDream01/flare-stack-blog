@@ -1,8 +1,11 @@
 import { Link } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { CircleAlert } from "lucide-react";
+import { Button, buttonClass } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
 import { PasswordInput } from "@/components/ui/password-input";
 import type { useResetPasswordForm } from "../hooks/use-reset-password-form";
-import { AuthField, AuthHeading, AuthStatus } from "./auth-elements";
+import { AuthHeading, AuthStatus } from "./auth-elements";
+import { Callout } from "@/components/ui/callout";
 import { m } from "@/paraglide/messages";
 
 export function ResetPasswordPage({
@@ -29,7 +32,14 @@ export function ResetPasswordPage({
             : m.reset_password_error_missing_token_desc()
         }
       >
-        <Link to="/forgot-password" className="auth-action fuwari-btn-primary">
+        <Link
+          to="/forgot-password"
+          className={buttonClass({
+            variant: "primary",
+            size: "lg",
+            className: "auth-action",
+          })}
+        >
           {m.reset_password_request_new_link()}
         </Link>
         <Link to="/login" className="auth-status-link">
@@ -44,7 +54,14 @@ export function ResetPasswordPage({
         title={m.reset_password_toast_success()}
         description={m.reset_password_toast_success_desc()}
       >
-        <Link to="/login" className="auth-action fuwari-btn-primary">
+        <Link
+          to="/login"
+          className={buttonClass({
+            variant: "primary",
+            size: "lg",
+            className: "auth-action",
+          })}
+        >
           {m.forgot_password_back_to_login()}
         </Link>
       </AuthStatus>
@@ -56,9 +73,10 @@ export function ResetPasswordPage({
         description={m.reset_password_header_desc()}
       />
       <form className="auth-form" onSubmit={form.handleSubmit} noValidate>
-        <AuthField
+        <FormField
           label={m.reset_password_new_password()}
           error={form.errors.password?.message}
+          required
         >
           <PasswordInput
             {...form.register("password")}
@@ -66,10 +84,11 @@ export function ResetPasswordPage({
             placeholder={m.login_password_placeholder()}
             disabled={form.isSubmitting}
           />
-        </AuthField>
-        <AuthField
+        </FormField>
+        <FormField
           label={m.reset_password_confirm_new_password()}
           error={form.errors.confirmPassword?.message}
+          required
         >
           <PasswordInput
             {...form.register("confirmPassword")}
@@ -77,25 +96,33 @@ export function ResetPasswordPage({
             placeholder={m.login_password_placeholder()}
             disabled={form.isSubmitting}
           />
-        </AuthField>
+        </FormField>
         {form.submitError && (
-          <div className="auth-feedback" role="alert">
-            <p>{form.submitError}</p>
-            <Link to="/forgot-password">
-              {m.reset_password_request_new_link()}
-            </Link>
-          </div>
+          <Callout
+            className="auth-feedback"
+            tone="danger"
+            icon={CircleAlert}
+            role="alert"
+            action={
+              <Link to="/forgot-password">
+                {m.reset_password_request_new_link()}
+              </Link>
+            }
+          >
+            {form.submitError}
+          </Callout>
         )}
-        <button
+        <Button
           type="submit"
-          className="auth-action fuwari-btn-primary"
-          disabled={form.isSubmitting}
+          variant="primary"
+          size="lg"
+          className="auth-action"
+          loading={form.isSubmitting}
         >
-          {form.isSubmitting && <Loader2 size={16} className="animate-spin" />}
           {form.isSubmitting
             ? m.reset_password_submitting()
             : m.reset_password_submit()}
-        </button>
+        </Button>
       </form>
     </div>
   );

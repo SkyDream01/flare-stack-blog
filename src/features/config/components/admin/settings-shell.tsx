@@ -1,9 +1,12 @@
 import { CircleAlert } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useAdminChrome } from "@/components/admin/admin-chrome";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-heading";
 import { useContentMotion } from "@/hooks/use-motion";
 import { SettingsNav } from "./settings-nav";
 import type { SettingsPageId } from "./settings-pages";
+import { Callout } from "@/components/ui/callout";
 import { m } from "@/paraglide/messages";
 import "./settings.css";
 const FORM_ID = "system-config-form";
@@ -40,11 +43,15 @@ export function SettingsShell({
       ? m.settings_config_save_site()
       : m.settings_config_save_notifications();
   return (
-    <div className="settings-workspace fuwari-card-base" data-section={nav}>
-      <header className="settings-heading">
-        <h1>{m.settings_header_title()}</h1>
-        <p>{m.settings_design_intro()}</p>
-      </header>
+    <div
+      className="settings-workspace admin-workspace fuwari-card-base"
+      data-section={nav}
+    >
+      <PageHeader
+        className="settings-heading"
+        title={m.settings_header_title()}
+        description={m.settings_design_intro()}
+      />
       {nav && <SettingsNav current={nav} />}
       <div className="settings-body" ref={scrollRef} aria-label={title}>
         {children}
@@ -52,41 +59,30 @@ export function SettingsShell({
       {save && (
         <footer className="settings-savebar">
           {save.dirty && (
-            <p
+            <Callout
               role="status"
-              className={
-                save.conflict
-                  ? "settings-save-notice settings-error"
-                  : "settings-save-notice"
-              }
+              tone={save.conflict ? "danger" : "warning"}
+              icon={CircleAlert}
             >
-              <CircleAlert size={17} aria-hidden="true" />
-              <span>
-                {save.conflict
-                  ? m.settings_config_conflict()
-                  : m.settings_config_unsaved()}
-              </span>
-            </p>
+              {save.conflict
+                ? m.settings_config_conflict()
+                : m.settings_config_unsaved()}
+            </Callout>
           )}
           <div>
             {save.dirty && (
-              <button
-                type="button"
-                disabled={save.busy}
-                onClick={save.onDiscard}
-                className="settings-button fuwari-btn-regular"
-              >
+              <Button disabled={save.busy} onClick={save.onDiscard}>
                 {m.settings_design_discard()}
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               type="submit"
               form={FORM_ID}
+              variant="primary"
               disabled={save.disabled || save.busy}
-              className="settings-button fuwari-btn-primary"
             >
               {saveLabel}
-            </button>
+            </Button>
           </div>
         </footer>
       )}

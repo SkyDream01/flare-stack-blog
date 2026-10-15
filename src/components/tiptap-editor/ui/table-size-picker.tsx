@@ -1,11 +1,7 @@
 import type { Editor } from "@tiptap/react";
 import { Table as TableIcon } from "lucide-react";
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
-import { createPortal } from "react-dom";
-import {
-  POPOVER_PANEL_CLASS,
-  useAnchoredPopover,
-} from "@/components/ui/use-anchored-popover";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { FloatingPopover } from "@/components/ui/floating-popover";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { ToolbarButton } from "./toolbar-button";
@@ -14,10 +10,6 @@ import { ToolbarButton } from "./toolbar-button";
 const MAX_SIZE = 8;
 const CELL = 20;
 const GAP = 4;
-const PADDING = 8;
-const GRID_WIDTH = MAX_SIZE * CELL + (MAX_SIZE - 1) * GAP;
-const POPOVER_WIDTH = GRID_WIDTH + 2 * PADDING;
-const POPOVER_MAX_HEIGHT = POPOVER_WIDTH + 32;
 
 interface TableSize {
   cols: number;
@@ -53,35 +45,15 @@ export function TableSizePicker({
 }) {
   const [open, setOpen] = useState(false);
   const [size, setSize] = useState(SMALLEST);
-  const {
-    triggerRef,
-    popoverRef,
-    style: popoverStyle,
-  } = useAnchoredPopover({
-    open,
-    onDismiss: () => setOpen(false),
-    width: POPOVER_WIDTH,
-    maxHeight: POPOVER_MAX_HEIGHT,
-  });
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const gridId = useId();
   const cellId = ({ cols, rows }: TableSize) => `${gridId}-${rows}-${cols}`;
-
-  const isShown = open && popoverStyle !== null;
-
-  useEffect(() => {
-    if (isShown) gridRef.current?.focus();
-  }, [isShown]);
 
   const openPicker = () => {
     if (!editor?.isEditable) return;
     setSize(SMALLEST);
     setOpen(true);
-  };
-
-  const close = () => {
-    setOpen(false);
-    triggerRef.current?.focus();
   };
 
   const insert = ({ cols, rows }: TableSize) => {
@@ -109,11 +81,6 @@ export function TableSizePicker({
         event.preventDefault();
         insert(size);
         return;
-      case "Escape":
-        event.preventDefault();
-        event.stopPropagation();
-        close();
-        return;
       case "Tab":
         setOpen(false);
     }
@@ -132,74 +99,64 @@ export function TableSizePicker({
         aria-expanded={open}
       />
 
-      {popoverStyle
-        ? createPortal(
-            <div
-              ref={popoverRef}
-              role="dialog"
-              aria-label={m.editor_toolbar_table()}
-              data-state={open ? "open" : "closing"}
-              inert={!open}
-              aria-hidden={!open}
-              style={{ ...popoverStyle, padding: PADDING }}
-              className={cn(POPOVER_PANEL_CLASS, "flex flex-col gap-2")}
-            >
-              <div
-                ref={gridRef}
-                role="grid"
-                tabIndex={0}
-                aria-label={m.editor_toolbar_table()}
-                aria-activedescendant={cellId(size)}
-                onKeyDown={handleKeyDown}
-                className="flex flex-col rounded-sm outline-none"
-                style={{ gap: GAP }}
-              >
-                {INDICES.map((rows) => (
+      <FloatingPopover
+        open={open}
+        anchor={open ? triggerRef.current : null}
+        onDismiss={() => setOpen(false)}
+        returnFocusOnEscape
+        placement="bottom-end"
+        initialFocus={() => gridRef.current}
+        role="dialog"
+        aria-label={m.editor_toolbar_table()}
+        className="flex flex-col gap-2 p-2"
+      >
+        <div
+          ref={gridRef}
+          role="grid"
+          tabIndex={0}
+          aria-label={m.editor_toolbar_table()}
+          aria-activedescendant={cellId(size)}
+          onKeyDown={handleKeyDown}
+          className="flex flex-col rounded-sm outline-none"
+          style={{ gap: GAP }}
+        >
+          {INDICES.map((rows) => (
+            <div key={rows} role="row" className="flex" style={{ gap: GAP }}>
+              {INDICES.map((cols) => {
+                const highlighted = cols <= size.cols && rows <= size.rows;
+                return (
                   <div
-                    key={rows}
-                    role="row"
-                    className="flex"
-                    style={{ gap: GAP }}
-                  >
-                    {INDICES.map((cols) => {
-                      const highlighted =
-                        cols <= size.cols && rows <= size.rows;
-                      return (
-                        <div
-                          key={cols}
-                          id={cellId({ cols, rows })}
-                          role="gridcell"
-                          aria-label={m.editor_toolbar_table_size({
-                            cols,
-                            rows,
-                          })}
-                          aria-selected={highlighted}
-                          onMouseDown={(event) => event.preventDefault()}
-                          onMouseEnter={() => setSize({ cols, rows })}
-                          onClick={() => insert({ cols, rows })}
-                          style={{ width: CELL, height: CELL }}
-                          className={cn(
-                            "shrink-0 cursor-pointer rounded-sm ring-1 transition-colors",
-                            highlighted
-                              ? "bg-(--fuwari-primary)/20 ring-(--fuwari-primary)/60"
-                              : "ring-(--fuwari-input-border)",
-                          )}
-                        />
-                      );
+                    key={cols}
+                    id={cellId({ cols, rows })}
+                    role="gridcell"
+                    aria-label={m.editor_toolbar_table_size({
+                      cols,
+                      rows,
                     })}
-                  </div>
-                ))}
-              </div>
-              <p
-                aria-live="polite"
-                className="text-center font-mono text-xs fuwari-text-75"
-              >
-                {size.cols} × {size.rows}
-              </p>
-            </div>,
-            document.body,
-          )
-        : null}
+                    aria-selected={highlighted}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => setSize({ cols, rows })}
+                    onClick={() => insert({ cols, rows })}
+                    style={{ width: CELL, height: CELL }}
+                    className={cn(
+                      "shrink-0 cursor-pointer rounded-sm ring-1 transition-colors",
+                      highlighted
+                        ? "bg-(--fuwari-primary)/20 ring-(--fuwari-primary)/60"
+                        : "ring-(--fuwari-input-border)",
+                    )}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <p
+          aria-live="polite"
+          className="text-center font-mono text-xs fuwari-text-75"
+        >
+          {size.cols} × {size.rows}
+        </p>
+      </FloatingPopover>
     </>
   );
 }

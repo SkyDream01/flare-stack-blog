@@ -3,6 +3,7 @@ import { NodeViewWrapper } from "@tiptap/react";
 import katex from "katex";
 import type { KatexOptions } from "katex";
 import { useEffect, useMemo, useRef } from "react";
+import { useDismissOnOutside } from "@/hooks/use-dismiss-on-outside";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { MathEditorPanel } from "./math-editor-panel";
@@ -37,15 +38,13 @@ export function BlockMathView({
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (!editing) return;
-    inputRef.current?.focus();
-    const onMouseDown = (event: MouseEvent) => {
-      if (wrapperRef.current?.contains(event.target as Node)) return;
-      editor.commands.closeMathEditor();
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, [editing, editor]);
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+  useDismissOnOutside(
+    wrapperRef,
+    () => editor.commands.closeMathEditor(),
+    editing,
+  );
 
   return (
     <NodeViewWrapper

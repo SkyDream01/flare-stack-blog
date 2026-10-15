@@ -164,6 +164,31 @@ describe("version checker", () => {
     ).toEqual(release("v1.6.0"));
   });
 
+  it("reads a cached release without calling GitHub", async () => {
+    const { context, values } = createVersionContext();
+    const fetchLatestRelease = vi.fn(async () => release("v1.6.0"));
+    const checker = createVersionChecker({
+      getCurrentVersion: () => "1.5.2",
+      fetchLatestRelease,
+    });
+
+    expect(await checker.cached(context)).toBeNull();
+
+    values.set(
+      VERSION_CACHE_KEYS.latestRelease.join(":"),
+      JSON.stringify(release("v1.5.3")),
+    );
+    expect(await checker.cached(context)).toMatchObject({
+      latestVersion: "v1.5.3",
+      currentVersion: "1.5.2",
+      hasUpdate: true,
+    });
+
+    values.set(VERSION_CACHE_KEYS.latestRelease.join(":"), "not json");
+    expect(await checker.cached(context)).toBeNull();
+    expect(fetchLatestRelease).not.toHaveBeenCalled();
+  });
+
   it("remembers a failed check and only retries on refresh", async () => {
     const { context, flushBackgroundTasks } = createVersionContext();
     const fetchLatestRelease = vi.fn(async () => {

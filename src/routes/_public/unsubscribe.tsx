@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { StatusPage } from "@/components/common/status-page";
+import { buttonClass } from "@/components/ui/button";
 import { unsubscribeQuery } from "@/features/email/queries";
 import { CACHE_CONTROL } from "@/lib/constants";
 import { EMAIL_UNSUBSCRIBE_TYPES } from "@/lib/db/schema";
@@ -80,10 +81,7 @@ function UnsubscribePage() {
 
 function HomeLink() {
   return (
-    <Link
-      to="/"
-      className="fuwari-btn-primary h-10 rounded-xl px-6 text-sm font-medium"
-    >
+    <Link to="/" className={buttonClass({ variant: "primary", size: "lg" })}>
       {m.unsubscribe_back_home()}
     </Link>
   );

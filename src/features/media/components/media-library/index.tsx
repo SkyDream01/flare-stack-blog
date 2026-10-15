@@ -2,6 +2,7 @@ import { Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAdminChrome } from "@/components/admin/admin-chrome";
+import { PageHeader } from "@/components/ui/page-heading";
 import { ACCEPTED_IMAGE_TYPES } from "@/features/media/media.schema";
 import { cn, formatBytes } from "@/lib/utils";
 import {
@@ -10,9 +11,11 @@ import {
   useMediaQuery,
   useMotionPresence,
 } from "@/hooks/use-motion";
+import { EmptyState } from "@/components/ui/empty-state";
 import { m } from "@/paraglide/messages";
 import { MediaDetail, MediaToolbar } from "./components";
 import { MediaCollection } from "./components/media-collection";
+import { Button } from "@/components/ui/button";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
 import { useMediaLibrary, useMediaUpload } from "./hooks";
 import { useMediaScroll } from "./hooks/use-media-scroll";
@@ -127,7 +130,7 @@ export function MediaLibrary() {
 
   return (
     <div
-      className="media-workspace fuwari-card-base"
+      className="media-workspace admin-workspace fuwari-card-base"
       onDragEnter={(event) => {
         if (!event.dataTransfer.types.includes("Files")) return;
         event.preventDefault();
@@ -150,29 +153,29 @@ export function MediaLibrary() {
           handleFiles(event.dataTransfer.files);
       }}
     >
-      <header className="media-workspace-header">
-        <div>
-          <h1>{m.media_title()}</h1>
-          <p>
-            {stats
-              ? m.media_stats({
-                  count: stats.totalCount,
-                  size: formatBytes(stats.totalBytes),
-                })
-              : "—"}
-          </p>
-        </div>
-        <button
-          ref={uploadRef}
-          type="button"
-          className="fuwari-btn-primary"
-          disabled={isUploading}
-          onClick={openFilePicker}
-        >
-          <Upload size={17} />
-          {m.media_upload()}
-        </button>
-      </header>
+      <PageHeader
+        className="media-workspace-header"
+        title={m.media_title()}
+        description={
+          stats
+            ? m.media_stats({
+                count: stats.totalCount,
+                size: formatBytes(stats.totalBytes),
+              })
+            : "—"
+        }
+        actions={
+          <Button
+            ref={uploadRef}
+            variant="primary"
+            icon={<Upload size={17} />}
+            disabled={isUploading}
+            onClick={openFilePicker}
+          >
+            {m.media_upload()}
+          </Button>
+        }
+      />
       <MediaToolbar
         unusedOnly={unusedOnly}
         onUnusedOnlyChange={(value) => {
@@ -209,32 +212,31 @@ export function MediaLibrary() {
             {isPending ? (
               <MediaCollectionSkeleton view={view} />
             ) : isError && !mediaItems.length ? (
-              <div className="media-empty" role="alert">
-                <p>{m.media_load_fail()}</p>
-                <button
-                  type="button"
-                  className="fuwari-btn-regular"
-                  onClick={() => void refetch()}
-                >
-                  {m.media_load_retry()}
-                </button>
-              </div>
+              <EmptyState
+                role="alert"
+                description={m.media_load_fail()}
+                action={
+                  <Button onClick={() => void refetch()}>
+                    {m.media_load_retry()}
+                  </Button>
+                }
+              />
             ) : isEmpty ? (
-              <div className="media-empty">
-                <p>
-                  {unusedOnly ? m.media_unreferenced_empty() : m.media_empty()}
-                </p>
-                <span>{!unusedOnly ? m.media_empty_hint() : null}</span>
-                <button
-                  type="button"
-                  className="fuwari-btn-regular"
-                  onClick={
-                    unusedOnly ? () => setUnusedOnly(false) : openFilePicker
-                  }
-                >
-                  {unusedOnly ? m.media_filter_all() : m.media_choose()}
-                </button>
-              </div>
+              <EmptyState
+                title={
+                  unusedOnly ? m.media_unreferenced_empty() : m.media_empty()
+                }
+                description={!unusedOnly ? m.media_empty_hint() : null}
+                action={
+                  <Button
+                    onClick={
+                      unusedOnly ? () => setUnusedOnly(false) : openFilePicker
+                    }
+                  >
+                    {unusedOnly ? m.media_filter_all() : m.media_choose()}
+                  </Button>
+                }
+              />
             ) : (
               <>
                 <MediaCollection
@@ -249,37 +251,30 @@ export function MediaLibrary() {
                 />
                 <footer className="media-browser-footer">
                   {isError && !isFetchNextPageError ? (
-                    <button
-                      type="button"
-                      className="fuwari-btn-regular"
-                      onClick={() => void refetch()}
-                    >
+                    <Button onClick={() => void refetch()}>
                       {m.media_load_retry()}
-                    </button>
+                    </Button>
                   ) : hasMore || isFetchNextPageError ? (
-                    <button
-                      type="button"
-                      className="fuwari-btn-regular"
-                      disabled={isLoadingMore}
-                      onClick={loadMore}
-                    >
+                    <Button loading={isLoadingMore} onClick={loadMore}>
                       {isLoadingMore
                         ? m.media_grid_loading()
                         : isFetchNextPageError
                           ? m.media_load_retry()
                           : m.media_load_more()}
-                    </button>
+                    </Button>
                   ) : (
                     <span>{m.media_grid_end()}</span>
                   )}
                   {unusedOnly && !!stats?.unusedCount ? (
-                    <button
-                      type="button"
+                    <Button
+                      variant="text"
+                      size="sm"
+                      tone="danger"
                       className="media-cleanup"
                       onClick={() => setDeleteTarget({ kind: "unused" })}
                     >
                       {m.media_unused_cleanup()}
-                    </button>
+                    </Button>
                   ) : null}
                 </footer>
               </>

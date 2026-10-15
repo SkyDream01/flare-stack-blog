@@ -1,20 +1,25 @@
 import { Link } from "@tanstack/react-router";
 import {
-  ArrowLeft,
   Check,
   Clock,
   ExternalLink,
   Globe,
-  Loader2,
   RefreshCw,
   XCircle,
 } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ComponentProps } from "react";
 import { Turnstile } from "@/components/common/turnstile";
+import { Button, buttonClass } from "@/components/ui/button";
 import DropdownMenu from "@/components/ui/dropdown-menu";
+import { FormField } from "@/components/ui/form-field";
+import { Input, Textarea } from "@/components/ui/input";
+import { PublicPageHeading } from "@/components/ui/page-heading";
+import { Spinner } from "@/components/ui/spinner";
+import { StatusIcon } from "@/components/ui/status-icon";
 import type { FriendLink } from "@/lib/db/schema";
 import { useContentMotion } from "@/hooks/use-motion";
 import { useFriendLinkSubmitForm } from "../hooks/use-friend-link-submit-form";
+import { StatusText } from "@/components/ui/status-text";
 import { m } from "@/paraglide/messages";
 import "./submit-friend-link-page.css";
 
@@ -42,14 +47,11 @@ export function SubmitFriendLinkPage({
   );
   return (
     <section className="friend-application fuwari-card-base">
-      <header className="friend-application-heading">
-        <h1>{m.friend_link_submit_title()}</h1>
-        <Link to="/friend-links">
-          <ArrowLeft size={16} />
-          {m.friend_link_back_to_list()}
-        </Link>
-        <p>{m.friend_apply_intro()}</p>
-      </header>
+      <PublicPageHeading
+        title={m.friend_link_submit_title()}
+        back={{ to: "/friend-links", label: m.friend_link_back_to_list() }}
+        description={m.friend_apply_intro()}
+      />
       {myLinks.length > 1 && (
         <div className="friend-application-switcher">
           <DropdownMenu
@@ -69,20 +71,15 @@ export function SubmitFriendLinkPage({
       <div ref={bodyRef}>
         {isLoading ? (
           <div className="friend-application-loading" aria-busy="true">
-            <Loader2 className="animate-spin" size={22} />
+            <Spinner size={22} />
             {m.friend_apply_loading()}
           </div>
         ) : isError ? (
           <div className="friend-application-message" role="alert">
             <p>{m.friend_apply_load_failed()}</p>
-            <button
-              type="button"
-              className="fuwari-btn-regular"
-              onClick={reload}
-              disabled={isRefreshing}
-            >
+            <Button size="lg" onClick={reload} disabled={isRefreshing}>
               {m.friend_apply_refresh()}
-            </button>
+            </Button>
           </div>
         ) : !current || editing ? (
           <ApplicationForm
@@ -93,18 +90,16 @@ export function SubmitFriendLinkPage({
           />
         ) : (
           <div className="friend-application-status" role="status">
-            <div
-              className="friend-application-state-icon"
-              data-status={current.status}
-            >
-              {current.status === "pending" ? (
-                <Clock size={26} />
-              ) : current.status === "approved" ? (
-                <Check size={26} />
-              ) : (
-                <XCircle size={26} />
-              )}
-            </div>
+            <StatusIcon
+              icon={
+                current.status === "pending"
+                  ? Clock
+                  : current.status === "approved"
+                    ? Check
+                    : XCircle
+              }
+              tone={current.status === "rejected" ? "danger" : "primary"}
+            />
             <h2>
               {current.status === "pending"
                 ? m.friend_apply_pending()
@@ -142,30 +137,29 @@ export function SubmitFriendLinkPage({
             )}
             <div className="friend-application-actions">
               {current.status === "rejected" ? (
-                <button
-                  type="button"
-                  className="fuwari-btn-primary"
+                <Button
+                  variant="primary"
+                  size="lg"
                   onClick={() => setEditingId(current.id)}
                 >
                   {m.friend_apply_revise()}
-                </button>
+                </Button>
               ) : current.status === "approved" ? (
-                <Link to="/friend-links" className="fuwari-btn-primary">
+                <Link
+                  to="/friend-links"
+                  className={buttonClass({ variant: "primary", size: "lg" })}
+                >
                   {m.friend_apply_view()}
                 </Link>
               ) : null}
-              <button
-                type="button"
-                className="fuwari-btn-regular"
+              <Button
+                size="lg"
                 onClick={reload}
-                disabled={isRefreshing}
+                loading={isRefreshing}
+                icon={<RefreshCw size={16} />}
               >
-                <RefreshCw
-                  size={16}
-                  className={isRefreshing ? "animate-spin" : ""}
-                />
                 {m.friend_apply_refresh()}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -217,147 +211,97 @@ function ApplicationForm({
     >
       <fieldset disabled={form.isSubmitting}>
         <div className="friend-application-core">
-          <Field
-            name="siteName"
+          <FormField
             label={m.friend_link_field_site_name()}
             error={form.errors.siteName?.message}
             required
           >
-            <input
-              id="apply-siteName"
-              aria-required="true"
+            <Input
               {...form.register("siteName")}
               maxLength={100}
               autoComplete="organization"
-              aria-invalid={!!form.errors.siteName}
-              aria-describedby={
-                form.errors.siteName ? "apply-siteName-error" : undefined
-              }
               placeholder={m.friend_link_placeholder_site_name_fuwari()}
             />
-          </Field>
-          <Field
-            name="siteUrl"
+          </FormField>
+          <FormField
             label={m.friend_link_field_site_url_fuwari()}
             error={form.errors.siteUrl?.message}
             required
           >
-            <input
-              id="apply-siteUrl"
-              aria-required="true"
+            <Input
               {...form.register("siteUrl")}
               type="url"
               autoComplete="url"
-              aria-invalid={!!form.errors.siteUrl}
-              aria-describedby={
-                form.errors.siteUrl ? "apply-siteUrl-error" : undefined
-              }
               placeholder="https://example.com"
             />
-          </Field>
+          </FormField>
         </div>
-        <Field
-          name="description"
+        <FormField
           label={m.friend_link_field_description()}
           error={form.errors.description?.message}
+          optional={m.friend_apply_optional()}
         >
-          <textarea
-            id="apply-description"
+          <Textarea
             {...form.register("description")}
             rows={3}
             maxLength={300}
-            aria-invalid={!!form.errors.description}
-            aria-describedby={
-              form.errors.description ? "apply-description-error" : undefined
-            }
             placeholder={m.friend_link_placeholder_description_fuwari()}
           />
-        </Field>
-        <Field
-          name="logoUrl"
+        </FormField>
+        <FormField
           label={m.friend_link_field_logo_url()}
           error={form.errors.logoUrl?.message}
+          optional={m.friend_apply_optional()}
         >
-          <div className="friend-application-logo">
-            <input
-              id="apply-logoUrl"
-              {...form.register("logoUrl")}
-              type="url"
-              aria-invalid={!!form.errors.logoUrl}
-              aria-describedby={
-                form.errors.logoUrl ? "apply-logoUrl-error" : undefined
-              }
-              placeholder="https://example.com/avatar.png"
-            />
-            <SiteIcon src={form.logoUrl} />
-          </div>
-        </Field>
+          <LogoUrlInput
+            {...form.register("logoUrl")}
+            type="url"
+            placeholder="https://example.com/avatar.png"
+            preview={form.logoUrl}
+          />
+        </FormField>
       </fieldset>
       <div className="friend-application-verification">
         <Turnstile {...form.turnstileProps} />
       </div>
       {form.submitError && (
-        <p className="friend-application-error" role="alert">
+        <StatusText error className="friend-application-error">
           {form.submitError}
-        </p>
+        </StatusText>
       )}
       <div className="friend-application-actions">
         {onCancel && (
-          <button
-            type="button"
-            className="fuwari-btn-regular"
-            onClick={onCancel}
-            disabled={form.isSubmitting}
-          >
+          <Button size="lg" onClick={onCancel} disabled={form.isSubmitting}>
             {m.common_cancel()}
-          </button>
+          </Button>
         )}
-        <button
+        <Button
           type="submit"
-          className="fuwari-btn-primary friend-application-submit"
-          disabled={form.isSubmitting || form.turnstilePending}
+          variant="primary"
+          size="lg"
+          className="friend-application-submit"
+          disabled={form.turnstilePending}
+          loading={form.isSubmitting}
         >
-          {form.isSubmitting && <Loader2 size={16} className="animate-spin" />}
           {form.isSubmitting
             ? m.friend_apply_sending()
             : initial
               ? m.friend_apply_resubmit()
               : m.friend_link_submit_form_title()}
-        </button>
+        </Button>
       </div>
       <p className="friend-application-hint">{m.friend_apply_after_submit()}</p>
     </form>
   );
 }
-function Field({
-  name,
-  label,
-  error,
-  required,
-  children,
-}: {
-  name: string;
-  label: string;
-  error?: string;
-  required?: boolean;
-  children: ReactNode;
-}) {
+function LogoUrlInput({
+  preview,
+  ...props
+}: ComponentProps<typeof Input> & { preview: string }) {
   return (
-    <div className="friend-application-field">
-      <label htmlFor={`apply-${name}`}>
-        {label}
-        {required ? (
-          <span aria-hidden="true"> *</span>
-        ) : (
-          <small>{m.friend_apply_optional()}</small>
-        )}
-      </label>
-      {children}
-      {error && (
-        <p id={`apply-${name}-error`} className="friend-application-error">
-          {error}
-        </p>
-      )}
+    <div className="friend-application-logo">
+      <Input {...props} />
+      <SiteIcon src={preview} />
     </div>
   );
 }

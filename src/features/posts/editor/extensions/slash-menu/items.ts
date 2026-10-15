@@ -13,6 +13,7 @@ import {
   Quote,
   SquareFunction,
   Table as TableIcon,
+  Video,
   Workflow,
 } from "lucide-react";
 import { MERMAID } from "@/lib/code-languages";
@@ -151,6 +152,23 @@ export const SLASH_MENU_ITEMS: ReadonlyArray<SlashMenuItem> = [
     // Focusing here would pull focus back from the image picker.
     run: ({ editor, range }) =>
       editor.chain().deleteRange(range).insertImagePlaceholder().run(),
+  },
+  {
+    id: "video",
+    title: m.editor_slash_video,
+    keywords: [
+      "视频",
+      "video",
+      "bilibili",
+      "b站",
+      "哔哩哔哩",
+      "youtube",
+      "embed",
+    ],
+    icon: Video,
+    // No focus command: it would take focus back from the link input.
+    run: ({ editor, range }) =>
+      editor.chain().deleteRange(range).insertVideo().run(),
   },
 ];
 

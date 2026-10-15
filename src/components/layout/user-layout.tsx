@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { Home, LogIn } from "lucide-react";
+import { buttonClass } from "@/components/ui/button";
 import type { UserLayoutProps } from "@/components/layout/layout-props";
 import { m } from "@/paraglide/messages";
 
@@ -30,14 +31,18 @@ export function UserLayout({ isAuthenticated, children }: UserLayoutProps) {
           <Link
             to="/login"
             search={{ redirectTo: location.href }}
-            className="fuwari-btn-primary rounded-xl w-full py-3 flex items-center justify-center gap-2 font-bold active:scale-95 transition-all"
+            className={buttonClass({
+              variant: "primary",
+              size: "lg",
+              className: "w-full",
+            })}
           >
             <LogIn className="w-4 h-4" />
             {m.auth_layout_go_to_login()}
           </Link>
           <Link
             to="/"
-            className="fuwari-btn-regular rounded-xl w-full py-3 flex items-center justify-center gap-2 font-medium active:scale-95 transition-all"
+            className={buttonClass({ size: "lg", className: "w-full" })}
           >
             <Home className="w-4 h-4" />
             {m.auth_layout_back_home()}

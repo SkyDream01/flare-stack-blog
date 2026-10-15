@@ -11,6 +11,7 @@ export default defineConfig(async () => {
   return {
     define: {
       __APP_VERSION__: JSON.stringify(packageJson.version),
+      __BUILD_ID__: JSON.stringify("test"),
     },
     plugins: [
       cloudflareTest({

@@ -1,6 +1,7 @@
-import { Check, ChevronDown, Copy } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { memo, type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { ShikiHtml } from "@/components/content/shiki-html";
+import { CodeCopyButton } from "@/components/ui/copy-button";
 import { isPlainTextLanguage, resolveCodeLanguage } from "@/lib/code-languages";
 import { escapeCodeHtml } from "@/lib/plain-code-html";
 import { cn } from "@/lib/utils";
@@ -117,18 +118,10 @@ export function CodeBlockFrame({
   language: string | null;
   children: ReactNode;
 }) {
-  const [copied, setCopied] = useState(false);
-
   // Helper to get display label (following expressive-code language badge logic)
   const displayLanguage = isPlainTextLanguage(language)
     ? m.common_plain_text()
     : (resolveCodeLanguage(language)?.label ?? language?.toLowerCase());
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className="relative group max-w-full my-6 not-prose">
@@ -145,30 +138,9 @@ export function CodeBlockFrame({
           {displayLanguage}
         </div>
 
-        {/* Custom Copy Button (Expressive Code Style) */}
-        <button
-          onClick={handleCopy}
-          aria-label={m.common_copy_code()}
-          className={cn(
-            "absolute z-20 right-2 top-2 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300",
-            "bg-transparent border border-transparent text-gray-400 opacity-0 group-hover:opacity-100",
-            "hover:bg-black/5 dark:hover:bg-white/10 hover:border-black/10 dark:hover:border-white/20 hover:text-black dark:hover:text-white",
-            copied && "text-green-500 hover:text-green-500 scale-110", // success state overrides
-          )}
-        >
-          <div className="w-4 h-4 relative flex items-center justify-center">
-            {copied ? (
-              /* Success Check Icon */
-              <Check
-                strokeWidth={2.5}
-                className="w-4 h-4 absolute animate-in zoom-in"
-              />
-            ) : (
-              /* Copy Icon */
-              <Copy strokeWidth={2.5} className="w-4 h-4 absolute" />
-            )}
-          </div>
-        </button>
+        <div className="absolute z-20 right-2 top-2">
+          <CodeCopyButton code={code} />
+        </div>
 
         {children}
       </div>

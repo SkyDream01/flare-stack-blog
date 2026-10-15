@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import type { Editor, JSONContent } from "@tiptap/core";
+import { findInPopover } from "tests/popover";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   pressKey,
@@ -50,7 +51,7 @@ async function openPicker() {
       screen.getByRole("button", { name: m.editor_toolbar_table() }),
     );
   });
-  const dialog = await screen.findByRole("dialog", {
+  const dialog = await findInPopover("dialog", {
     name: m.editor_toolbar_table(),
   });
   return { ...view, dialog };
@@ -167,7 +168,7 @@ it("still inserts a 3 × 3 table from the slash menu", async () => {
   });
 
   act(() => typeText(editor, "/table"));
-  await screen.findByRole("listbox", { name: m.editor_slash_menu() });
+  await findInPopover("listbox", { name: m.editor_slash_menu() });
   act(() => {
     pressKey(editor, "Enter");
   });

@@ -1,8 +1,9 @@
 import type { Editor } from "@tiptap/react";
-import { CornerDownLeft, Loader2, Upload } from "lucide-react";
-import type { KeyboardEvent } from "react";
+import { CornerDownLeft, Upload } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { IconButton } from "@/components/ui/icon-button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Spinner } from "@/components/ui/spinner";
 import { MediaPickerGrid } from "@/features/media/components/media-library/components";
 import {
   useMediaPicker,
@@ -11,17 +12,16 @@ import {
 import type { MediaAsset } from "@/features/media/components/media-library/types";
 import { ACCEPTED_IMAGE_TYPES } from "@/features/media/media.schema";
 import { useImagePicker } from "@/features/posts/editor/extensions/image-placeholder";
-import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { EditorPopover } from "./editor-popover";
 
 const TABS = [
-  { id: "upload", label: m.editor_image_tab_upload },
-  { id: "link", label: m.editor_image_tab_link },
-  { id: "library", label: m.editor_image_tab_library },
+  { value: "upload", label: m.editor_image_tab_upload },
+  { value: "link", label: m.editor_image_tab_link },
+  { value: "library", label: m.editor_image_tab_library },
 ] as const;
 
-type Tab = (typeof TABS)[number]["id"];
+type Tab = (typeof TABS)[number]["value"];
 
 /**
  * The image picker below an image placeholder: upload a file, import an
@@ -33,7 +33,7 @@ export function ImagePickerPopover({ editor }: { editor: Editor | null }) {
   const target = useImagePicker(editor);
   const open = target !== null;
   const [tab, setTab] = useState<Tab>("upload");
-  const tabRefs = useRef(new Map<Tab, HTMLButtonElement>());
+  const tabsRef = useRef<HTMLDivElement>(null);
   const id = useId();
   const library = useMediaPicker(open);
 
@@ -49,54 +49,29 @@ export function ImagePickerPopover({ editor }: { editor: Editor | null }) {
       .run();
   };
 
-  const onTabKeyDown = (event: KeyboardEvent) => {
-    const step =
-      event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
-    if (!step) return;
-    event.preventDefault();
-    const index = TABS.findIndex((item) => item.id === tab);
-    const next = TABS[(index + step + TABS.length) % TABS.length].id;
-    setTab(next);
-    tabRefs.current.get(next)?.focus();
-  };
-
   return (
     <EditorPopover
       editor={editor}
       open={open}
       anchor={target}
       onClose={() => editor?.commands.closeImagePicker()}
-      initialFocus={() => tabRefs.current.get(tab) ?? null}
+      initialFocus={() =>
+        tabsRef.current?.querySelector<HTMLElement>('[aria-selected="true"]') ??
+        null
+      }
       role="dialog"
       aria-label={m.editor_image_picker_title()}
       className="flex w-96 max-w-[calc(100vw-1rem)] flex-col gap-2 p-2"
     >
-      <div role="tablist" className="flex gap-1" onKeyDown={onTabKeyDown}>
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            ref={(element) => {
-              if (element) tabRefs.current.set(item.id, element);
-              else tabRefs.current.delete(item.id);
-            }}
-            type="button"
-            role="tab"
-            id={`${id}-${item.id}-tab`}
-            aria-selected={tab === item.id}
-            aria-controls={`${id}-${item.id}-panel`}
-            tabIndex={tab === item.id ? 0 : -1}
-            onClick={() => setTab(item.id)}
-            className={cn(
-              "h-8 rounded-lg px-3 text-sm font-medium transition-colors",
-              tab === item.id
-                ? "bg-(--fuwari-btn-regular-bg) text-(--fuwari-primary)"
-                : "fuwari-text-50 hover:bg-(--fuwari-btn-plain-bg-hover) hover:text-(--fuwari-primary)",
-            )}
-          >
-            {item.label()}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        ref={tabsRef}
+        role="tablist"
+        idBase={id}
+        track={false}
+        value={tab}
+        onValueChange={setTab}
+        items={TABS.map((item) => ({ value: item.value, label: item.label() }))}
+      />
       <div
         role="tabpanel"
         id={`${id}-${tab}-panel`}
@@ -187,11 +162,7 @@ function LinkPanel({
         onClick={() => void submit()}
         disabled={importing || !url.trim()}
       >
-        {importing ? (
-          <Loader2 size={14} className="animate-spin" />
-        ) : (
-          <CornerDownLeft size={14} />
-        )}
+        {importing ? <Spinner size={14} /> : <CornerDownLeft size={14} />}
       </IconButton>
     </div>
   );

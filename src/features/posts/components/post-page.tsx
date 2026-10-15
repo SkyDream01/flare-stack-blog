@@ -5,7 +5,7 @@ import { PUBLIC_IMAGE_WIDTH } from "@/features/media/utils/media.utils";
 import { CommentSection } from "@/features/comments/components/comment-section";
 import { ContentRenderer } from "@/features/posts/components/content/content-renderer";
 import type { PostWithToc } from "@/features/posts/schema/posts.schema";
-import { authClient } from "@/lib/auth/auth.client";
+import { authClient } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 import { usePhotoSwipeGallery } from "./content/photo-swipe";
 import { useHeadingAnchors } from "./content/use-heading-anchors";

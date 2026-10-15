@@ -1,4 +1,4 @@
-import type { BetterAuthErrorCode } from "@/lib/auth/auth.client";
+import type { BetterAuthErrorCode } from "@/lib/auth/auth-client";
 import type { Messages } from "@/lib/i18n";
 
 const CUSTOM_AUTH_ERROR_CODES = [

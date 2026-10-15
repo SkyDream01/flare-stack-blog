@@ -35,6 +35,11 @@ export const CommentsTable = sqliteTable(
       .notNull()
       .references(() => PostsTable.id, { onDelete: "cascade" }),
     userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    /**
+     * When an Admin dealt with the Comment, by replying or by marking it
+     * handled; it then no longer waits for a reply. Admin-only.
+     */
+    handledAt: integer("handled_at", { mode: "timestamp" }),
 
     createdAt,
     updatedAt,

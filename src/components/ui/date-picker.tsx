@@ -5,9 +5,10 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import { MOTION, useMotionPresence } from "@/hooks/use-motion";
+import { FloatingPopover } from "@/components/ui/floating-popover";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
+import "./field.css";
 
 interface DatePickerProps {
   /** UTC calendar dates in YYYY-MM-DD format. */
@@ -16,9 +17,11 @@ interface DatePickerProps {
   today?: string;
   maxDate?: string;
   className?: string;
+  id?: string;
 }
 
 const DatePicker: React.FC<DatePickerProps> = ({
+  id,
   value,
   onChange,
   today,
@@ -26,8 +29,8 @@ const DatePicker: React.FC<DatePickerProps> = ({
   className = "",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const present = useMotionPresence(isOpen, MOTION.popover);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   const todayDate = today ?? new Date().toISOString().slice(0, 10);
   const activeDate = value || todayDate;
@@ -47,19 +50,6 @@ const DatePicker: React.FC<DatePickerProps> = ({
       timeZone: "UTC",
     }).format(new Date(Date.UTC(2024, 0, 7 + index))),
   );
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getUTCFullYear();
@@ -95,6 +85,7 @@ const DatePicker: React.FC<DatePickerProps> = ({
   const handleDayClick = (day: number) => {
     onChange(dayValue(day));
     setIsOpen(false);
+    triggerRef.current?.focus();
   };
 
   const renderCalendar = () => {
@@ -142,26 +133,18 @@ const DatePicker: React.FC<DatePickerProps> = ({
   };
 
   return (
-    <div
-      className={`relative ${className}`}
-      ref={containerRef}
-      onKeyDown={(event) => {
-        if (isOpen && event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          setIsOpen(false);
-          containerRef.current?.querySelector("button")?.focus();
-        }
-      }}
-    >
+    <div className={`relative ${className}`}>
       <button
+        id={id}
+        ref={triggerRef}
         type="button"
+        aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => {
           if (!isOpen) setViewDate(new Date(`${activeDate}T00:00:00Z`));
           setIsOpen(!isOpen);
         }}
-        className="relative h-10 w-full cursor-pointer rounded-xl bg-(--fuwari-btn-regular-bg) pl-9 pr-3 text-left text-sm fuwari-text-90"
+        className="fuwari-input relative cursor-pointer pl-9 text-left"
       >
         <CalendarIcon
           className="absolute left-3 top-1/2 -translate-y-1/2 fuwari-text-50"
@@ -173,53 +156,68 @@ const DatePicker: React.FC<DatePickerProps> = ({
         </span>
       </button>
 
-      {present && (
-        <div
-          data-state={isOpen ? "open" : "closing"}
-          inert={!isOpen}
-          className="fuwari-popover-motion absolute top-full left-0 z-50 mt-2 w-70 rounded-xl bg-(--fuwari-card-bg) p-4 shadow-md ring-1 ring-(--fuwari-input-border)"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-sm font-medium fuwari-text-90">
-              {formatMonth(viewDate)}
-            </h4>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                aria-label={formatMonth(adjacentMonth(-1))}
-                onClick={() => setViewDate(adjacentMonth(-1))}
-                className="p-1 fuwari-text-50 hover:text-(--fuwari-primary) transition-colors"
-              >
-                <ChevronLeft size={14} strokeWidth={1.5} />
-              </button>
-              <button
-                type="button"
-                aria-label={formatMonth(adjacentMonth(1))}
-                onClick={() => setViewDate(adjacentMonth(1))}
-                className="p-1 fuwari-text-50 hover:text-(--fuwari-primary) transition-colors"
-              >
-                <ChevronRight size={14} strokeWidth={1.5} />
-              </button>
-            </div>
+      <FloatingPopover
+        open={isOpen}
+        anchor={isOpen ? triggerRef.current : null}
+        onDismiss={() => setIsOpen(false)}
+        returnFocusOnEscape
+        // The chosen day, else today, else the first day that can be picked.
+        initialFocus={() =>
+          calendarRef.current?.querySelector<HTMLElement>(
+            '[aria-pressed="true"]',
+          ) ??
+          calendarRef.current?.querySelector<HTMLElement>(
+            '[aria-current="date"]:enabled',
+          ) ??
+          calendarRef.current?.querySelector<HTMLElement>("button:enabled") ??
+          null
+        }
+        role="dialog"
+        aria-label={m.common_select_date()}
+        className="w-70 p-4"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-sm font-medium fuwari-text-90">
+            {formatMonth(viewDate)}
+          </h4>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label={formatMonth(adjacentMonth(-1))}
+              onClick={() => setViewDate(adjacentMonth(-1))}
+              className="p-1 fuwari-text-50 hover:text-(--fuwari-primary) transition-colors"
+            >
+              <ChevronLeft size={14} strokeWidth={1.5} />
+            </button>
+            <button
+              type="button"
+              aria-label={formatMonth(adjacentMonth(1))}
+              onClick={() => setViewDate(adjacentMonth(1))}
+              className="p-1 fuwari-text-50 hover:text-(--fuwari-primary) transition-colors"
+            >
+              <ChevronRight size={14} strokeWidth={1.5} />
+            </button>
           </div>
-
-          {/* Grid Header (Days) */}
-          <div className="grid grid-cols-7 gap-0.5 mb-1">
-            {daysOfWeek.map((d, index) => (
-              <div
-                key={index}
-                className="w-8 text-center text-[11px] fuwari-text-30"
-              >
-                {d}
-              </div>
-            ))}
-          </div>
-
-          {/* Grid Body */}
-          <div className="grid grid-cols-7 gap-0.5">{renderCalendar()}</div>
         </div>
-      )}
+
+        {/* Grid Header (Days) */}
+        <div className="grid grid-cols-7 gap-0.5 mb-1">
+          {daysOfWeek.map((d, index) => (
+            <div
+              key={index}
+              className="w-8 text-center text-[11px] fuwari-text-30"
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Grid Body */}
+        <div ref={calendarRef} className="grid grid-cols-7 gap-0.5">
+          {renderCalendar()}
+        </div>
+      </FloatingPopover>
     </div>
   );
 };

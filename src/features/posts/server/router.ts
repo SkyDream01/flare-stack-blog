@@ -18,6 +18,8 @@ import {
   PublishPostInputSchema,
   UnpublishPostInputSchema,
   UpdatePostInputSchema,
+  VideoMetaInputSchema,
+  VideoMetaSchema,
 } from "@/features/posts/schema/posts.schema";
 import {
   DeletePostRevisionsInputSchema,
@@ -29,6 +31,8 @@ import {
 } from "@/features/posts/schema/post-revisions.schema";
 import * as PostRevisionService from "@/features/posts/services/post-revisions.service";
 import * as PostService from "@/features/posts/services/posts.service";
+import * as VideoMetaService from "@/features/posts/services/video-meta.service";
+import { videoSourceOf } from "@/features/posts/utils/video-source";
 import { postPopularityService } from "@/features/post-popularity/service/post-popularity.service";
 import { getPostPublisher } from "@/lib/do/post-publisher-binding";
 import { adminProcedure, publicProcedure } from "@/lib/orpc/procedure";
@@ -181,6 +185,22 @@ const generateSlug = adminProcedure
   })
   .input(GenerateSlugInputSchema)
   .handler(({ context, input }) => PostService.generateSlug(context, input));
+
+const videoMeta = adminProcedure
+  .route({
+    method: "GET",
+    path: "/admin/posts/video-meta",
+    summary: "Look up an embedded video's title, cover and length",
+    description:
+      "Asks the video's provider once, when the editor embeds it. Returns null when the provider has nothing to give or cannot be reached.",
+    tags: ["Admin Posts"],
+  })
+  .input(VideoMetaInputSchema)
+  .output(VideoMetaSchema)
+  .handler(({ input }) => {
+    const source = videoSourceOf(input);
+    return source ? VideoMetaService.fetchVideoMeta(source) : null;
+  });
 
 const create = adminProcedure
   .route({
@@ -360,6 +380,7 @@ export default {
     list: adminList,
     get: adminGet,
     generateSlug,
+    videoMeta,
     create,
     update,
     remove,

@@ -1,4 +1,14 @@
-import { and, count, desc, eq, exists, inArray, isNull, or } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  or,
+  sql,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import {
   COMMENT_PAGE_SIZE,
@@ -344,4 +354,33 @@ export async function getCommentAuthorWithEmail(db: DB, commentId: number) {
     email: result[0].userEmail,
     role: result[0].userRole,
   };
+}
+
+/** Handling a Comment is bookkeeping, not an edit: `updated_at` stays. */
+export const keepUpdatedAt = { updatedAt: sql`${CommentsTable.updatedAt}` };
+
+/** Sets when an Admin handled a Comment; null puts it back in the queue. */
+export async function setCommentHandledAt(
+  db: DB,
+  id: number,
+  handledAt: Date | null,
+) {
+  const [comment] = await db
+    .update(CommentsTable)
+    .set({ handledAt, ...keepUpdatedAt })
+    .where(eq(CommentsTable.id, id))
+    .returning({ id: CommentsTable.id });
+  return comment ?? null;
+}
+
+/** Marks a Comment handled unless it already is, keeping the first time. */
+export async function markCommentHandledOnce(
+  db: DB,
+  id: number,
+  handledAt: Date,
+) {
+  await db
+    .update(CommentsTable)
+    .set({ handledAt, ...keepUpdatedAt })
+    .where(and(eq(CommentsTable.id, id), isNull(CommentsTable.handledAt)));
 }

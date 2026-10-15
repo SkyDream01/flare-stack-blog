@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createElement } from "react";
+import { findInPopover } from "tests/popover";
 import { afterEach, expect, it, vi } from "vitest";
 import DropdownMenu from "./dropdown-menu";
 
@@ -13,17 +14,15 @@ vi.mock("@/hooks/use-motion", () => ({
 const OPTIONS = [
   { label: "Newest", value: "newest" },
   { label: "Oldest", value: "oldest" },
+  { label: "Title", value: "title" },
 ];
 
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
-});
+afterEach(cleanup);
 
 function renderMenu(onChange = vi.fn()) {
   render(
     createElement(DropdownMenu, {
-      value: "newest",
+      value: "oldest",
       options: OPTIONS,
       onChange,
       ariaLabel: "Sort",
@@ -36,66 +35,57 @@ function trigger() {
   return screen.getByRole("button", { name: "Sort" });
 }
 
-function placeTrigger(rect: { top: number; bottom: number; right: number }) {
-  vi.spyOn(trigger(), "getBoundingClientRect").mockReturnValue({
-    ...rect,
-    left: rect.right - 80,
-    width: 80,
-    height: rect.bottom - rect.top,
-    x: rect.right - 80,
-    y: rect.top,
-    toJSON: () => ({}),
-  });
-}
-
-it("anchors the menu below the trigger's right edge", () => {
+it("opens on the chosen option and moves through the options by key", async () => {
   renderMenu();
-  placeTrigger({ top: 100, bottom: 124, right: 900 });
-
   fireEvent.click(trigger());
 
-  const menu = screen.getByRole("menu");
-  expect(menu.style.position).toBe("fixed");
-  expect(menu.style.top).toBe("128px");
-  expect(menu.style.right).toBe(`${window.innerWidth - 900}px`);
-  expect(menu.style.width).toBe("176px");
-  expect(menu.style.transformOrigin).toBe("top right");
-  expect(menu.style.getPropertyValue("--popover-offset")).toBe("-4px");
+  const oldest = await findInPopover("menuitemradio", { name: "Oldest" });
+  expect(oldest.getAttribute("aria-checked")).toBe("true");
+  expect(document.activeElement).toBe(oldest);
+
+  fireEvent.keyDown(oldest, { key: "ArrowDown" });
+  expect(document.activeElement?.textContent).toBe("Title");
+  fireEvent.keyDown(document.activeElement!, { key: "ArrowDown" });
+  expect(document.activeElement?.textContent).toBe("Newest");
+  fireEvent.keyDown(document.activeElement!, { key: "End" });
+  expect(document.activeElement?.textContent).toBe("Title");
+  fireEvent.keyDown(document.activeElement!, { key: "n" });
+  expect(document.activeElement?.textContent).toBe("Newest");
 });
 
-it("opens upward when there is no room below the trigger", () => {
-  renderMenu();
-  const top = window.innerHeight - 60;
-  placeTrigger({ top, bottom: top + 24, right: 900 });
-
-  fireEvent.click(trigger());
-
-  const menu = screen.getByRole("menu");
-  expect(menu.style.top).toBe("");
-  expect(menu.style.bottom).toBe("64px");
-  expect(menu.style.transformOrigin).toBe("bottom right");
-  expect(menu.style.getPropertyValue("--popover-offset")).toBe("4px");
-});
-
-it("closes on a click outside but not on one inside", () => {
+it("closes on Escape and returns focus to the trigger", async () => {
   const onChange = renderMenu();
   fireEvent.click(trigger());
+  const menu = await findInPopover("menu", { name: "Sort" });
 
-  fireEvent.mouseDown(screen.getByRole("menu"));
-  expect(screen.getByRole("menu")).toBeTruthy();
+  fireEvent.keyDown(document.activeElement!, { key: "Escape" });
 
-  fireEvent.mouseDown(document.body);
   expect(screen.queryByRole("menu")).toBeNull();
+  expect(menu.isConnected).toBe(false);
+  expect(document.activeElement).toBe(trigger());
   expect(onChange).not.toHaveBeenCalled();
 });
 
-it("picks an option and returns focus to the trigger", () => {
+it("closes on a click outside but not on one inside", async () => {
+  const onChange = renderMenu();
+  fireEvent.click(trigger());
+  const menu = await findInPopover("menu");
+
+  fireEvent.mouseDown(menu);
+  expect(menu.isConnected).toBe(true);
+
+  fireEvent.mouseDown(document.body);
+  expect(menu.isConnected).toBe(false);
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+it("picks an option and returns focus to the trigger", async () => {
   const onChange = renderMenu();
   fireEvent.click(trigger());
 
-  fireEvent.click(screen.getByRole("menuitemradio", { name: "Oldest" }));
+  fireEvent.click(await findInPopover("menuitemradio", { name: "Title" }));
 
-  expect(onChange).toHaveBeenCalledWith("oldest");
+  expect(onChange).toHaveBeenCalledWith("title");
   expect(screen.queryByRole("menu")).toBeNull();
   expect(document.activeElement).toBe(trigger());
 });

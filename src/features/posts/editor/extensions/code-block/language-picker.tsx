@@ -7,13 +7,9 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { createPortal } from "react-dom";
+import { FloatingPopover } from "@/components/ui/floating-popover";
 import { ListboxOption } from "@/components/ui/listbox-option";
-import {
-  POPOVER_PANEL_CLASS,
-  POPOVER_TRIGGER_CLASS,
-  useAnchoredPopover,
-} from "@/components/ui/use-anchored-popover";
+import { POPOVER_TRIGGER_CLASS } from "@/components/ui/use-anchored-popover";
 import {
   CODE_LANGUAGES,
   PLAIN_TEXT,
@@ -25,7 +21,6 @@ import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { filterLanguageOptions, type LanguageOption } from "./language-options";
 
-const POPOVER_WIDTH = 13 * 16;
 const POPOVER_MAX_HEIGHT = 320;
 
 function pickerOptions(): Array<LanguageOption> {
@@ -62,16 +57,7 @@ export function LanguagePicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
-  const {
-    triggerRef,
-    popoverRef,
-    style: popoverStyle,
-  } = useAnchoredPopover({
-    open,
-    onDismiss: () => setOpen(false),
-    width: POPOVER_WIDTH,
-    maxHeight: POPOVER_MAX_HEIGHT,
-  });
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   // Set when the active option moves by keyboard, typing or opening, so it is
   // scrolled into view; a hover or a scroll of the list leaves the list alone.
@@ -97,24 +83,14 @@ export function LanguagePicker({
     setOpen(true);
   };
 
-  const close = () => {
+  const pick = (option: LanguageOption) => {
+    onChange(option.id);
     setOpen(false);
     triggerRef.current?.focus();
   };
 
-  const pick = (option: LanguageOption) => {
-    onChange(option.id);
-    close();
-  };
-
-  const isShown = open && popoverStyle !== null;
-
   useEffect(() => {
-    if (isShown) searchRef.current?.focus();
-  }, [isShown]);
-
-  useEffect(() => {
-    if (!isShown || !active || !revealActive.current) return;
+    if (!open || !active || !revealActive.current) return;
     revealActive.current = false;
     document
       .getElementById(optionId(active.id))
@@ -137,11 +113,6 @@ export function LanguagePicker({
       case "Enter":
         event.preventDefault();
         if (active) pick(active);
-        return;
-      case "Escape":
-        event.preventDefault();
-        event.stopPropagation();
-        close();
         return;
       case "Tab":
         setOpen(false);
@@ -170,86 +141,78 @@ export function LanguagePicker({
         />
       </button>
 
-      {popoverStyle
-        ? createPortal(
-            <div
-              ref={popoverRef}
-              data-state={open ? "open" : "closing"}
-              inert={!open}
-              aria-hidden={!open}
-              style={popoverStyle}
-              className={cn(
-                POPOVER_PANEL_CLASS,
-                "flex flex-col overflow-hidden",
-              )}
-            >
-              <div className="flex items-center gap-2 border-b border-(--fuwari-input-border) px-3 py-2 fuwari-text-50 focus-within:text-(--fuwari-primary)">
-                <Search size={14} aria-hidden="true" className="shrink-0" />
-                <input
-                  ref={searchRef}
-                  type="text"
-                  role="combobox"
-                  aria-label={m.editor_code_language_search()}
-                  aria-expanded={open}
-                  aria-controls={listId}
-                  aria-autocomplete="list"
-                  aria-activedescendant={
-                    active ? optionId(active.id) : undefined
-                  }
-                  placeholder={m.editor_code_language_search()}
-                  autoComplete="off"
-                  spellCheck={false}
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    revealActive.current = true;
-                    setActiveIndex(0);
-                  }}
-                  onKeyDown={handleSearchKeyDown}
-                  className="min-w-0 flex-1 bg-transparent text-sm fuwari-text-90 outline-none placeholder:text-(--fuwari-fg-30)"
-                />
-              </div>
-              <div
-                id={listId}
-                role="listbox"
-                aria-label={m.editor_code_language()}
-                className="max-h-64 overflow-y-auto p-1 empty:hidden custom-scrollbar"
+      <FloatingPopover
+        open={open}
+        anchor={open ? triggerRef.current : null}
+        onDismiss={() => setOpen(false)}
+        returnFocusOnEscape
+        placement="bottom-end"
+        maxHeight={POPOVER_MAX_HEIGHT}
+        initialFocus={() => searchRef.current}
+        className="flex w-52 flex-col overflow-hidden"
+      >
+        <div className="flex items-center gap-2 border-b border-(--fuwari-input-border) px-3 py-2 fuwari-text-50 focus-within:text-(--fuwari-primary)">
+          <Search size={14} aria-hidden="true" className="shrink-0" />
+          <input
+            ref={searchRef}
+            type="text"
+            role="combobox"
+            aria-label={m.editor_code_language_search()}
+            aria-expanded={open}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={active ? optionId(active.id) : undefined}
+            placeholder={m.editor_code_language_search()}
+            autoComplete="off"
+            spellCheck={false}
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              revealActive.current = true;
+              setActiveIndex(0);
+            }}
+            onKeyDown={handleSearchKeyDown}
+            className="min-w-0 flex-1 bg-transparent text-sm fuwari-text-90 outline-none placeholder:text-(--fuwari-fg-30)"
+          />
+        </div>
+        <div
+          id={listId}
+          role="listbox"
+          aria-label={m.editor_code_language()}
+          className="max-h-64 min-h-0 overflow-y-auto p-1 empty:hidden custom-scrollbar"
+        >
+          {filtered.map((option, index) => {
+            const isActive = index === activeIndex;
+            const isCurrent = option.id === currentId;
+            return (
+              <ListboxOption
+                key={option.id}
+                id={optionId(option.id)}
+                active={isActive}
+                current={isCurrent}
+                onActivate={() => setActiveIndex(index)}
+                onPick={() => pick(option)}
+                className="justify-between gap-2 px-3"
               >
-                {filtered.map((option, index) => {
-                  const isActive = index === activeIndex;
-                  const isCurrent = option.id === currentId;
-                  return (
-                    <ListboxOption
-                      key={option.id}
-                      id={optionId(option.id)}
-                      active={isActive}
-                      current={isCurrent}
-                      onActivate={() => setActiveIndex(index)}
-                      onPick={() => pick(option)}
-                      className="justify-between gap-2 px-3"
-                    >
-                      <span className="truncate">{option.label}</span>
-                      {isCurrent ? (
-                        <Check
-                          size={14}
-                          strokeWidth={2.5}
-                          aria-hidden="true"
-                          className="shrink-0"
-                        />
-                      ) : null}
-                    </ListboxOption>
-                  );
-                })}
-              </div>
-              {filtered.length === 0 ? (
-                <p className="px-4 py-2.5 text-sm fuwari-text-50">
-                  {m.editor_code_language_empty()}
-                </p>
-              ) : null}
-            </div>,
-            document.body,
-          )
-        : null}
+                <span className="truncate">{option.label}</span>
+                {isCurrent ? (
+                  <Check
+                    size={14}
+                    strokeWidth={2.5}
+                    aria-hidden="true"
+                    className="shrink-0"
+                  />
+                ) : null}
+              </ListboxOption>
+            );
+          })}
+        </div>
+        {filtered.length === 0 ? (
+          <p className="px-4 py-2.5 text-sm fuwari-text-50">
+            {m.editor_code_language_empty()}
+          </p>
+        ) : null}
+      </FloatingPopover>
     </div>
   );
 }

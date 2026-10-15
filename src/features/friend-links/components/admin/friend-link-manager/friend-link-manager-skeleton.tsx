@@ -1,44 +1,37 @@
+import { Skeleton, SkeletonListRows } from "@/components/ui/skeleton";
+import "@/components/ui/page-heading.css";
+import "@/components/ui/tabs.css";
 import "./friend-link-manager.css";
 export function FriendLinkManagerSkeleton() {
   return (
-    <div>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div
-          key={i}
-          className="px-4 py-4 flex gap-3 border-b border-(--fuwari-input-border) last:border-0 animate-pulse"
-        >
-          <div className="w-10 h-10 rounded-xl bg-(--fuwari-btn-regular-bg)" />
-          <div className="flex-1 space-y-2">
-            <div className="h-5 w-1/3 rounded-lg bg-(--fuwari-btn-regular-bg)" />
-            <div className="h-4 w-2/3 rounded-lg bg-(--fuwari-btn-regular-bg)" />
-            <div className="h-3 w-1/2 rounded-lg bg-(--fuwari-btn-regular-bg)" />
-          </div>
-        </div>
-      ))}
-    </div>
+    <SkeletonListRows
+      count={5}
+      avatar="square"
+      lines={["h-5 w-1/3", "h-4 w-2/3", "h-3 w-1/2"]}
+    />
   );
 }
 
 export function FriendLinkManagerPageSkeleton() {
   return (
     <div
-      className="friend-workspace fuwari-card-base animate-pulse"
+      className="friend-workspace admin-workspace fuwari-card-base"
       aria-hidden="true"
     >
-      <div className="friend-header">
-        <div className="h-8 w-36 rounded-lg bg-(--fuwari-btn-regular-bg)" />
+      <div className="fuwari-page-header friend-header">
+        <Skeleton className="h-8 w-36" />
       </div>
-      <div className="friend-tabs py-4">
-        <div className="h-6 w-64 rounded-lg bg-(--fuwari-btn-regular-bg)" />
+      <div className="fuwari-tabs friend-tabs py-4">
+        <Skeleton className="h-6 w-64" />
       </div>
       <div className="friend-body">
         <div className="friend-queue">
           <FriendLinkManagerSkeleton />
         </div>
         <div className="friend-detail p-8 gap-8">
-          <div className="h-20 w-20 rounded-full bg-(--fuwari-btn-regular-bg)" />
-          <div className="h-5 w-1/2 rounded-lg bg-(--fuwari-btn-regular-bg)" />
-          <div className="h-32 rounded-xl bg-(--fuwari-btn-regular-bg)" />
+          <Skeleton className="h-20 w-20 rounded-full" />
+          <Skeleton className="h-5 w-1/2" />
+          <Skeleton className="h-32 rounded-xl" />
         </div>
       </div>
     </div>

@@ -1,13 +1,12 @@
 import type { Editor } from "@tiptap/core";
 import { Extension, InputRule } from "@tiptap/core";
 import { BlockMath, InlineMath } from "@tiptap/extension-mathematics";
-import type { Node as PMNode } from "@tiptap/pm/model";
 import type { Transaction } from "@tiptap/pm/state";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
-import type { Step } from "@tiptap/pm/transform";
 import { Transform } from "@tiptap/pm/transform";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import type { KatexOptions } from "katex";
+import { findNode, revertSteps } from "../insertion";
 import { BlockMathView } from "./block-math-view";
 import type { MathType } from "./state";
 import { mathEditor, mathTypeOf, NODE_NAMES } from "./state";
@@ -129,25 +128,6 @@ declare module "@tiptap/core" {
       closeMathEditor: () => ReturnType;
     };
   }
-}
-
-/** Where `node` landed in the transaction's document. */
-function findNode(tr: Transaction, node: PMNode) {
-  let found = -1;
-  tr.doc.descendants((child, pos) => {
-    if (child === node) found = pos;
-    return found < 0;
-  });
-  return found;
-}
-
-/** The steps that undo `tr`'s steps from `start` on, in the order to apply. */
-function revertSteps(tr: Transaction, start: number) {
-  const steps: Step[] = [];
-  for (let index = tr.steps.length - 1; index >= start; index--) {
-    steps.push(tr.steps[index].invert(tr.docs[index]));
-  }
-  return steps;
 }
 
 /** Selects the formula at `pos`: the cursor after inline math, block math whole. */

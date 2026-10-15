@@ -1,4 +1,5 @@
 import { createContext, useContext, useRef, type ReactNode } from "react";
+import { DisclosurePanel } from "@/components/ui/disclosure";
 import { MOTION, useMotionPresence } from "@/hooks/use-motion";
 
 export const CommentEditorActive = createContext(true);
@@ -6,7 +7,7 @@ export const CommentEditorActive = createContext(true);
 export function CommentReveal({
   open,
   children,
-  className = "",
+  className,
 }: {
   open: boolean;
   children: ReactNode;
@@ -18,14 +19,13 @@ export function CommentReveal({
   if (open) retained.current = children;
   return (
     <CommentEditorActive.Provider value={open && parentActive}>
-      <div
-        className={`comment-reveal ${className}`}
-        data-open={open}
+      <DisclosurePanel
+        open={open}
         inert={!open || !parentActive}
-        aria-hidden={!open || !parentActive}
+        className={className}
       >
-        <div>{present ? retained.current : null}</div>
-      </div>
+        {present ? retained.current : null}
+      </DisclosurePanel>
     </CommentEditorActive.Provider>
   );
 }

@@ -6,24 +6,17 @@ import {
   PUBLIC_IMAGE_WIDTH,
 } from "@/features/media/utils/media.utils";
 import { findCachedPublicPost } from "@/features/posts/utils/cached-public-post";
+import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "@/paraglide/messages";
 import { cn } from "@/lib/utils";
 import { PostMeta } from "./post-meta";
 import { PostSummary } from "./post-summary";
 
-function Bone({ className }: { className?: string }) {
-  return (
-    <div
-      className={cn("rounded-md bg-black/[0.06] dark:bg-white/10", className)}
-    />
-  );
-}
-
 function MetaChip() {
   return (
     <div className="flex items-center">
-      <Bone className="mr-2 h-6 w-6 rounded-md" />
-      <Bone className="h-3.5 w-16" />
+      <Skeleton className="mr-2 h-6 w-6 rounded-md" />
+      <Skeleton className="h-3.5 w-16" />
     </div>
   );
 }
@@ -32,7 +25,7 @@ function Paragraph({ widths }: { widths: Array<string> }) {
   return (
     <div className="space-y-3">
       {widths.map((width, index) => (
-        <Bone key={`${width}-${index}`} className={cn("h-3.5", width)} />
+        <Skeleton key={`${width}-${index}`} className={cn("h-3.5", width)} />
       ))}
     </div>
   );
@@ -40,14 +33,14 @@ function Paragraph({ widths }: { widths: Array<string> }) {
 
 function ArticleBodySkeleton() {
   return (
-    <div className="animate-pulse">
+    <div>
       <Paragraph
         widths={["w-full", "w-full", "w-full", "w-[96%]", "w-[88%]"]}
       />
-      <Bone className="mt-8 mb-4 h-6 w-2/5" />
+      <Skeleton className="mt-8 mb-4 h-6 w-2/5" />
       <Paragraph widths={["w-full", "w-full", "w-full", "w-full", "w-[72%]"]} />
-      <Bone className="my-8 h-36 w-full rounded-xl" />
-      <Bone className="mt-8 mb-4 h-6 w-1/3" />
+      <Skeleton className="my-8 h-36 w-full rounded-xl" />
+      <Skeleton className="mt-8 mb-4 h-6 w-1/3" />
       <Paragraph
         widths={["w-full", "w-full", "w-full", "w-[94%]", "w-[81%]"]}
       />
@@ -91,7 +84,7 @@ export function PostPageSkeleton() {
               </div>
             </>
           ) : (
-            <div className="flex animate-pulse gap-5">
+            <div className="flex gap-5">
               <MetaChip />
               <MetaChip />
             </div>
@@ -111,9 +104,7 @@ export function PostPageSkeleton() {
               {cached.title}
             </h1>
           ) : (
-            <div className="mb-3 animate-pulse">
-              <Bone className="h-9 w-4/5 md:h-10" />
-            </div>
+            <Skeleton className="mb-3 h-9 w-4/5 md:h-10" />
           )}
         </div>
 
@@ -125,7 +116,7 @@ export function PostPageSkeleton() {
             )}
           </>
         ) : (
-          <div className="mb-5 flex animate-pulse flex-wrap gap-4">
+          <div className="mb-5 flex flex-wrap gap-4">
             <MetaChip />
             <MetaChip />
             <MetaChip />
@@ -162,11 +153,11 @@ export function PostPageSkeleton() {
         </div>
       </div>
 
-      <div className="fuwari-card-base animate-pulse p-6">
-        <Bone className="mb-5 h-5 w-24" />
+      <div className="fuwari-card-base p-6">
+        <Skeleton className="mb-5 h-5 w-24" />
         <div className="space-y-4">
-          <Bone className="h-16 w-full rounded-xl" />
-          <Bone className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
         </div>
       </div>
     </div>

@@ -12,6 +12,9 @@
   color: var(--fuwari-fg-75);
   box-shadow: 0 20px 70px rgb(0 0 0 / 0.12);
   font-size: clamp(15px, 0.88vw, 18px);
+  --fuwari-button-height: 2.75em;
+  --fuwari-button-font-size: 1em;
+  --fuwari-button-padding-x: 1em;
 }
 .fuwari-confirmation h2 {
   font-size: 1.25em;
@@ -28,19 +31,4 @@
   justify-content: flex-end;
   gap: 0.75em;
   margin-top: 1.4em;
-}
-.fuwari-confirmation-actions button {
-  min-height: 2.75em;
-  padding: 0.65em 1em;
-  gap: 0.5em;
-  border-radius: 12px;
-  font-size: inherit;
-}
-.fuwari-confirmation button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.fuwari-confirmation button:focus-visible {
-  outline: 2px solid var(--fuwari-primary);
-  outline-offset: 3px;
 }

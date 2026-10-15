@@ -4,7 +4,10 @@ import {
   adminEmailNeedsSetup,
   commentSnippet,
   popularityAlertFromStatus,
+  popularityState,
+  rankTopPosts,
   siteIdentityIsDefault,
+  totalViews,
 } from "./dashboard";
 
 describe("popularityAlertFromStatus", () => {
@@ -124,5 +127,47 @@ describe("commentSnippet", () => {
         ],
       }),
     ).toBe("感谢");
+  });
+});
+
+describe("popularityState", () => {
+  it("says nothing without Umami, even with an old snapshot", () => {
+    expect(popularityState({ configured: false, expired: false }, true)).toBe(
+      "unconfigured",
+    );
+  });
+
+  it("tells a missing snapshot from an expired one", () => {
+    expect(popularityState({ configured: true, expired: false }, false)).toBe(
+      "missing",
+    );
+    expect(popularityState({ configured: true, expired: true }, true)).toBe(
+      "expired",
+    );
+    expect(popularityState({ configured: true, expired: false }, true)).toBe(
+      "ready",
+    );
+  });
+});
+
+describe("rankTopPosts", () => {
+  const entries = [
+    { postId: 9, score: 50 },
+    { postId: 3, score: 40 },
+    { postId: 7, score: 30 },
+    { postId: 1, score: 20 },
+  ];
+
+  it("keeps snapshot order and skips Posts that are no longer public", () => {
+    const posts = [1, 3, 7].map((id) => ({ id, title: `post ${id}` }));
+    expect(rankTopPosts(entries, posts, 2)).toEqual([
+      { id: 3, title: "post 3", views: 40 },
+      { id: 7, title: "post 7", views: 30 },
+    ]);
+  });
+
+  it("sums every entry for the total", () => {
+    expect(totalViews(entries)).toBe(140);
+    expect(totalViews([])).toBe(0);
   });
 });

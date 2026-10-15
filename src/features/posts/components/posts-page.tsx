@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PostItem } from "@/features/posts/schema/posts.schema";
 import type { TagWithCount } from "@/features/tags/tags.schema";
@@ -55,7 +56,7 @@ export function PostsPage({
         className="flex flex-col items-center justify-center pt-2 pb-8"
       >
         {isFetchingNextPage ? (
-          <div className="fuwari-card-base w-full px-8 py-6 opacity-70 animate-pulse">
+          <div className="fuwari-card-base w-full px-8 py-6 opacity-70">
             {/* Inline Mini Skeleton for appending items */}
             {Array.from({ length: 3 }).map((_, i) => (
               <div
@@ -63,13 +64,13 @@ export function PostsPage({
                 className="h-10 w-full rounded-lg flex flex-row justify-start items-center"
               >
                 <div className="w-[15%] md:w-[10%] flex justify-end pr-2">
-                  <Skeleton className="h-4 w-10 bg-black/10 dark:bg-white/10" />
+                  <Skeleton className="h-4 w-10" />
                 </div>
                 <div className="w-[15%] md:w-[10%] relative h-full flex items-center before:absolute before:w-1 left-1/2 -ml-0.5 pointer-events-none before:border-l-2 before:border-dashed before:border-black/5 dark:before:border-white/5 before:-top-5 before:bottom-0 before:h-20 z-0">
                   <div className="mx-auto w-2 h-2 rounded-full bg-black/20 dark:bg-white/20 z-10" />
                 </div>
                 <div className="w-[70%] md:max-w-[65%] md:w-[65%] flex justify-start pl-2">
-                  <Skeleton className="h-5 w-3/4 max-w-50 bg-black/10 dark:bg-white/10" />
+                  <Skeleton className="h-5 w-3/4 max-w-50" />
                 </div>
               </div>
             ))}
@@ -83,9 +84,11 @@ export function PostsPage({
             <span className="h-px w-12 bg-current" />
           </div>
         ) : (
-          <div className="fuwari-card-base w-full px-8 py-12 text-center text-sm fuwari-text-50">
-            {m.posts_no_posts()}
-          </div>
+          <EmptyState
+            size="compact"
+            className="fuwari-card-base w-full py-12"
+            description={m.posts_no_posts()}
+          />
         )}
       </div>
     </div>

@@ -2,7 +2,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouteContext } from "@tanstack/react-router";
 import {
   ArrowUpRight,
-  Ban,
   FileText,
   Home,
   Image as ImageIcon,
@@ -12,16 +11,18 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
-  Tag,
   User,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/common/theme-toggle";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
+import { IconButton } from "@/components/ui/icon-button";
+import { Sheet } from "@/components/ui/sheet";
+import { useMediaQuery } from "@/hooks/use-motion";
 import { resetAuthBoundQueries } from "@/features/auth/queries";
-import { authClient } from "@/lib/auth/auth.client";
+import { authClient } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 import type { FileRoutesByTo } from "@/routeTree.gen";
 import "./side-bar.css";
@@ -53,16 +54,13 @@ export function SideBar({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // The drawer is the phone layout; wider screens lay the sidebar out in place.
+  const desktop = useMediaQuery("(min-width: 1024px)");
   useEffect(() => {
-    if (!isMobileSidebarOpen) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeMobileSidebar();
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isMobileSidebarOpen, closeMobileSidebar]);
+    if (desktop && isMobileSidebarOpen) closeMobileSidebar();
+  }, [desktop, isMobileSidebarOpen, closeMobileSidebar]);
 
   const handleConfirmSignOut = async () => {
     setIsLoggingOut(true);
@@ -97,12 +95,6 @@ export function SideBar({
       exact: false,
     },
     {
-      path: "/admin/tags",
-      icon: Tag,
-      label: m.admin_sidebar_tags(),
-      exact: false,
-    },
-    {
       path: "/admin/media",
       icon: ImageIcon,
       label: m.admin_sidebar_media(),
@@ -115,12 +107,6 @@ export function SideBar({
       exact: false,
     },
     {
-      path: "/admin/muted-users",
-      icon: Ban,
-      label: m.admin_sidebar_muted_users(),
-      exact: false,
-    },
-    {
       path: "/admin/settings",
       icon: Settings,
       label: m.admin_layout_settings(),
@@ -130,17 +116,17 @@ export function SideBar({
 
   return (
     <>
-      {isMobileSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/20 z-60 lg:hidden backdrop-blur-sm"
-          onClick={closeMobileSidebar}
-        />
-      )}
-
-      <aside
+      <Sheet
+        open={isMobileSidebarOpen}
+        onClose={closeMobileSidebar}
+        side="left"
+        as="aside"
+        keepMounted
+        initialFocus={() => closeRef.current}
+        backdropClassName="lg:hidden"
         id="admin-sidebar"
         aria-label={m.admin_layout_title()}
-        className={`admin-sidebar fuwari-card-base ${collapsed ? "is-collapsed" : ""} ${isMobileSidebarOpen ? "is-open" : ""}`}
+        className={`admin-sidebar fuwari-card-base ${collapsed ? "is-collapsed" : ""}`}
       >
         <header className="admin-sidebar-header">
           <Link
@@ -155,14 +141,15 @@ export function SideBar({
             </span>
             <span className="admin-sidebar-label">{siteConfig.title}</span>
           </Link>
-          <button
-            type="button"
+          <IconButton
+            ref={closeRef}
+            size="md"
             onClick={closeMobileSidebar}
             className="admin-sidebar-mobile-close"
-            aria-label={m.admin_sidebar_close_navigation()}
+            label={m.admin_sidebar_close_navigation()}
           >
             <X size={18} />
-          </button>
+          </IconButton>
           <button
             type="button"
             onClick={onToggleCollapse}
@@ -271,7 +258,7 @@ export function SideBar({
             </button>
           </div>
         </footer>
-      </aside>
+      </Sheet>
 
       <ConfirmationModal
         isOpen={showLogoutConfirm}
