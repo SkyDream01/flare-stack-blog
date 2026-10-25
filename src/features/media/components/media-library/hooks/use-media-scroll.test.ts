@@ -61,14 +61,18 @@ it.each([false, true])(
     );
     act(() => result.current("one"));
     rerender({ layout: "grid:open" });
-    act(() => vi.advanceTimersByTime(1000));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
     expect(scroller.scrollTop).toBe(0);
     if (cancelled) scroller.dispatchEvent(new Event("wheel"));
     await act(async () => {
       finish();
       await finished;
     });
-    act(() => vi.advanceTimersByTime(40));
+    act(() => {
+      vi.advanceTimersByTime(40);
+    });
     expect(scroller.scrollTop).toBe(cancelled ? 0 : 500);
     expect(stopReflow).toHaveBeenCalledTimes(cancelled ? 0 : 1);
   },

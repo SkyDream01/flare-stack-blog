@@ -68,7 +68,7 @@ export function useLoginForm(options: UseLoginFormOptions) {
 
     if (target.startsWith(window.location.origin)) {
       const url = new URL(target);
-      navigate({ to: `${url.pathname}${url.search}${url.hash}` });
+      void navigate({ to: `${url.pathname}${url.search}${url.hash}` });
       return;
     }
 

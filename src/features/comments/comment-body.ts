@@ -54,7 +54,14 @@ export function jsonCommentToPlainText(content: unknown): string {
       "",
     );
   }
-  return String(content);
+  if (
+    typeof content === "number" ||
+    typeof content === "boolean" ||
+    typeof content === "bigint"
+  ) {
+    return String(content);
+  }
+  return "";
 }
 
 const URL_RE = /https?:\/\/[^\s<]+/gi;

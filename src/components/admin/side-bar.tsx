@@ -78,7 +78,7 @@ export function SideBar({
     resetAuthBoundQueries(queryClient);
 
     toast.success(m.admin_sidebar_logout_success());
-    navigate({ to: "/login" });
+    void navigate({ to: "/login" });
   };
 
   const navItems = [

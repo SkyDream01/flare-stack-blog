@@ -112,9 +112,9 @@ describe("Admin taxonomy scopes", () => {
       const current = await Posts.listAdminPostsPage(context, {
         taxonomy: { kind, id, scope: "current" },
       });
-      expect(current.items.map((item) => item.id).sort()).toEqual(
-        [draft.id, shared.id].sort(),
-      );
+      expect(
+        current.items.map((item) => item.id).sort((a, b) => a - b),
+      ).toEqual([draft.id, shared.id].sort((a, b) => a - b));
       expect(current.statusCounts).toEqual({ draft: 1, published: 1 });
       expect(current.total).toBe(2);
       const published = await Posts.listAdminPostsPage(context, {
@@ -184,8 +184,8 @@ describe("Admin taxonomy scopes", () => {
     const current = await Posts.listAdminPostsPage(context, {
       taxonomy: { kind: "uncategorized", scope: "current" },
     });
-    expect(current.items.map((item) => item.id).sort()).toEqual(
-      [published.id, draft.id].sort(),
+    expect(current.items.map((item) => item.id).sort((a, b) => a - b)).toEqual(
+      [published.id, draft.id].sort((a, b) => a - b),
     );
     const publicUse = await Posts.listAdminPostsPage(context, {
       taxonomy: { kind: "uncategorized", scope: "public" },

@@ -63,9 +63,13 @@ it("keeps the previous content and modal open until exit finishes, then restores
   expect(
     dialog.querySelector(".fuwari-modal-content")?.hasAttribute("inert"),
   ).toBe(true);
-  act(() => vi.advanceTimersByTime(199));
+  act(() => {
+    vi.advanceTimersByTime(199);
+  });
   expect(dialog.open).toBe(true);
-  act(() => vi.advanceTimersByTime(1));
+  act(() => {
+    vi.advanceTimersByTime(1);
+  });
   expect(dialog.open).toBe(false);
   expect(document.activeElement).toBe(input);
   input.remove();
@@ -76,9 +80,13 @@ it("cancels pending exit when reopened and blocks Escape while submitting", () =
   const { rerender } = render(createElement(ConfirmationModal, initial));
   const dialog = screen.getByRole("dialog") as HTMLDialogElement;
   rerender(createElement(ConfirmationModal, { ...initial, isOpen: false }));
-  act(() => vi.advanceTimersByTime(100));
+  act(() => {
+    vi.advanceTimersByTime(100);
+  });
   rerender(createElement(ConfirmationModal, { ...initial, isLoading: true }));
-  act(() => vi.advanceTimersByTime(300));
+  act(() => {
+    vi.advanceTimersByTime(300);
+  });
   expect(dialog.open).toBe(true);
   fireEvent(dialog, new Event("cancel", { cancelable: true }));
   expect(initial.onClose).not.toHaveBeenCalled();
@@ -120,6 +128,8 @@ it("uses unique labels and skips the exit delay for reduced motion", () => {
       }),
     ),
   );
-  act(() => vi.advanceTimersByTime(0));
+  act(() => {
+    vi.advanceTimersByTime(0);
+  });
   expect((dialogs[0] as HTMLDialogElement).open).toBe(false);
 });

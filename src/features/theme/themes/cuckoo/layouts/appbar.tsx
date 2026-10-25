@@ -48,7 +48,7 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
     if (!trimmed) return;
     setIsSearchOpen(false);
     setQuery("");
-    navigate({ to: "/search", search: { q: trimmed } });
+    void navigate({ to: "/search", search: { q: trimmed } });
   };
 
   return (

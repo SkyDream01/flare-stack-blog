@@ -23,7 +23,7 @@ interface TagSelectorProps {
 }
 
 export function TagSelector({
-  value = [],
+  value,
   onChange,
   disabled,
   id,
@@ -128,7 +128,7 @@ export function TagSelector({
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: adminTagsQueryKey,
       });
     },

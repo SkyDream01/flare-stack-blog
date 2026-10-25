@@ -93,7 +93,7 @@ export function useRegisterForm(options: UseRegisterFormOptions) {
       toast.success(m.register_toast_success(), {
         description: m.register_toast_activated(),
       });
-      navigate({ to: previousLocation });
+      void navigate({ to: previousLocation });
     }
   };
 

@@ -34,13 +34,19 @@ it("retains exits, reverses a rapid reopen and removes only the final closed sur
   rerender({ open: true });
   expect(result.current).toBe(true);
   rerender({ open: false });
-  act(() => vi.advanceTimersByTime(160));
+  act(() => {
+    vi.advanceTimersByTime(160);
+  });
   expect(result.current).toBe(true);
   rerender({ open: true });
-  act(() => vi.advanceTimersByTime(320));
+  act(() => {
+    vi.advanceTimersByTime(320);
+  });
   expect(result.current).toBe(true);
   rerender({ open: false });
-  act(() => vi.advanceTimersByTime(320));
+  act(() => {
+    vi.advanceTimersByTime(320);
+  });
   expect(result.current).toBe(false);
 });
 it("honors a live reduced-motion change during exit", () => {

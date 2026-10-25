@@ -18,7 +18,9 @@ export async function calculatePostHash(post: {
     title: post.title,
     contentJson: post.contentJson,
     summary: post.summary,
-    tagIds: [...post.tagIds].sort(),
+    // String order, not numeric: stored revision hashes were computed with
+    // the default sort, and must keep matching.
+    tagIds: post.tagIds.map(String).sort().map(Number),
     slug: post.slug,
     publishedAt: toISOOrNull(post.publishedAt),
     pinnedAt: toISOOrNull(post.pinnedAt ?? null),

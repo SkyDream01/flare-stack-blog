@@ -20,7 +20,7 @@ export function PostPopularityMaintenance() {
       toast.error(m.settings_maintenance_popularity_toast_error());
     },
     onSettled: () => {
-      queryClient.invalidateQueries(postPopularityStatusQuery);
+      void queryClient.invalidateQueries(postPopularityStatusQuery);
     },
   });
   const statusLabel = !status

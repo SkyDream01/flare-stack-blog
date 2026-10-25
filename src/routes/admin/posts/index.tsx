@@ -63,7 +63,7 @@ function PostManagerPage() {
     updates: Partial<PostsSearchParams>,
     replace = false,
   ) => {
-    navigate({
+    void navigate({
       to: "/admin/posts",
       search: { ...current, page: 1, ...updates },
       replace,
@@ -71,7 +71,7 @@ function PostManagerPage() {
   };
 
   const handleResetFilters = () => {
-    navigate({
+    void navigate({
       to: "/admin/posts",
       search: {
         page: 1,

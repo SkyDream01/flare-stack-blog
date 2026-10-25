@@ -51,6 +51,10 @@ describe("Umami API configuration", () => {
   });
 });
 
+function requestUrl(input: RequestInfo | URL | undefined) {
+  return input instanceof Request ? input.url : String(input);
+}
+
 describe("Umami API client", () => {
   it("paginates Cloud path metrics with API key authentication", async () => {
     const fetcher = vi
@@ -82,8 +86,8 @@ describe("Umami API client", () => {
       { path: "/post/c", pageviews: 1 },
     ]);
     expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(fetcher.mock.calls[0]?.[0].toString()).toContain("offset=0");
-    expect(fetcher.mock.calls[1]?.[0].toString()).toContain("offset=2");
+    expect(requestUrl(fetcher.mock.calls[0]?.[0])).toContain("offset=0");
+    expect(requestUrl(fetcher.mock.calls[1]?.[0])).toContain("offset=2");
     expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
       headers: {
         Accept: "application/json",
@@ -113,7 +117,7 @@ describe("Umami API client", () => {
     );
 
     expect(metrics).toEqual([{ path: "/post/a", pageviews: 3 }]);
-    expect(fetcher.mock.calls[0]?.[0].toString()).toBe(
+    expect(requestUrl(fetcher.mock.calls[0]?.[0])).toBe(
       "https://stats.example.com/api/auth/login",
     );
     expect(fetcher.mock.calls[1]?.[1]).toMatchObject({

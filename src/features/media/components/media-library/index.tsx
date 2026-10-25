@@ -187,7 +187,7 @@ export function MediaLibrary() {
         view={view}
         onViewChange={(next) => {
           captureAnchor(preview?.key);
-          setView(next);
+          void setView(next);
         }}
       />
       {progress ? (

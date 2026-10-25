@@ -49,7 +49,11 @@ function parseEnvelopeFromMessage(message: string): RequestErrorPayload | null {
 
 export function parseRequestError(error: unknown): ParsedRequestError {
   const rawMessage =
-    error instanceof Error ? error.message : String(error ?? "");
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
 
   const payload = parseEnvelopeFromMessage(rawMessage);
   if (!payload) {

@@ -32,11 +32,13 @@ export function DashboardPage() {
   const createMutation = useMutation({
     mutationFn: () => orpcClient.posts.admin.create(),
     onSuccess: (createdPost) => {
-      queryClient.invalidateQueries({ queryKey: orpc.posts.admin.list.key() });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
+        queryKey: orpc.posts.admin.list.key(),
+      });
+      void queryClient.invalidateQueries({
         queryKey: orpc.dashboard.overview.key(),
       });
-      navigate({
+      void navigate({
         to: "/admin/posts/edit/$id",
         params: { id: String(createdPost.id) },
       });

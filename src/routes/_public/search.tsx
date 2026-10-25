@@ -50,7 +50,7 @@ function SearchRoute() {
 
   useEffect(() => {
     if (composing || debouncedQuery === urlQuery) return;
-    navigate({
+    void navigate({
       search: (prev) => ({
         ...prev,
         q: debouncedQuery || undefined,

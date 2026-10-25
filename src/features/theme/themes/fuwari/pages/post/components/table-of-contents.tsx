@@ -254,7 +254,7 @@ export default function TableOfContents({
                         window.scrollY -
                         80;
                       window.scrollTo({ top, behavior: "smooth" });
-                      navigate({
+                      void navigate({
                         hash: heading.id,
                         replace: true,
                       });

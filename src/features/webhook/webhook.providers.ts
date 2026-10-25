@@ -96,7 +96,15 @@ function variable(content: WebhookContent, name: string): string {
       ? content[name as keyof Omit<WebhookContent, "data">]
       : undefined;
   if (value === undefined || value === null) return "";
-  return typeof value === "string" ? value : String(value);
+  if (typeof value === "string") return value;
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return String(value);
+  }
+  return JSON.stringify(value) ?? "";
 }
 
 /**

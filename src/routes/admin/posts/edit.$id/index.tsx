@@ -101,14 +101,18 @@ function EditPost() {
       }),
     ]);
 
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: orpc.posts.admin.get.key({ input: { id: postId } }),
     });
-    queryClient.invalidateQueries({ queryKey: orpc.posts.list.key() });
-    queryClient.invalidateQueries({ queryKey: orpc.posts.admin.list.key() });
-    queryClient.invalidateQueries({ queryKey: orpc.tags.admin.key() });
-    queryClient.invalidateQueries({ queryKey: orpc.categories.key() });
-    queryClient.invalidateQueries({ queryKey: orpc.media.linkedKeys.key() });
+    void queryClient.invalidateQueries({ queryKey: orpc.posts.list.key() });
+    void queryClient.invalidateQueries({
+      queryKey: orpc.posts.admin.list.key(),
+    });
+    void queryClient.invalidateQueries({ queryKey: orpc.tags.admin.key() });
+    void queryClient.invalidateQueries({ queryKey: orpc.categories.key() });
+    void queryClient.invalidateQueries({
+      queryKey: orpc.media.linkedKeys.key(),
+    });
   };
 
   return (

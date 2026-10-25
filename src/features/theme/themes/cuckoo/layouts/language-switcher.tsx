@@ -10,7 +10,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
   const currentLocale = getLocale();
 
   const handleLanguageChange = (locale: "zh" | "en") => {
-    setLocale(locale);
+    void setLocale(locale);
   };
 
   useEffect(() => {

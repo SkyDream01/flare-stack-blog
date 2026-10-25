@@ -35,7 +35,7 @@ export default function TableOfContents({ headers }: TableOfContentsProps) {
                 const top =
                   element.getBoundingClientRect().top + window.scrollY - 80;
                 window.scrollTo({ top, behavior: "smooth" });
-                navigate({ hash: heading.id, replace: true });
+                void navigate({ hash: heading.id, replace: true });
               }
             }}
             className={cn(

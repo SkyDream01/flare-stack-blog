@@ -21,7 +21,7 @@ export function useVerifyEmail(options: UseVerifyEmailOptions) {
       }
     };
 
-    analyzeSignal();
+    void analyzeSignal();
     return () => {
       cancelled = true;
     };

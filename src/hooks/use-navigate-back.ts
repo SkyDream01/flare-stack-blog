@@ -23,7 +23,7 @@ export function useNavigateBack(options: UseNavigateBackOptions = {}) {
     if (canGoBack) {
       router.history.back();
     } else {
-      router.navigate({ to: fallbackTo });
+      void router.navigate({ to: fallbackTo });
     }
   };
 }

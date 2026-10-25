@@ -66,7 +66,9 @@ it("resets a newly selected page instead of reviving its older cached offset", (
   expect(element.scrollTop).toBe(200);
   rerender({ value: next, ready: true });
   expect(element.scrollTop).toBe(0);
-  act(() => vi.advanceTimersByTime(150));
+  act(() => {
+    vi.advanceTimersByTime(150);
+  });
   expect(readPostListPosition(JSON.stringify(location))).toEqual({
     top: 200,
     left: 0,

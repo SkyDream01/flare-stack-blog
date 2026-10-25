@@ -50,7 +50,7 @@ export const CodeBlock = memo(
       : resolveCodeLanguage(language)?.label || language;
 
     const handleCopy = () => {
-      navigator.clipboard.writeText(code);
+      void navigator.clipboard.writeText(code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     };

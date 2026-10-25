@@ -35,10 +35,8 @@ const legacyButtonBase =
 
 const legacyVariants: Record<LegacyButtonVariant, string> = {
   default: "bg-foreground text-background hover:opacity-80",
-  destructive:
-    "bg-destructive text-destructive-foreground hover:opacity-80",
-  outline:
-    "border border-border/40 bg-transparent hover:border-foreground",
+  destructive: "bg-destructive text-destructive-foreground hover:opacity-80",
+  outline: "border border-border/40 bg-transparent hover:border-foreground",
   secondary: "bg-muted text-muted-foreground hover:bg-muted/80",
   ghost: "hover:bg-accent/50",
   link: "text-foreground underline-offset-4 hover:underline",

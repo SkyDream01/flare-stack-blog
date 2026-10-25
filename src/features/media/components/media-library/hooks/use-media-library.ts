@@ -20,7 +20,7 @@ export function useMediaLibrary() {
   const { unused, view } = useSearch({ from: "/admin/media/" });
 
   const setUnusedOnly = (val: boolean) => {
-    navigate({
+    void navigate({
       search: (prev) => ({ ...prev, unused: val || undefined }),
     });
   };
@@ -81,7 +81,7 @@ export function useMediaLibrary() {
 
   const loadMore = useCallback(() => {
     if (!isFetchingNextPage && hasNextPage) {
-      fetchNextPage();
+      void fetchNextPage();
     }
   }, [isFetchingNextPage, hasNextPage, fetchNextPage]);
 

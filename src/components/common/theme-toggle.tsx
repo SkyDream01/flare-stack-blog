@@ -54,23 +54,27 @@ export function ThemeToggle({
       });
     });
 
-    transition.ready.then(() => {
-      document.documentElement.animate(
-        {
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${maxRadius}px at ${x}px ${y}px)`,
-          ],
-        },
-        {
-          duration: 500,
-          easing: "ease-in-out",
-          pseudoElement: "::view-transition-new(root)",
-        },
-      );
-    });
+    // A skipped transition (e.g. a second click mid-animation) rejects `ready`;
+    // there is nothing to animate then.
+    transition.ready
+      .then(() => {
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${x}px ${y}px)`,
+              `circle(${maxRadius}px at ${x}px ${y}px)`,
+            ],
+          },
+          {
+            duration: 500,
+            easing: "ease-in-out",
+            pseudoElement: "::view-transition-new(root)",
+          },
+        );
+      })
+      .catch(() => {});
 
-    transition.finished.finally(() => {
+    void transition.finished.finally(() => {
       document.documentElement.classList.remove("theme-transition");
     });
   };

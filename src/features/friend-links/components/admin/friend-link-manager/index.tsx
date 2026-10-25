@@ -190,7 +190,7 @@ export function FriendLinkManager({
             onSuccess: () => {
               setFormOpen(false);
               if (status !== "approved") {
-                navigate({
+                void navigate({
                   to: "/admin/friend-links",
                   search: { status: "approved", page: 1 },
                 });

@@ -19,5 +19,21 @@
   ],
   "env": {
     "builtin": true
-  }
+  },
+  "options": {
+    "typeAware": true
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/test-utils.ts",
+        "tests/**"
+      ],
+      "rules": {
+        "typescript/unbound-method": "off"
+      }
+    }
+  ]
 }

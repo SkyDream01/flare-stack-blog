@@ -74,7 +74,7 @@ export default function TableOfContents({
                     element.scrollIntoView({
                       behavior: "smooth",
                     });
-                    navigate({
+                    void navigate({
                       hash: node.id,
                       replace: true,
                       hashScrollIntoView: false,

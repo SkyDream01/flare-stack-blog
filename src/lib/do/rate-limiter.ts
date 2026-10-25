@@ -24,7 +24,7 @@ export class RateLimiter extends DurableObject {
       lastRefill: 0,
     };
 
-    ctx.blockConcurrencyWhile(async () => {
+    void ctx.blockConcurrencyWhile(async () => {
       const stored = await ctx.storage.get<BucketState>("bucket");
       if (stored) {
         this.state = stored;

@@ -96,7 +96,7 @@ function RouteComponent() {
   }, [data]);
 
   const handleTagClick = (clickedTag?: string) => {
-    navigate({
+    void navigate({
       search: withTagFilter(clickedTag),
       replace: true,
     });

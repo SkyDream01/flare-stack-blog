@@ -2,8 +2,8 @@ import type { JSONContent } from "@tiptap/react";
 import { PLAIN_TEXT, resolveCodeLanguage } from "@/lib/code-languages";
 import { isPlainCodeHtml } from "@/lib/plain-code-html";
 
-export function codeBlockHighlightKey(language: unknown, code: string) {
-  return `${String(language || PLAIN_TEXT)}\0${code}`;
+export function codeBlockHighlightKey(language: string, code: string) {
+  return `${language || PLAIN_TEXT}\0${code}`;
 }
 
 function codeBlockText(node: JSONContent) {
