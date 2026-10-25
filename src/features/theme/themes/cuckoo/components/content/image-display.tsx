@@ -12,7 +12,7 @@ export function ImageDisplay({
   height?: number;
 }) {
   return (
-    <figure className="not-prose my-8 group relative block cuckoo-onload-animation select-none overflow-hidden rounded-xl">
+    <figure className="not-prose my-8 group relative block select-none overflow-hidden rounded-xl">
       {/* Image Container with Cuckoo aesthetics */}
       <div className="relative">
         {/* Dark mode overlay to reduce glow - matching original Cuckoo */}
@@ -23,7 +23,7 @@ export function ImageDisplay({
           alt={alt}
           width={width}
           height={height}
-          className="w-full h-auto transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] scale-100 group-hover:scale-[1.01]"
+          className="w-full h-auto motion-safe:transition-transform motion-safe:duration-700 motion-safe:group-hover:scale-[1.01]"
         />
       </div>
 

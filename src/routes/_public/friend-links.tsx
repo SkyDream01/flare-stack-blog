@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import theme from "@theme";
 import { FriendLinksPage as FriendLinksView } from "@/features/friend-links/components/friend-links-page";
 import { FriendLinksPageSkeleton } from "@/features/friend-links/components/friend-links-page-skeleton";
 import { approvedFriendLinksQuery } from "@/features/friend-links/queries";
@@ -26,11 +27,18 @@ export const Route = createFileRoute("/_public/friend-links")({
       },
     ],
   }),
-  pendingComponent: FriendLinksPageSkeleton,
+  pendingComponent:
+    __THEME_NAME__ === "cuckoo"
+      ? theme.FriendLinksPageSkeleton
+      : FriendLinksPageSkeleton,
 });
 
 function FriendLinksPage() {
   const { data: links } = useSuspenseQuery(approvedFriendLinksQuery());
 
-  return <FriendLinksView links={links} />;
+  return __THEME_NAME__ === "cuckoo" ? (
+    <theme.FriendLinksPage links={links} />
+  ) : (
+    <FriendLinksView links={links} />
+  );
 }

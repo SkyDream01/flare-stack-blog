@@ -8,7 +8,9 @@ import {
   Rss,
   Settings,
   User as UserIcon,
+  X,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import type { NavOption, UserInfo } from "@/features/theme/contract/layouts";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
@@ -39,27 +41,74 @@ export function Drawer({
   logout,
 }: DrawerProps) {
   const { siteConfig } = useRouteContext({ from: "__root__" });
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    panelRef.current?.focus({ preventScroll: true });
+    return () => {
+      document.documentElement.style.overflow = overflow;
+      previous?.focus({ preventScroll: true });
+    };
+  }, [isOpen]);
 
   return (
     <>
       {/* 遮罩 */}
       <div
         className={cn(
-          "fixed inset-0 z-55 bg-black/40 transition-opacity duration-300",
+          "cuckoo-drawer-backdrop fixed inset-0 z-55 bg-black/40",
           isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
         onClick={onClose}
+        aria-hidden="true"
       />
 
       <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal={isOpen || undefined}
+        aria-label={m.common_open_menu()}
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onClose();
+          if (event.key !== "Tab") return;
+          const items = panelRef.current?.querySelectorAll<HTMLElement>(
+            "a[href], button:not(:disabled)",
+          );
+          const first = items?.[0];
+          const last = items?.[items.length - 1];
+          if (
+            event.shiftKey &&
+            (document.activeElement === first ||
+              document.activeElement === panelRef.current)
+          ) {
+            event.preventDefault();
+            last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+          }
+        }}
         className={cn(
-          "fixed top-0 bottom-0 left-0 z-60 flex w-72 max-w-[85vw] flex-col transition-transform duration-300 ease-out",
+          "cuckoo-drawer fixed top-0 bottom-0 left-0 z-60 flex w-72 max-w-[85vw] flex-col outline-none",
           isOpen ? "translate-x-0 shadow-xl" : "-translate-x-full",
         )}
         style={{ backgroundColor: "var(--cuckoo-drawer-bg)" }}
         aria-hidden={!isOpen}
         inert={!isOpen}
       >
+        <button
+          type="button"
+          onClick={onClose}
+          className="cuckoo-appbar-icon cuckoo-text-75 absolute top-2 right-2"
+          aria-label={m.common_close()}
+        >
+          <X size={18} />
+        </button>
         {/* 头像(对应原主题 .drawer-img) */}
         <div className="flex justify-center pt-6">
           <div className="h-24 w-24 overflow-hidden rounded-full shadow-md">

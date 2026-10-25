@@ -187,7 +187,7 @@ function decode(text: string) {
   );
 }
 /** Render only the search API's mark delimiters; titles and excerpts remain text. */
-function Highlighted({
+export function Highlighted({
   html,
   fallback,
 }: {

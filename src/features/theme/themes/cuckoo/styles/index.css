@@ -2,18 +2,19 @@
 @import "tailwindcss";
 @import "@/styles/shared.css";
 @import "./markdown.css";
+@import "./motion.css";
 @plugin "@tailwindcss/typography";
 
 @layer base {
   html {
     scroll-behavior: smooth;
+    scrollbar-gutter: stable;
   }
 
   :root {
     --cuckoo-hue: 15;
     --cuckoo-page-width: 71.875rem; /* 1150px */
     --cuckoo-radius: 7px;
-    --cuckoo-content-delay: 150ms;
 
     /* Material Pink(A200 ≈ #ff4081)风格强调色 */
     --cuckoo-accent: oklch(0.65 0.21 var(--cuckoo-hue));
@@ -98,6 +99,12 @@
 }
 
 @layer components {
+  .cuckoo-search-result mark {
+    padding: 0 0.1em;
+    background: transparent;
+    color: var(--cuckoo-primary);
+    font-weight: 600;
+  }
   /* 通用半透明卡片 */
   .cuckoo-card-base {
     border-radius: var(--cuckoo-radius);
@@ -105,10 +112,10 @@
     background-color: var(--cuckoo-card-bg);
     color: var(--cuckoo-text-90);
     transition:
-      background-color 0.3s,
-      color 0.3s,
-      box-shadow 0.3s,
-      transform 0.3s;
+      background-color var(--cuckoo-motion-normal),
+      color var(--cuckoo-motion-fast),
+      box-shadow var(--cuckoo-motion-normal),
+      transform var(--cuckoo-motion-normal) var(--cuckoo-ease-out);
   }
 
   .cuckoo-card-hoverable {
@@ -222,36 +229,15 @@
     background-attachment: fixed;
     background-position: 50% 50%;
     transform: translateZ(0);
-    transition: all 0.3s;
   }
   .cuckoo-background::before {
     content: "";
     position: absolute;
     inset: 0;
+    z-index: 1;
+    pointer-events: none;
     background-color: var(--cuckoo-bg-dim, transparent);
     transition: background-color 0.3s;
-  }
-
-  /* 页面加载入场动画 */
-  @keyframes cuckoo-fade-in-up {
-    0% {
-      opacity: 0;
-      transform: translateY(1rem);
-    }
-    100% {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  .cuckoo-onload-animation {
-    opacity: 0;
-    animation: cuckoo-fade-in-up 0.4s ease-out forwards;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .cuckoo-onload-animation {
-      animation: none;
-      opacity: 1;
-    }
   }
 
   /* Appbar(白色文字 + 阴影,对应原主题 .mdui-appbar) */
@@ -260,9 +246,9 @@
     text-shadow: var(--cuckoo-header-shadow);
     background: transparent;
     transition:
-      background-color 0.3s,
-      box-shadow 0.3s,
-      text-shadow 0.3s;
+      background-color var(--cuckoo-motion-normal),
+      color var(--cuckoo-motion-fast),
+      box-shadow var(--cuckoo-motion-normal);
   }
   .cuckoo-appbar.cuckoo-appbar-solid {
     text-shadow: unset;
@@ -280,7 +266,9 @@
     height: 2.75rem;
     flex-shrink: 0;
     border-radius: 50%;
-    transition: background-color 0.2s;
+    transition:
+      background-color var(--cuckoo-motion-fast),
+      scale var(--cuckoo-motion-fast) var(--cuckoo-ease-out);
   }
   .cuckoo-appbar-icon:hover {
     background-color: rgba(255, 255, 255, 0.16);
@@ -390,7 +378,7 @@
     transform: scale(1.04);
   }
   .cuckoo-post-card:hover .cuckoo-post-filter {
-    backdrop-filter: blur(3px);
+    opacity: 1;
   }
 }
 
@@ -504,11 +492,6 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .cuckoo-onload-animation {
-    animation-duration: 600ms;
-    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
   .cuckoo-post-cover {
     transition-duration: 650ms;
   }

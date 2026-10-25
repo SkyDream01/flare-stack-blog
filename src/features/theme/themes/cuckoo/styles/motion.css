@@ -1,0 +1,186 @@
+/* One quiet rhythm for Cuckoo's glass surfaces. */
+@layer base {
+  :root {
+    --cuckoo-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --cuckoo-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --cuckoo-motion-fast: 180ms;
+    --cuckoo-motion-normal: 320ms;
+    --cuckoo-motion-reveal: 560ms;
+  }
+}
+
+@layer components {
+  .cuckoo-appbar-icon:active {
+    scale: 0.9;
+  }
+
+  .cuckoo-drawer {
+    transition:
+      transform 420ms var(--cuckoo-ease-out),
+      translate 420ms var(--cuckoo-ease-out);
+  }
+  .cuckoo-drawer-backdrop {
+    transition: opacity var(--cuckoo-motion-normal) ease;
+  }
+  .cuckoo-drawer nav :is(a, button) {
+    transition:
+      background-color var(--cuckoo-motion-fast),
+      color var(--cuckoo-motion-fast),
+      translate var(--cuckoo-motion-normal) var(--cuckoo-ease-out);
+  }
+
+  .cuckoo-route-progress {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 70;
+    height: 3px;
+    overflow: hidden;
+    pointer-events: none;
+    background: color-mix(in oklch, var(--cuckoo-primary) 15%, transparent);
+    opacity: 0;
+    transition: opacity var(--cuckoo-motion-fast);
+  }
+  .cuckoo-route-progress[data-loading="true"] {
+    opacity: 1;
+    transition-delay: 120ms;
+  }
+  .cuckoo-route-progress::after {
+    content: "";
+    display: block;
+    width: 40%;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--cuckoo-primary);
+    transform: translateX(-100%);
+  }
+
+  .cuckoo-back-to-top {
+    transition:
+      opacity var(--cuckoo-motion-normal),
+      transform var(--cuckoo-motion-normal) var(--cuckoo-ease-out),
+      translate var(--cuckoo-motion-normal) var(--cuckoo-ease-out),
+      box-shadow var(--cuckoo-motion-fast);
+  }
+}
+
+@keyframes cuckoo-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cuckoo-search-in {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0);
+  }
+}
+
+@keyframes cuckoo-route-progress {
+  to {
+    transform: translateX(350%);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cuckoo-reveal[data-reveal="pending"] {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  .cuckoo-reveal[data-reveal="visible"] {
+    animation: cuckoo-reveal var(--cuckoo-motion-reveal) var(--cuckoo-ease-out)
+      var(--cuckoo-reveal-delay, 0ms) backwards;
+  }
+  .cuckoo-reveal:focus-within {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+  /* Release transform after entrance so hover and sticky positioning work. */
+  .cuckoo-onload-animation {
+    animation: cuckoo-reveal var(--cuckoo-motion-reveal) var(--cuckoo-ease-out)
+      backwards;
+  }
+  .cuckoo-appbar-search[data-state="open"] {
+    animation: cuckoo-search-in var(--cuckoo-motion-normal)
+      var(--cuckoo-ease-out) backwards;
+    transform-origin: right center;
+  }
+  .cuckoo-appbar-search[data-state="closing"] {
+    animation: cuckoo-search-in 120ms ease-in reverse both;
+    pointer-events: none;
+  }
+  .cuckoo-route-progress[data-loading="true"]::after {
+    animation: cuckoo-route-progress 1200ms var(--cuckoo-ease-in-out) infinite;
+  }
+  .cuckoo-public .post-cover[data-state="loaded"] > img {
+    animation-duration: var(--cuckoo-motion-reveal);
+    animation-timing-function: var(--cuckoo-ease-out);
+  }
+  .cuckoo-content-image[data-loaded="true"] {
+    animation: post-cover-reveal var(--cuckoo-motion-reveal)
+      var(--cuckoo-ease-out) backwards;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .cuckoo-drawer nav :is(a, button):hover {
+    translate: 3px 0;
+  }
+  .cuckoo-chip {
+    transition:
+      background-color var(--cuckoo-motion-fast),
+      color var(--cuckoo-motion-fast),
+      box-shadow var(--cuckoo-motion-fast),
+      translate var(--cuckoo-motion-normal) var(--cuckoo-ease-out);
+  }
+  .cuckoo-chip:hover {
+    translate: 0 -2px;
+  }
+  .cuckoo-back-to-top:hover {
+    box-shadow: var(--cuckoo-shadow-6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cuckoo-lightbox,
+  .cuckoo-lightbox * {
+    transition: none !important;
+    animation: none !important;
+  }
+  .cuckoo-reveal,
+  .cuckoo-onload-animation {
+    opacity: 1;
+    transform: none;
+    animation: none !important;
+  }
+  .cuckoo-route-progress[data-loading="true"]::after {
+    width: 100%;
+    transform: none;
+  }
+  .cuckoo-public
+    :is(.cuckoo-appbar-icon, .cuckoo-btn-primary, .cuckoo-btn-regular):active {
+    scale: none;
+  }
+}
+
+@media print {
+  .cuckoo-reveal,
+  .cuckoo-onload-animation {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .cuckoo-route-progress {
+    display: none;
+  }
+}

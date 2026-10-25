@@ -6,7 +6,8 @@ import type { TableOfContentsItem } from "@/features/posts/utils/toc";
  * PostPage 写入当前文章的目录,侧栏订阅渲染(对应原主题侧栏 #toc 模块)。
  * 服务端渲染时始终为空,客户端挂载后注入,避免水合不一致。
  */
-let currentToc: Array<TableOfContentsItem> = [];
+const EMPTY_TOC: Array<TableOfContentsItem> = [];
+let currentToc: Array<TableOfContentsItem> = EMPTY_TOC;
 const listeners = new Set<() => void>();
 
 export function setSidebarToc(items: Array<TableOfContentsItem>): void {
@@ -20,7 +21,7 @@ export function useSidebarToc(): Array<TableOfContentsItem> {
   return useSyncExternalStore(
     subscribe,
     () => currentToc,
-    () => [],
+    () => EMPTY_TOC,
   );
 }
 

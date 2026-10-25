@@ -2,6 +2,7 @@ import { ClientOnly } from "@tanstack/react-router";
 import type React from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useReducedMotion } from "@/hooks/use-motion";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 
@@ -32,6 +33,7 @@ function Lightbox({
   const [isClosing, setIsClosing] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
+  const reduced = useReducedMotion();
 
   // Sync isRendered with isOpen to handle mounting/unmounting
   useEffect(() => {
@@ -55,17 +57,20 @@ function Lightbox({
       document.body.style.overflow = "";
 
       // Wait for animation to finish before unmounting
-      timer = setTimeout(() => {
-        setIsRendered(false);
-        setIsClosing(false);
-      }, 500); // Wait for the 500ms transition
+      timer = setTimeout(
+        () => {
+          setIsRendered(false);
+          setIsClosing(false);
+        },
+        reduced ? 0 : 500,
+      );
     }
 
     return () => {
       if (timer) clearTimeout(timer);
       document.body.style.overflow = "";
     };
-  }, [isOpen, isRendered]);
+  }, [isOpen, isRendered, reduced]);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -79,6 +84,11 @@ function Lightbox({
   useLayoutEffect(() => {
     if (isRendered && thumbRect && imgRef.current) {
       const img = imgRef.current;
+      if (reduced) {
+        img.style.transition = "none";
+        img.style.transform = "none";
+        return;
+      }
       const finalRect = img.getBoundingClientRect();
 
       const scaleX = thumbRect.width / finalRect.width;
@@ -109,14 +119,14 @@ function Lightbox({
         img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`;
       }
     }
-  }, [isRendered, isClosing, thumbRect]);
+  }, [isRendered, isClosing, thumbRect, reduced]);
 
   if (!isRendered) return null;
 
   return createPortal(
     <div
       className={cn(
-        "fixed inset-0 z-200 flex items-center justify-center transition-opacity duration-500 ease-out pointer-events-auto",
+        "cuckoo-lightbox fixed inset-0 z-200 flex items-center justify-center transition-opacity duration-500 ease-out pointer-events-auto",
         isOpening || isClosing ? "opacity-0" : "opacity-100",
       )}
     >
@@ -175,11 +185,14 @@ export default function ZoomableImage({
   width,
   height,
   className,
+  onLoad,
+  onError,
   ...props
 }: ZoomableImageProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [thumbRect, setThumbRect] = useState<DOMRect | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const [loadedSrc, setLoadedSrc] = useState<string>();
 
   const isPortrait = !!(width && height && height > width);
 
@@ -204,14 +217,25 @@ export default function ZoomableImage({
       >
         <img
           ref={imgRef}
+          data-loaded={loadedSrc === src}
           src={src}
           alt={alt}
           width={width}
           height={height}
           loading="lazy"
+          decoding="async"
+          onLoad={(event) => {
+            setLoadedSrc(src);
+            onLoad?.(event);
+          }}
+          onError={(event) => {
+            // Preserve the browser's fallback and alt text on failed images.
+            setLoadedSrc(src);
+            onError?.(event);
+          }}
           className={cn(
             className,
-            "transition-all duration-500 will-change-transform m-0 p-0",
+            "cuckoo-content-image m-0 p-0",
             isPortrait
               ? "h-auto w-auto max-h-[70vh] max-w-full mx-auto block"
               : "w-full h-auto block max-h-[80vh] object-contain",

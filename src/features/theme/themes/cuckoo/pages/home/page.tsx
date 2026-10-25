@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { HomePageProps } from "@/features/theme/contract/pages";
 import { m } from "@/paraglide/messages";
 import { PostCard } from "../../components/post-card";
+import { Reveal } from "../../components/reveal";
 
 export function HomePage({ posts, pinnedPosts, popularPosts }: HomePageProps) {
   const mergedPosts = useMemo(() => {
@@ -28,33 +29,22 @@ export function HomePage({ posts, pinnedPosts, popularPosts }: HomePageProps) {
   }, [posts, pinnedPosts, popularPosts]);
 
   return (
-    <div className="cuckoo-onload-animation">
+    <div>
       {mergedPosts.map(({ post, pinned }, i) => (
-        <div
-          key={post.slug}
-          className="cuckoo-onload-animation"
-          style={{
-            animationDelay: `calc(var(--cuckoo-content-delay) + ${i * 60}ms)`,
-          }}
-        >
+        <Reveal key={post.slug} delay={i * 55}>
           <PostCard post={post} pinned={pinned} />
-        </div>
+        </Reveal>
       ))}
 
       {/* 查看全部(对应原主题 .changePage) */}
-      <div
-        className="cuckoo-onload-animation my-5 text-center"
-        style={{
-          animationDelay: `calc(var(--cuckoo-content-delay) + ${mergedPosts.length * 60}ms)`,
-        }}
-      >
+      <Reveal className="my-5 text-center">
         <Link
           to="/posts"
           className="cuckoo-card-base cuckoo-card-hoverable cuckoo-text-75 inline-block w-25 pt-2.5 pb-1 text-center text-sm transition-all hover:text-(--cuckoo-accent)"
         >
           {m.home_view_all_posts()}
         </Link>
-      </div>
+      </Reveal>
     </div>
   );
 }

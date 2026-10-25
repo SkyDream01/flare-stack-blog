@@ -1,22 +1,28 @@
 import { ArrowLeft, Keyboard, Loader2, Search } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { SearchPageProps } from "@/features/theme/contract/pages";
+import { Highlighted } from "@/features/search/components/search-page";
 import { m } from "@/paraglide/messages";
+import { Reveal } from "../../components/reveal";
 
 export function SearchPage({
   query,
+  searchedQuery = query,
   results,
   isSearching,
+  hasError = false,
   onQueryChange,
+  onCompositionChange,
+  onRetry,
   onSelectPost,
   onBack,
 }: SearchPageProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Small delay to ensure the page has transitioned before focusing
-    const timer = setTimeout(() => inputRef.current?.focus(), 150);
-    return () => clearTimeout(timer);
+    if (window.matchMedia("(pointer: fine)").matches) {
+      inputRef.current?.focus({ preventScroll: true });
+    }
   }, []);
 
   return (
@@ -44,7 +50,10 @@ export function SearchPage({
             type="text"
             value={query}
             onChange={(e) => onQueryChange(e.target.value)}
+            onCompositionStart={() => onCompositionChange?.(true)}
+            onCompositionEnd={() => onCompositionChange?.(false)}
             placeholder={m.search_placeholder()}
+            aria-label={m.search_placeholder()}
             className="w-full pl-12 pr-12 py-3 rounded-xl border border-(--cuckoo-input-border) bg-(--cuckoo-input-bg) focus:outline-none focus:border-(--cuckoo-primary)/50 focus:bg-(--cuckoo-primary)/5 transition-all cuckoo-text-90 text-lg md:text-xl placeholder:text-black/30 dark:placeholder:text-white/30"
           />
           {isSearching && (
@@ -56,7 +65,7 @@ export function SearchPage({
       </div>
 
       {/* Results Area */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4" aria-busy={isSearching}>
         {query.trim() === "" && (
           <div
             className="cuckoo-card-base p-16 flex flex-col items-center justify-center text-center cuckoo-onload-animation"
@@ -74,96 +83,93 @@ export function SearchPage({
           </div>
         )}
 
-        {query.trim() !== "" && !isSearching && results.length === 0 && (
-          <div
-            className="cuckoo-card-base p-12 flex flex-col items-center justify-center text-center cuckoo-onload-animation"
-            style={{ animationDelay: "200ms" }}
-          >
-            <div className="w-16 h-16 rounded-full bg-(--cuckoo-btn-regular-bg) flex items-center justify-center mb-4 text-(--cuckoo-btn-content)">
-              <Search size={24} strokeWidth={1.5} />
-            </div>
-            <h3 className="text-lg font-bold cuckoo-text-75 mb-2">
-              {m.search_no_results()}
-            </h3>
-            <p className="text-sm cuckoo-text-50">
-              {m.search_no_results_with_query({ query })}
+        {query.trim() !== "" && hasError && (
+          <div className="cuckoo-card-base cuckoo-onload-animation p-12 text-center">
+            <p className="cuckoo-text-75" role="status">
+              {m.search_failed()}
             </p>
+            <p className="cuckoo-text-50 mt-2 text-sm">
+              {m.search_retry_hint()}
+            </p>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="cuckoo-btn-primary mt-5 px-5 py-2 text-sm"
+            >
+              {m.search_retry()}
+            </button>
           </div>
         )}
 
-        {results.map((result, index) => (
-          <button
-            key={result.post.id}
-            onClick={() => onSelectPost(result.post.slug)}
-            className="cuckoo-card-base p-6 text-left w-full group hover:-translate-y-1 hover:shadow-lg transition-all duration-300 flex flex-col gap-3 cuckoo-onload-animation outline-none focus-visible:ring-2 focus-visible:ring-(--cuckoo-primary)/50"
-            style={{ animationDelay: `${200 + index * 50}ms` }}
-          >
-            {/* Title with highlighting */}
-            <h2
-              className="text-xl font-bold cuckoo-text-90 group-hover:text-(--cuckoo-primary) transition-colors"
-              style={{
-                viewTransitionName: `post-title-${result.post.slug}`,
-              }}
-              dangerouslySetInnerHTML={{
-                __html: result.matches.title || result.post.title,
-              }}
-            />
-
-            {/* Summary with highlighting */}
-            <p
-              className="text-sm cuckoo-text-75 line-clamp-3 leading-relaxed"
-              dangerouslySetInnerHTML={{
-                __html:
-                  result.matches.summary ||
-                  result.post.summary ||
-                  result.matches.contentSnippet ||
-                  "",
-              }}
-            />
-
-            {/* Tags */}
-            {result.post.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-2 mt-auto">
-                {result.post.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-xs font-mono text-(--cuckoo-btn-content) bg-(--cuckoo-btn-regular-bg) px-2 py-1 rounded-md"
-                  >
-                    #{tag}
-                  </span>
-                ))}
+        {query.trim() !== "" &&
+          !hasError &&
+          !isSearching &&
+          results.length === 0 && (
+            <div
+              className="cuckoo-card-base p-12 flex flex-col items-center justify-center text-center cuckoo-onload-animation"
+              style={{ animationDelay: "200ms" }}
+            >
+              <div className="w-16 h-16 rounded-full bg-(--cuckoo-btn-regular-bg) flex items-center justify-center mb-4 text-(--cuckoo-btn-content)">
+                <Search size={24} strokeWidth={1.5} />
               </div>
-            )}
+              <h3 className="text-lg font-bold cuckoo-text-75 mb-2">
+                {m.search_no_results()}
+              </h3>
+              <p className="text-sm cuckoo-text-50">
+                {m.search_no_results_with_query({ query: searchedQuery })}
+              </p>
+            </div>
+          )}
 
-            {/* Embedded highlighting styles for the dynamically injected HTML */}
-            <style
-              dangerouslySetInnerHTML={{
-                __html: `
-              #search-card-${result.post.id} mark {
-                background-color: transparent;
-                color: var(--cuckoo-primary);
-                font-weight: 600;
-              }
-            `,
-              }}
-            />
-            <div id={`search-card-${result.post.id}`} className="hidden" />
-          </button>
-        ))}
+        {!hasError &&
+          results.map((result, index) => (
+            <Reveal key={result.post.id} delay={index * 45}>
+              <button
+                onClick={() => onSelectPost(result.post.slug)}
+                className="cuckoo-search-result cuckoo-card-base cuckoo-card-hoverable p-6 text-left w-full group flex flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-(--cuckoo-primary)/50"
+              >
+                {/* Title with highlighting */}
+                <h2
+                  className="text-xl font-bold cuckoo-text-90 group-hover:text-(--cuckoo-primary) transition-colors"
+                  style={{
+                    viewTransitionName: `post-title-${result.post.slug}`,
+                  }}
+                >
+                  <Highlighted
+                    html={result.matches.title}
+                    fallback={result.post.title}
+                  />
+                </h2>
 
-        {/* Global highlighting style for all result cards */}
-        <style
-          dangerouslySetInnerHTML={{
-            __html: `
-          .cuckoo-card-base mark {
-            background-color: transparent;
-            color: var(--cuckoo-primary);
-            font-weight: 600;
-            padding: 0 0.1em;
-          }
-        `,
-          }}
-        />
+                {/* Summary with highlighting */}
+                <p className="text-sm cuckoo-text-75 line-clamp-3 leading-relaxed">
+                  <Highlighted
+                    html={
+                      result.matches.summary ||
+                      (!result.post.summary
+                        ? result.matches.contentSnippet
+                        : null)
+                    }
+                    fallback={result.post.summary || ""}
+                  />
+                </p>
+
+                {/* Tags */}
+                {result.post.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-2 mt-auto">
+                    {result.post.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-xs font-mono text-(--cuckoo-btn-content) bg-(--cuckoo-btn-regular-bg) px-2 py-1 rounded-md"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </button>
+            </Reveal>
+          ))}
       </div>
     </div>
   );

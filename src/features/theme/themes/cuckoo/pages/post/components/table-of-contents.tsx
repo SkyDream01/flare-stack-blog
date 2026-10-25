@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import type { TableOfContentsItem } from "@/features/posts/utils/toc";
 import { useActiveTOC } from "@/hooks/use-active-toc";
 import { cn } from "@/lib/utils";
+import { useReducedMotion } from "@/hooks/use-motion";
 
 interface TableOfContentsProps {
   headers: Array<TableOfContentsItem>;
@@ -14,6 +15,7 @@ interface TableOfContentsProps {
 export default function TableOfContents({ headers }: TableOfContentsProps) {
   const activeId = useActiveTOC(headers);
   const navigate = useNavigate();
+  const reduced = useReducedMotion();
 
   if (headers.length === 0) return null;
 
@@ -34,7 +36,10 @@ export default function TableOfContents({ headers }: TableOfContentsProps) {
               if (element) {
                 const top =
                   element.getBoundingClientRect().top + window.scrollY - 80;
-                window.scrollTo({ top, behavior: "smooth" });
+                window.scrollTo({
+                  top,
+                  behavior: reduced ? "instant" : "smooth",
+                });
                 void navigate({ hash: heading.id, replace: true });
               }
             }}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "@/components/common/theme-toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { NavOption, UserInfo } from "@/features/theme/contract/layouts";
+import { useMotionPresence, MOTION } from "@/hooks/use-motion";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { LanguageSwitcher } from "./language-switcher";
@@ -24,6 +25,9 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
   const navigate = useNavigate();
   const [isSolid, setIsSolid] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const isSearchPresent = useMotionPresence(isSearchOpen, MOTION.popover);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const returnSearchFocus = useRef(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -41,6 +45,13 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
       inputRef.current?.focus();
     }
   }, [isSearchOpen]);
+
+  useEffect(() => {
+    if (!isSearchPresent && returnSearchFocus.current) {
+      searchButtonRef.current?.focus();
+      returnSearchFocus.current = false;
+    }
+  }, [isSearchPresent]);
 
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -78,9 +89,18 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
         <div className="flex-1" />
 
         {/* 展开式搜索(对应原主题 .mdui-textfield-expandable) */}
-        {isSearchOpen ? (
+        {isSearchPresent ? (
           <form
             onSubmit={submitSearch}
+            data-state={isSearchOpen ? "open" : "closing"}
+            inert={!isSearchOpen}
+            aria-hidden={!isSearchOpen}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                returnSearchFocus.current = true;
+                setIsSearchOpen(false);
+              }
+            }}
             className="cuckoo-appbar-search absolute inset-x-3 top-full flex items-center gap-1 rounded-(--cuckoo-radius) bg-(--cuckoo-drawer-bg) p-2 text-(--cuckoo-text-90) shadow-lg [text-shadow:none] md:static md:bg-transparent md:p-0 md:text-inherit md:shadow-none"
           >
             <input
@@ -88,8 +108,13 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onBlur={() => {
-                if (!query) setIsSearchOpen(false);
+              onBlur={(event) => {
+                if (
+                  !query &&
+                  !event.currentTarget.form?.contains(event.relatedTarget)
+                ) {
+                  setIsSearchOpen(false);
+                }
               }}
               placeholder={m.nav_search_cuckoo()}
               className="min-w-0 flex-1 rounded-none px-2 py-2 text-base md:w-56 md:text-sm"
@@ -99,6 +124,7 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
               type="button"
               className="cuckoo-appbar-icon"
               onClick={() => {
+                returnSearchFocus.current = true;
                 setIsSearchOpen(false);
                 setQuery("");
               }}
@@ -107,8 +133,10 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
               <X size={18} />
             </button>
           </form>
-        ) : (
+        ) : null}
+        {!isSearchPresent && (
           <button
+            ref={searchButtonRef}
             type="button"
             className="cuckoo-appbar-icon"
             onClick={() => setIsSearchOpen(true)}

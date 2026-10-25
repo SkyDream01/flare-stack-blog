@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import theme from "@theme";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { SearchPage } from "@/features/search/components/search-page";
@@ -8,6 +9,7 @@ import {
   searchMetaQuery,
 } from "@/features/search/queries";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useNavigateBack } from "@/hooks/use-navigate-back";
 import { m } from "@/paraglide/messages";
 
 const searchSchema = z.object({
@@ -36,6 +38,7 @@ export const Route = createFileRoute("/_public/search")({
 function SearchRoute() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
+  const navigateBack = useNavigateBack({ fallbackTo: "/" });
   const urlQuery = search.q || "";
   const [query, setQuery] = useState(urlQuery);
   const debouncedQuery = useDebounce(query, 300);
@@ -78,6 +81,32 @@ function SearchRoute() {
     query.trim().length > 0 &&
     !hasError &&
     (waitingForInput || metaQuery.isPending || resultQuery.isFetching);
+
+  if (__THEME_NAME__ === "cuckoo") {
+    return (
+      <theme.SearchPage
+        query={query}
+        searchedQuery={term}
+        results={(resultQuery.data ?? []).map((result) => ({
+          ...result,
+          post: { ...result.post, id: String(result.post.id) },
+        }))}
+        isSearching={isSearching}
+        hasError={hasError}
+        onQueryChange={setQuery}
+        onCompositionChange={setComposing}
+        onRetry={() => {
+          void (metaQuery.isError
+            ? metaQuery.refetch()
+            : resultQuery.refetch());
+        }}
+        onSelectPost={(slug) => {
+          void navigate({ to: "/post/$slug", params: { slug } });
+        }}
+        onBack={navigateBack}
+      />
+    );
+  }
 
   return (
     <SearchPage

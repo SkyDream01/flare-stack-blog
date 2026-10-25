@@ -3,6 +3,7 @@ import type { PostsPageProps } from "@/features/theme/contract/pages";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { PostCard } from "../../components/post-card";
+import { Reveal } from "../../components/reveal";
 
 export function PostsPage({
   posts,
@@ -32,10 +33,10 @@ export function PostsPage({
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <div className="cuckoo-onload-animation">
+    <div>
       {/* 标签云筛选(对应原主题侧栏标签 chip) */}
       {tags.length > 0 && (
-        <div className="cuckoo-card-base mb-2 flex flex-wrap gap-2 p-3.5">
+        <div className="cuckoo-card-base cuckoo-onload-animation mb-2 flex flex-wrap gap-2 p-3.5">
           <button
             type="button"
             onClick={() => onTagClick(undefined)}
@@ -64,7 +65,11 @@ export function PostsPage({
       )}
 
       {posts.length > 0 ? (
-        posts.map((post) => <PostCard key={post.slug} post={post} />)
+        posts.map((post, index) => (
+          <Reveal key={post.slug} delay={index * 55}>
+            <PostCard post={post} />
+          </Reveal>
+        ))
       ) : (
         <div className="cuckoo-card-base cuckoo-text-50 my-5 px-8 py-12 text-center text-sm">
           {m.posts_no_posts()}

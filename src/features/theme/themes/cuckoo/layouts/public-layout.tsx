@@ -1,6 +1,12 @@
-import { useRouteContext } from "@tanstack/react-router";
-import { useState } from "react";
+import {
+  useLocation,
+  useRouteContext,
+  useRouterState,
+} from "@tanstack/react-router";
+import { useRef, useState } from "react";
 import type { PublicLayoutProps } from "@/features/theme/contract/layouts";
+import { PostCover } from "@/features/theme/components/post-cover";
+import { useContentMotion } from "@/hooks/use-motion";
 import { BackToTop } from "../components/control/back-to-top";
 import { Sidebar } from "../components/sidebar";
 import { Appbar } from "./appbar";
@@ -20,18 +26,28 @@ export function PublicLayout({
 }: PublicLayoutProps) {
   const { siteConfig } = useRouteContext({ from: "__root__" });
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const isNavigating = useRouterState({ select: (state) => state.isLoading });
+  const mainRef = useRef<HTMLElement>(null);
+  useContentMotion(mainRef, pathname);
 
   const bg = siteConfig.theme.cuckoo.bg;
 
   return (
     <div className="cuckoo-public relative flex min-h-screen flex-col">
-      {/* 固定全屏背景(对应原主题 .background) */}
       <div
-        className="cuckoo-background"
-        style={{
-          backgroundImage: bg ? `url(${bg})` : FALLBACK_BACKGROUND,
-        }}
+        className="cuckoo-route-progress"
+        data-loading={isNavigating}
+        aria-hidden="true"
       />
+      {/* 固定全屏背景(对应原主题 .background) */}
+      <div className="cuckoo-background" aria-hidden="true">
+        <PostCover
+          src={bg || undefined}
+          fallback={FALLBACK_BACKGROUND}
+          loading="eager"
+        />
+      </div>
 
       <Drawer
         navOptions={navOptions}
@@ -50,7 +66,9 @@ export function PublicLayout({
 
       {/* 主容器:8/4 双栏(对应原主题 .index-container) */}
       <div className="relative z-10 mx-auto grid w-full max-w-(--cuckoo-page-width) flex-1 grid-cols-1 gap-0 px-4 pt-16 pb-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
-        <main className="min-w-0">{children}</main>
+        <main ref={mainRef} className="min-w-0">
+          {children}
+        </main>
         <Sidebar className="mt-5 lg:mt-0" />
       </div>
 

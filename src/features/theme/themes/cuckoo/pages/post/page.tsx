@@ -52,7 +52,7 @@ export function PostPage({ post }: PostPageProps) {
   return (
     <div className="relative w-full">
       {/* 文章卡片(对应原主题 .post-card) */}
-      <article className="cuckoo-card-base cuckoo-card-hoverable cuckoo-onload-animation mt-5">
+      <article className="cuckoo-card-base cuckoo-onload-animation mt-5">
         {/* 封面标题区(对应原主题 .post-card-media) */}
         <div className="relative h-67.5 overflow-hidden md:h-[350px]">
           <PostCover

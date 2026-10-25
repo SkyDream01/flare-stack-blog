@@ -16,7 +16,7 @@ interface PostCardProps {
 
 /**
  * 首页/列表文章卡片(对应原主题 .index-card):
- * 封面媒体卡,标题悬浮于底部,文字始终可见，鼠标悬停时图片轻微放大并柔化。
+ * 封面媒体卡,标题悬浮于底部,文字始终可见，鼠标悬停时图片轻微放大并加深遮罩。
  */
 export function PostCard({ post, pinned }: PostCardProps) {
   const { siteConfig } = useRouteContext({ from: "__root__" });
@@ -36,8 +36,8 @@ export function PostCard({ post, pinned }: PostCardProps) {
           fallback={gradientCoverFor(post.slug)}
           loading="lazy"
         />
-        {/* 悬停毛玻璃(对应原主题 .index-card-filter) */}
-        <div className="cuckoo-post-filter absolute inset-0 transition-[backdrop-filter] duration-300" />
+        {/* 轻量悬停遮罩，避免在大图上持续计算模糊 */}
+        <div className="cuckoo-post-filter absolute inset-0 bg-black/10 opacity-0 transition-opacity duration-300" />
         {/* 底部渐变压暗(对应原主题 .mdui-card-media-covered) */}
         <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/45 to-black/10" />
         <span className="cuckoo-post-enter" aria-hidden="true">

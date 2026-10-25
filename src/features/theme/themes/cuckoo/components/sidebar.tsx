@@ -7,6 +7,7 @@ import { useSidebarToc } from "@/features/theme/themes/cuckoo/components/toc-sto
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import TableOfContents from "../pages/post/components/table-of-contents";
+import { Reveal } from "./reveal";
 
 /**
  * 侧栏(对应原主题 includes/sidebar.php):
@@ -18,7 +19,7 @@ export function Sidebar({ className }: { className?: string }) {
   return (
     <aside className={cn("flex min-w-0 flex-col", className)}>
       {/* 站点信息卡(.sidebar-info) */}
-      <div className="cuckoo-card-base cuckoo-card-hoverable cuckoo-onload-animation relative">
+      <Reveal className="cuckoo-card-base relative" delay={80}>
         <div className="relative h-30 overflow-hidden">
           {siteConfig.theme.cuckoo.sidebarBg ? (
             <div
@@ -60,27 +61,21 @@ export function Sidebar({ className }: { className?: string }) {
             {siteConfig.description}
           </div>
         </div>
-      </div>
+      </Reveal>
 
       {/* 标签云(.sidebar-module) */}
-      <div
-        className="cuckoo-card-base cuckoo-card-hoverable cuckoo-onload-animation mt-5"
-        style={{ animationDelay: "100ms" }}
-      >
+      <Reveal className="cuckoo-card-base mt-5" delay={130}>
         <Suspense fallback={<SidebarModuleSkeleton />}>
           <SidebarTags />
         </Suspense>
-      </div>
+      </Reveal>
 
       {/* 友情链接(.sidebar-module) */}
-      <div
-        className="cuckoo-card-base cuckoo-card-hoverable cuckoo-onload-animation mt-5"
-        style={{ animationDelay: "150ms" }}
-      >
+      <Reveal className="cuckoo-card-base mt-5" delay={180}>
         <Suspense fallback={<SidebarModuleSkeleton />}>
           <SidebarFriendLinks />
         </Suspense>
-      </div>
+      </Reveal>
 
       {/* 文章目录(仅文章页且目录非空时显示,对应原主题侧栏 #toc) */}
       <SidebarToc />
@@ -93,7 +88,7 @@ function SidebarToc() {
   if (headers.length === 0) return null;
 
   return (
-    <div className="cuckoo-card-base cuckoo-card-hoverable cuckoo-onload-animation mt-5 hidden lg:block lg:sticky lg:top-16">
+    <div className="cuckoo-card-base cuckoo-onload-animation mt-5 hidden lg:block lg:sticky lg:top-16">
       <div className="pb-2.5">
         <SidebarModuleTitle title={m.sidebar_toc_cuckoo()} />
         <div className="px-3 pt-1">

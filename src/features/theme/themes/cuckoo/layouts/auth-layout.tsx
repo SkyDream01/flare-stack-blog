@@ -4,7 +4,7 @@ import { m } from "@/paraglide/messages";
 
 export function AuthLayout({ onBack, children }: AuthLayoutProps) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center p-4">
+    <div className="cuckoo-public relative flex min-h-screen flex-col items-center justify-center p-4">
       {/* 固定全屏背景(与公共布局一致) */}
       <div
         className="cuckoo-background"

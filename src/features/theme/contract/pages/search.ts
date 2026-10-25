@@ -16,9 +16,13 @@ export interface SearchResultItem {
 
 export interface SearchPageProps {
   query: string;
+  searchedQuery?: string;
   results: Array<SearchResultItem>;
   isSearching: boolean;
+  hasError?: boolean;
   onQueryChange: (query: string) => void;
+  onCompositionChange?: (composing: boolean) => void;
+  onRetry?: () => void;
   onSelectPost: (slug: string) => void;
   onBack: () => void;
 }
