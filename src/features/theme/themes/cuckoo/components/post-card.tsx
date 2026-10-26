@@ -28,7 +28,7 @@ export function PostCard({ post, pinned }: PostCardProps) {
       params={{ slug: post.slug }}
       className="cuckoo-card-base cuckoo-card-hoverable cuckoo-post-card group my-4 block sm:my-5"
     >
-      <div className="relative flex min-h-72 w-full items-end overflow-hidden rounded-(--cuckoo-radius) sm:min-h-87.5">
+      <div className="relative flex min-h-72 w-full items-end overflow-hidden rounded-(--cuckoo-radius) pt-16 sm:min-h-87.5">
         {/* 封面层(封面图 > 兜底图源 > slug 渐变) */}
         <PostCover
           className="cuckoo-post-cover absolute inset-0 transition-transform duration-300"
@@ -39,13 +39,13 @@ export function PostCard({ post, pinned }: PostCardProps) {
         {/* 轻量悬停遮罩，避免在大图上持续计算模糊 */}
         <div className="cuckoo-post-filter absolute inset-0 bg-black/10 opacity-0 transition-opacity duration-300" />
         {/* 底部渐变压暗(对应原主题 .mdui-card-media-covered) */}
-        <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/15 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/30 via-black/5 to-transparent" />
         <span className="cuckoo-post-enter" aria-hidden="true">
           <ArrowUpRight size={20} strokeWidth={1.5} />
         </span>
 
         {/* 文字区随内容自然增高，避免长标题被裁切 */}
-        <div className="cuckoo-post-caption relative min-w-0 text-white">
+        <div className="cuckoo-post-caption relative isolate w-full min-w-0 p-5 text-white sm:p-7">
           <h2 className="text-xl leading-snug font-medium wrap-anywhere text-balance sm:text-2xl [text-shadow:1px_1px_2px_rgb(0_0_0/0.4)]">
             {pinned && (
               <span className="mr-2 align-middle text-sm font-bold text-(--cuckoo-accent)">
