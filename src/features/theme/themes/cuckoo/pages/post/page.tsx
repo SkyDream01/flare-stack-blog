@@ -1,5 +1,5 @@
 import { PostCover } from "@/features/theme/components/post-cover";
-import { Link, useRouteContext } from "@tanstack/react-router";
+import { ClientOnly, Link, useRouteContext } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { PostPageProps } from "@/features/theme/contract/pages";
@@ -125,7 +125,9 @@ export function PostPage({ post }: PostPageProps) {
       {/* 评论区 */}
       <CuckooCommentSection postId={post.id} />
 
-      <CompactTableOfContents headers={post.toc} theme="cuckoo" />
+      <ClientOnly>
+        <CompactTableOfContents headers={post.toc} theme="cuckoo" />
+      </ClientOnly>
     </div>
   );
 }

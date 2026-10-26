@@ -49,7 +49,7 @@ export function LanguageSwitcher({ className = "" }: { className?: string }) {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-32 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 z-50 py-1 animate-in fade-in zoom-in-95 duration-200 rounded-xl shadow-lg overflow-hidden">
+        <div className="cuckoo-language-menu absolute top-full right-0 mt-2 w-32 z-50 py-1 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
           <button
             onClick={() => handleLanguageChange("zh")}
             className={`w-full text-left px-4 py-2 text-sm transition-colors ${

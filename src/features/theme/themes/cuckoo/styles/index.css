@@ -3,6 +3,7 @@
 @import "@/styles/shared.css";
 @import "./markdown.css";
 @import "./motion.css";
+@import "./glass.css";
 @plugin "@tailwindcss/typography";
 
 @layer base {
@@ -14,7 +15,7 @@
   :root {
     --cuckoo-hue: 15;
     --cuckoo-page-width: 71.875rem; /* 1150px */
-    --cuckoo-radius: 7px;
+    --cuckoo-radius: 18px;
 
     /* Material Pink(A200 ≈ #ff4081)风格强调色 */
     --cuckoo-accent: oklch(0.65 0.21 var(--cuckoo-hue));
@@ -24,12 +25,12 @@
     --cuckoo-primary-active: oklch(0.52 0.22 var(--cuckoo-hue));
     --cuckoo-on-primary: white;
 
-    /* 半透明卡片(毛玻璃叠在固定背景上) */
-    --cuckoo-card-bg: rgba(255, 255, 255, 0.8);
-    --cuckoo-card-bg-hover: rgba(255, 255, 255, 0.93);
-    --cuckoo-chip-bg: rgba(255, 255, 255, 0.8);
-    --cuckoo-drawer-bg: rgba(255, 255, 255, 0.95);
-    --cuckoo-footer-bg: rgba(255, 255, 255, 0.8);
+    /* Glass tokens keep opaque fallbacks when backdrop filters are unavailable. */
+    --cuckoo-card-bg: var(--cuckoo-glass-tint);
+    --cuckoo-card-bg-hover: var(--cuckoo-glass-panel-tint);
+    --cuckoo-chip-bg: rgba(255, 255, 255, 0.32);
+    --cuckoo-drawer-bg: var(--cuckoo-glass-panel-tint);
+    --cuckoo-footer-bg: var(--cuckoo-glass-tint);
     --cuckoo-footer-text: #666666;
     --cuckoo-footer-text-hover: #3b3b3b;
 
@@ -67,11 +68,7 @@
   }
 
   .dark {
-    --cuckoo-card-bg: rgba(66, 66, 66, 0.8);
-    --cuckoo-card-bg-hover: rgba(66, 66, 66, 0.93);
-    --cuckoo-chip-bg: rgba(53, 53, 53, 0.8);
-    --cuckoo-drawer-bg: rgba(66, 66, 66, 0.95);
-    --cuckoo-footer-bg: rgba(66, 66, 66, 0.8);
+    --cuckoo-chip-bg: rgba(255, 255, 255, 0.07);
     --cuckoo-footer-text: rgba(255, 255, 255, 0.9);
     --cuckoo-footer-text-hover: rgb(185, 185, 185);
 
@@ -240,23 +237,10 @@
     transition: background-color 0.3s;
   }
 
-  /* Appbar(白色文字 + 阴影,对应原主题 .mdui-appbar) */
+  /* The floating glass surface is inside the fixed appbar. */
   .cuckoo-appbar {
-    color: var(--cuckoo-header-text);
-    text-shadow: var(--cuckoo-header-shadow);
-    background: transparent;
-    transition:
-      background-color var(--cuckoo-motion-normal),
-      color var(--cuckoo-motion-fast),
-      box-shadow var(--cuckoo-motion-normal);
-  }
-  .cuckoo-appbar.cuckoo-appbar-solid {
-    text-shadow: unset;
-    background-color: var(--cuckoo-card-bg);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     color: var(--cuckoo-text-90);
-    box-shadow: var(--cuckoo-shadow-2);
+    background: transparent;
   }
   .cuckoo-appbar-icon {
     display: inline-flex;
@@ -271,9 +255,6 @@
       scale var(--cuckoo-motion-fast) var(--cuckoo-ease-out);
   }
   .cuckoo-appbar-icon:hover {
-    background-color: rgba(255, 255, 255, 0.16);
-  }
-  .cuckoo-appbar-solid .cuckoo-appbar-icon:hover {
     background-color: var(--cuckoo-btn-regular-bg-hover);
   }
 
@@ -282,11 +263,11 @@
     background: transparent;
     outline: none;
     color: inherit;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.42);
+    border-bottom: 1px solid var(--cuckoo-input-border);
     transition: border-color 0.2s;
   }
-  .cuckoo-appbar-solid .cuckoo-appbar-search input {
-    border-bottom-color: var(--cuckoo-divider);
+  .cuckoo-appbar-search input:focus-visible {
+    border-bottom-color: var(--cuckoo-accent);
   }
 
   /* 标题高亮块(对应原主题 .comment-title:before) */
@@ -407,30 +388,10 @@
   }
 }
 
-/* Frosted surfaces and a fine accent line frame Cuckoo's photographic cards. */
+/* A fine accent line frames Cuckoo's photographic cards. */
 @layer components {
   .cuckoo-public {
     isolation: isolate;
-    --cuckoo-radius: 14px;
-    --cuckoo-glass-edge: rgb(255 255 255 / 0.38);
-    --cuckoo-shadow-2: 0 4px 16px rgb(20 16 30 / 0.1);
-    --cuckoo-shadow-6: 0 16px 36px rgb(20 16 30 / 0.2);
-  }
-
-  .dark .cuckoo-public {
-    --cuckoo-glass-edge: rgb(255 255 255 / 0.1);
-    --cuckoo-card-bg: rgb(35 34 42 / 0.88);
-    --cuckoo-card-bg-hover: rgb(42 40 49 / 0.95);
-  }
-
-  .cuckoo-public .cuckoo-card-base {
-    border: 1px solid var(--cuckoo-glass-edge);
-    backdrop-filter: blur(16px);
-  }
-
-  .cuckoo-public .cuckoo-post-card {
-    position: relative;
-    backdrop-filter: none;
   }
 
   .cuckoo-post-enter {
@@ -443,9 +404,6 @@
     height: 2.5rem;
     border-radius: 50%;
     color: white;
-    border: 1px solid rgb(255 255 255 / 0.4);
-    background: rgb(0 0 0 / 0.2);
-    backdrop-filter: blur(8px);
     transition:
       background-color 250ms,
       rotate 350ms;
@@ -462,21 +420,10 @@
     transition: width 350ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  .cuckoo-public .cuckoo-chip {
-    border: 1px solid var(--cuckoo-divider);
-    border-radius: 999px;
-    font-size: 0.8125rem;
-  }
-
   .cuckoo-public .cuckoo-highlight-title::before {
     width: 70%;
     border-radius: 3px;
     background: color-mix(in oklch, var(--cuckoo-accent) 23%, transparent);
-  }
-
-  .cuckoo-public .cuckoo-appbar-solid {
-    border-bottom: 1px solid var(--cuckoo-glass-edge);
-    backdrop-filter: blur(20px);
   }
 
   .cuckoo-public :is(.cuckoo-btn-primary, .cuckoo-btn-regular) {

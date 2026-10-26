@@ -39,13 +39,13 @@ export function PostCard({ post, pinned }: PostCardProps) {
         {/* 轻量悬停遮罩，避免在大图上持续计算模糊 */}
         <div className="cuckoo-post-filter absolute inset-0 bg-black/10 opacity-0 transition-opacity duration-300" />
         {/* 底部渐变压暗(对应原主题 .mdui-card-media-covered) */}
-        <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/45 to-black/10" />
+        <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/15 to-transparent" />
         <span className="cuckoo-post-enter" aria-hidden="true">
           <ArrowUpRight size={20} strokeWidth={1.5} />
         </span>
 
         {/* 文字区随内容自然增高，避免长标题被裁切 */}
-        <div className="cuckoo-post-caption relative w-full min-w-0 p-5 text-white sm:p-7">
+        <div className="cuckoo-post-caption relative min-w-0 text-white">
           <h2 className="text-xl leading-snug font-medium wrap-anywhere text-balance sm:text-2xl [text-shadow:1px_1px_2px_rgb(0_0_0/0.4)]">
             {pinned && (
               <span className="mr-2 align-middle text-sm font-bold text-(--cuckoo-accent)">

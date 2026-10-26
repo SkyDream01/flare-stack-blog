@@ -18,7 +18,7 @@ interface AppbarProps {
 
 /**
  * 顶部工具栏(对应原主题 .mdui-appbar):
- * 透明悬浮于背景之上,滚动后变为毛玻璃卡片。
+ * 悬浮液态玻璃工具栏,滚动后增加底色以保持内容清晰。
  */
 export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
   const { siteConfig } = useRouteContext({ from: "__root__" });
@@ -69,7 +69,7 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
         isSolid && "cuckoo-appbar-solid",
       )}
     >
-      <div className="mx-auto flex h-14 w-full max-w-(--cuckoo-page-width) items-center px-4">
+      <div className="cuckoo-appbar-surface mx-auto flex h-14 max-w-(--cuckoo-page-width) items-center px-2 sm:px-4">
         <button
           type="button"
           onClick={onMenuClick}
@@ -101,7 +101,7 @@ export function Appbar({ onMenuClick, user, isLoading }: AppbarProps) {
                 setIsSearchOpen(false);
               }
             }}
-            className="cuckoo-appbar-search absolute inset-x-3 top-full flex items-center gap-1 rounded-(--cuckoo-radius) bg-(--cuckoo-drawer-bg) p-2 text-(--cuckoo-text-90) shadow-lg [text-shadow:none] md:static md:bg-transparent md:p-0 md:text-inherit md:shadow-none"
+            className="cuckoo-appbar-search absolute inset-x-4 top-full flex items-center gap-1 p-2 text-(--cuckoo-text-90) md:static md:p-0 md:text-inherit"
           >
             <input
               ref={inputRef}

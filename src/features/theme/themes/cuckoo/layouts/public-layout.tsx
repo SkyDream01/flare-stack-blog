@@ -65,7 +65,7 @@ export function PublicLayout({
       />
 
       {/* 主容器:8/4 双栏(对应原主题 .index-container) */}
-      <div className="relative z-10 mx-auto grid w-full max-w-(--cuckoo-page-width) flex-1 grid-cols-1 gap-0 px-4 pt-16 pb-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
+      <div className="relative z-10 mx-auto grid w-full max-w-(--cuckoo-page-width) flex-1 grid-cols-1 gap-0 px-4 pt-(--cuckoo-header-offset) pb-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-8">
         <main ref={mainRef} className="min-w-0">
           {children}
         </main>

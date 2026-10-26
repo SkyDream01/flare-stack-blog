@@ -88,7 +88,7 @@ function SidebarToc() {
   if (headers.length === 0) return null;
 
   return (
-    <div className="cuckoo-card-base cuckoo-onload-animation mt-5 hidden lg:block lg:sticky lg:top-16">
+    <div className="cuckoo-card-base cuckoo-onload-animation mt-5 hidden lg:block lg:sticky lg:top-(--cuckoo-header-offset)">
       <div className="pb-2.5">
         <SidebarModuleTitle title={m.sidebar_toc_cuckoo()} />
         <div className="px-3 pt-1">

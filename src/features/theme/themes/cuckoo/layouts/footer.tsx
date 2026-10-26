@@ -15,7 +15,7 @@ export function Footer() {
 
   return (
     <footer
-      className="mt-5 w-full"
+      className="cuckoo-footer mt-5 w-full"
       style={{ backgroundColor: "var(--cuckoo-footer-bg)" }}
     >
       <div

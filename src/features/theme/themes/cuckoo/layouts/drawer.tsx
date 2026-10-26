@@ -95,7 +95,7 @@ export function Drawer({
         }}
         className={cn(
           "cuckoo-drawer fixed top-0 bottom-0 left-0 z-60 flex w-72 max-w-[85vw] flex-col outline-none",
-          isOpen ? "translate-x-0 shadow-xl" : "-translate-x-full",
+          isOpen ? "translate-x-0" : "-translate-x-full",
         )}
         style={{ backgroundColor: "var(--cuckoo-drawer-bg)" }}
         aria-hidden={!isOpen}

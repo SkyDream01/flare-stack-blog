@@ -1,0 +1,255 @@
+/* Liquid glass: a translucent body, a bright rim, and a quiet diagonal reflection. */
+@layer base {
+  :root {
+    --cuckoo-header-offset: max(5.5rem, calc(env(safe-area-inset-top) + 5rem));
+    --cuckoo-glass-tint: rgb(255 255 255 / 0.97);
+    --cuckoo-glass-panel-tint: rgb(255 255 255 / 0.98);
+    --cuckoo-glass-reading-tint: rgb(255 255 255 / 0.98);
+    --cuckoo-glass-caption-tint: rgb(16 20 30 / 0.86);
+    --cuckoo-glass-edge: rgb(255 255 255 / 0.68);
+    --cuckoo-glass-rim: rgb(255 255 255 / 0.8);
+    --cuckoo-glass-reflection: rgb(255 255 255 / 0.4);
+    --cuckoo-glass-shade: rgb(44 30 64 / 0.06);
+    --cuckoo-glass-shadow: 0 8px 32px rgb(38 25 58 / 0.1);
+    --cuckoo-glass-shadow-raised: 0 18px 44px rgb(38 25 58 / 0.18);
+    --cuckoo-glass-inset:
+      inset 0 1px 0 var(--cuckoo-glass-rim),
+      inset 1px 0 0 rgb(255 255 255 / 0.2),
+      inset 0 -1px 0 var(--cuckoo-glass-shade);
+    --cuckoo-glass-sheen: linear-gradient(
+      125deg,
+      var(--cuckoo-glass-reflection),
+      transparent 38%,
+      transparent 65%,
+      var(--cuckoo-glass-shade)
+    );
+  }
+
+  .dark {
+    --cuckoo-glass-tint: rgb(28 27 36 / 0.97);
+    --cuckoo-glass-panel-tint: rgb(28 27 36 / 0.98);
+    --cuckoo-glass-reading-tint: rgb(28 27 36 / 0.98);
+    --cuckoo-glass-edge: rgb(255 255 255 / 0.18);
+    --cuckoo-glass-rim: rgb(255 255 255 / 0.26);
+    --cuckoo-glass-reflection: rgb(255 255 255 / 0.12);
+    --cuckoo-glass-shade: rgb(0 0 0 / 0.18);
+    --cuckoo-glass-shadow: 0 8px 32px rgb(0 0 0 / 0.2);
+    --cuckoo-glass-shadow-raised: 0 18px 44px rgb(0 0 0 / 0.32);
+  }
+
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    :root {
+      --cuckoo-glass-tint: rgb(255 255 255 / 0.58);
+      --cuckoo-glass-panel-tint: rgb(255 255 255 / 0.76);
+      --cuckoo-glass-reading-tint: rgb(255 255 255 / 0.88);
+      --cuckoo-glass-caption-tint: rgb(16 20 30 / 0.48);
+    }
+
+    .dark {
+      --cuckoo-glass-tint: rgb(28 27 36 / 0.62);
+      --cuckoo-glass-panel-tint: rgb(28 27 36 / 0.8);
+      --cuckoo-glass-reading-tint: rgb(28 27 36 / 0.9);
+    }
+  }
+}
+
+@layer components {
+  :is(
+    .cuckoo-card-base,
+    .cuckoo-appbar-surface,
+    .cuckoo-drawer,
+    .cuckoo-footer,
+    .cuckoo-appbar-search,
+    .cuckoo-language-menu
+  ) {
+    border: 1px solid var(--cuckoo-glass-edge);
+    background-color: var(--cuckoo-glass-tint);
+    background-image: var(--cuckoo-glass-sheen);
+    box-shadow: var(--cuckoo-glass-shadow), var(--cuckoo-glass-inset);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+  }
+
+  .cuckoo-public .cuckoo-card-base {
+    box-shadow: var(--cuckoo-glass-shadow), var(--cuckoo-glass-inset);
+  }
+
+  .cuckoo-public .cuckoo-card-hoverable:hover {
+    box-shadow: var(--cuckoo-glass-shadow-raised), var(--cuckoo-glass-inset);
+  }
+
+  /* Reading surfaces carry more tint so photographs never compete with text. */
+  article.cuckoo-card-base {
+    background-color: var(--cuckoo-glass-reading-tint);
+  }
+
+  .cuckoo-public .cuckoo-post-card {
+    position: relative;
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .cuckoo-post-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    box-shadow: var(--cuckoo-glass-inset);
+  }
+
+  .cuckoo-post-caption,
+  .cuckoo-post-enter {
+    border: 1px solid rgb(255 255 255 / 0.36);
+    background-color: var(--cuckoo-glass-caption-tint);
+    background-image: linear-gradient(
+      125deg,
+      rgb(255 255 255 / 0.16),
+      transparent 45%,
+      rgb(255 255 255 / 0.03)
+    );
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.26),
+      0 4px 16px rgb(0 0 0 / 0.1);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
+
+  .cuckoo-post-caption {
+    width: calc(100% - 2rem);
+    margin: 1rem;
+    padding: 1.25rem;
+    border-radius: calc(var(--cuckoo-radius) - 4px);
+  }
+
+  .cuckoo-appbar-surface {
+    width: calc(100% - 2rem);
+    margin-top: max(0.625rem, env(safe-area-inset-top));
+    border-radius: 999px;
+    transition:
+      background-color var(--cuckoo-motion-normal),
+      box-shadow var(--cuckoo-motion-normal);
+  }
+
+  .cuckoo-appbar-solid .cuckoo-appbar-surface {
+    background-color: var(--cuckoo-glass-panel-tint);
+    box-shadow: var(--cuckoo-glass-shadow-raised), var(--cuckoo-glass-inset);
+  }
+
+  .cuckoo-appbar-search,
+  .cuckoo-language-menu {
+    background-color: var(--cuckoo-glass-panel-tint);
+    border-radius: var(--cuckoo-radius);
+  }
+
+  .cuckoo-appbar-search {
+    margin-top: 0.5rem;
+  }
+
+  .cuckoo-drawer {
+    border-radius: 0 24px 24px 0;
+  }
+
+  .cuckoo-footer {
+    border-width: 1px 0 0;
+  }
+
+  /* Small controls borrow the rim without adding more backdrop-filter layers. */
+  .cuckoo-public .cuckoo-chip,
+  .cuckoo-public :is(.cuckoo-btn-regular, .cuckoo-btn-primary),
+  .cuckoo-back-to-top {
+    border: 1px solid var(--cuckoo-glass-edge);
+    background-image: var(--cuckoo-glass-sheen);
+    box-shadow: var(--cuckoo-glass-inset);
+  }
+
+  .cuckoo-public .cuckoo-chip {
+    border-radius: 999px;
+    font-size: 0.8125rem;
+  }
+
+  .cuckoo-public .cuckoo-chip:hover {
+    background-color: var(--cuckoo-card-bg-hover);
+    box-shadow: var(--cuckoo-glass-shadow), var(--cuckoo-glass-inset);
+  }
+
+  @media (width >= 48rem) {
+    /* The desktop search sits within the toolbar's existing glass layer. */
+    .cuckoo-appbar-search {
+      margin-top: 0;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .cuckoo-card-hoverable::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(
+      115deg,
+      transparent 25%,
+      rgb(255 255 255 / 0.14) 45%,
+      transparent 65%
+    );
+    background-size: 240% 100%;
+    background-position: 100% 0;
+    opacity: 0;
+    transition:
+      background-position 750ms var(--cuckoo-ease-out),
+      opacity var(--cuckoo-motion-normal);
+  }
+
+  .cuckoo-card-hoverable {
+    position: relative;
+  }
+
+  .cuckoo-card-hoverable:hover::after {
+    background-position: 0 0;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --cuckoo-glass-tint: #faf9fc;
+    --cuckoo-glass-panel-tint: #faf9fc;
+    --cuckoo-glass-reading-tint: #faf9fc;
+    --cuckoo-glass-caption-tint: #161923;
+  }
+
+  .dark {
+    --cuckoo-glass-tint: #201f29;
+    --cuckoo-glass-panel-tint: #201f29;
+    --cuckoo-glass-reading-tint: #201f29;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (forced-colors: active), print {
+  :is(
+    .cuckoo-card-base,
+    .cuckoo-appbar-surface,
+    .cuckoo-drawer,
+    .cuckoo-footer,
+    .cuckoo-post-caption,
+    .cuckoo-post-enter,
+    .cuckoo-appbar-search,
+    .cuckoo-language-menu
+  ) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-image: none;
+  }
+
+  .cuckoo-card-hoverable::after {
+    display: none;
+  }
+}
