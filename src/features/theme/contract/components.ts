@@ -6,18 +6,14 @@ import type {
   UserLayoutProps,
 } from "./layouts";
 import type {
-  ForgotPasswordPageProps,
   FriendLinksPageProps,
   HomePageProps,
   LoginPageProps,
   PostPageProps,
   PostsPageProps,
   ProfilePageProps,
-  RegisterPageProps,
-  ResetPasswordPageProps,
   SearchPageProps,
   SubmitFriendLinkPageProps,
-  VerifyEmailPageProps,
 } from "./pages";
 
 /**
@@ -69,18 +65,6 @@ export interface ThemeComponents {
 
   /** 登录页组件 */
   LoginPage: React.ComponentType<LoginPageProps>;
-
-  /** 注册页组件 */
-  RegisterPage: React.ComponentType<RegisterPageProps>;
-
-  /** 找回密码页组件 */
-  ForgotPasswordPage: React.ComponentType<ForgotPasswordPageProps>;
-
-  /** 重置密码页组件 */
-  ResetPasswordPage: React.ComponentType<ResetPasswordPageProps>;
-
-  /** 邮箱验证页组件 */
-  VerifyEmailPage: React.ComponentType<VerifyEmailPageProps>;
 
   /** 个人资料页组件 */
   ProfilePage: React.ComponentType<ProfilePageProps>;

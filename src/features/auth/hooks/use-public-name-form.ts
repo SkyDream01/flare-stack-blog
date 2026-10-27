@@ -1,0 +1,55 @@
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { createPublicNameSchema } from "@/features/auth/utils/public-name";
+import { authClient } from "@/lib/auth/auth-client";
+import { getProfileAuthErrorMessage } from "@/lib/auth/auth-errors";
+import { m } from "@/paraglide/messages";
+
+const nameFormSchema = z.object({ name: createPublicNameSchema(m) });
+
+type NameFormSchema = z.infer<typeof nameFormSchema>;
+
+interface UsePublicNameFormOptions {
+  onSaved?: () => void;
+}
+
+/** Asks a User who signed in without a name to choose the one others see. */
+export function usePublicNameForm(options: UsePublicNameFormOptions = {}) {
+  const { onSaved } = options;
+
+  const [saved, setSaved] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const form = useForm<NameFormSchema>({
+    resolver: standardSchemaResolver(nameFormSchema),
+    defaultValues: { name: "" },
+  });
+
+  const onSubmit = async (data: NameFormSchema) => {
+    setSubmitError(null);
+    try {
+      const { error } = await authClient.updateUser({ name: data.name });
+      if (error) {
+        setSubmitError(
+          getProfileAuthErrorMessage(error, m) ?? m.auth_error_default_desc(),
+        );
+        return;
+      }
+    } catch {
+      setSubmitError(m.profile_toast_update_failed());
+      return;
+    }
+    setSaved(true);
+    onSaved?.();
+  };
+
+  return {
+    register: form.register,
+    errors: form.formState.errors,
+    handleSubmit: form.handleSubmit(onSubmit),
+    isSubmitting: form.formState.isSubmitting,
+    saved,
+    submitError,
+  };
+}

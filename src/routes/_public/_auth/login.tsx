@@ -1,7 +1,7 @@
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { z } from "zod";
 import { Turnstile, useTurnstile } from "@/components/common/turnstile";
-import { LoginPage } from "@/features/auth/components/login-page";
+import theme from "@theme";
 import { useLoginForm, useSocialLogin } from "@/features/auth/hooks";
 import { m } from "@/paraglide/messages";
 
@@ -33,7 +33,6 @@ function RouteComponent() {
 
   const loginForm = useLoginForm({
     turnstileToken,
-    turnstilePending,
     resetTurnstile,
     redirectTo: resolvedRedirectTo,
   });
@@ -49,7 +48,7 @@ function RouteComponent() {
   ) : null;
 
   return (
-    <LoginPage
+    <theme.LoginPage
       isEmailConfigured={isEmailConfigured}
       loginForm={{
         ...loginForm,

@@ -149,10 +149,6 @@ Disallow: /admin
 Disallow: /search
 Disallow: /unsubscribe
 Disallow: /login
-Disallow: /register
-Disallow: /forgot-password
-Disallow: /verify-email
-Disallow: /reset-link
 Disallow: /profile
 Disallow: /submit-friend-link
 Sitemap: https://${DOMAIN}/sitemap.xml`;

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { createPublicNameSchema } from "@/features/auth/utils/public-name";
 import { authClient } from "@/lib/auth/auth-client";
 import { getProfileAuthErrorMessage } from "@/lib/auth/auth-errors";
 import type { Messages } from "@/lib/i18n";
@@ -10,10 +11,7 @@ import { m } from "@/paraglide/messages";
 
 const createProfileSchema = (messages: Messages) =>
   z.object({
-    name: z
-      .string()
-      .min(2, messages.profile_validation_name_min())
-      .max(20, messages.profile_validation_name_max()),
+    name: createPublicNameSchema(messages),
     image: z
       .union([
         z.literal(""),

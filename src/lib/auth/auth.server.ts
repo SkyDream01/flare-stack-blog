@@ -3,6 +3,7 @@ import { APIError } from "@better-auth/core/error";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { getSessionFromCtx } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
+import { emailOTP } from "better-auth/plugins";
 import { renderToStaticMarkup } from "react-dom/server";
 import { resolveSiteConfig } from "@/features/config/config.resolve";
 import * as ConfigRepo from "@/features/config/data/config.data";
@@ -24,15 +25,36 @@ import { m } from "@/paraglide/messages";
 async function checkEmailRateLimit(
   scope: string,
   email: string,
-): Promise<boolean> {
+): Promise<{ allowed: boolean; retryAfterMs: number }> {
   const identifier = `${scope}:${email.toLowerCase().trim()}`;
   const rateLimiter = await getRateLimiter(identifier);
-  const result = await rateLimiter.checkLimit({
-    capacity: 3,
+  const { allowed, retryAfterMs } = await rateLimiter.checkLimit({
+    capacity: 5,
     interval: "1h",
   });
-  return result.allowed;
+  return { allowed, retryAfterMs };
 }
+
+// Passwords and email-verification links are gone (ADR 0030), but some of
+// their endpoints stay reachable without `emailAndPassword` — the emailOTP
+// plugin's password reset even creates a credential account — so they are
+// switched off outright, along with the OTP flows other than sign-in.
+const DISABLED_AUTH_PATHS = [
+  "/sign-in/email",
+  "/sign-up/email",
+  "/change-password",
+  "/request-password-reset",
+  "/reset-password",
+  "/send-verification-email",
+  "/verify-email",
+  "/email-otp/check-verification-otp",
+  "/email-otp/verify-email",
+  "/email-otp/request-password-reset",
+  "/email-otp/reset-password",
+  "/forget-password/email-otp",
+  "/email-otp/request-email-change",
+  "/email-otp/change-email",
+];
 
 async function getEmailSite(db: DB): Promise<EmailSite> {
   return emailSiteOf(resolveSiteConfig(await ConfigRepo.getSystemConfig(db)));
@@ -46,9 +68,10 @@ export function getAuth({ db, env }: { db: DB; env: Env }) {
     GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET,
   } = serverEnv(env);
+  const config = createAuthConfig();
 
   return betterAuth({
-    ...createAuthConfig(),
+    ...config,
     socialProviders: {
       github: {
         clientId: GITHUB_CLIENT_ID,
@@ -57,18 +80,29 @@ export function getAuth({ db, env }: { db: DB; env: Env }) {
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (ctx.path === "/sign-up/email") {
+        if (ctx.path === "/email-otp/send-verification-otp") {
           const email =
             typeof ctx.body?.email === "string" ? ctx.body.email.trim() : "";
           if (!email) return;
 
-          const allowed = await checkEmailRateLimit("email-signup", email);
-          if (!allowed) {
-            throw APIError.from("BAD_REQUEST", {
+          // Per-email limit: 5 Sign-in Codes per hour. A code creates a User
+          // for any email, so refusing openly reveals nothing about Users.
+          const limit = await checkEmailRateLimit("sign-in-code", email);
+          if (limit.allowed) return;
+
+          throw new APIError(
+            "TOO_MANY_REQUESTS",
+            {
               code: "RATE_LIMITED",
-              message: "Too many sign up attempts",
-            });
-          }
+              message: "Too Many Requests",
+              retryAfterMs: limit.retryAfterMs,
+            },
+            {
+              "Retry-After": String(
+                Math.max(1, Math.ceil(limit.retryAfterMs / 1000)),
+              ),
+            },
+          );
         }
 
         if (!isApiKeyManagementPath(ctx.path)) return;
@@ -98,59 +132,46 @@ export function getAuth({ db, env }: { db: DB; env: Env }) {
         });
       }),
     },
-    emailAndPassword: {
-      enabled: true,
-      requireEmailVerification: true,
-      sendResetPassword: async ({ user, url }) => {
-        // Per-email rate limit: 3 per hour — silently skip if exceeded
-        const allowed = await checkEmailRateLimit("email-reset", user.email);
-        if (!allowed) return;
+    plugins: [
+      ...config.plugins,
+      emailOTP({
+        otpLength: 6,
+        expiresIn: 10 * 60,
+        allowedAttempts: 3,
+        storeOTP: "hashed",
+        sendVerificationOTP: async ({ email, otp, type }) => {
+          // Only Sign-in Codes are emailed; the other OTP types belong to
+          // flows this blog does not offer.
+          if (type !== "sign-in") return;
 
-        const emailHtml = renderToStaticMarkup(
-          AuthEmail({
-            locale: LOCALE,
-            site: await getEmailSite(db),
-            type: "reset-password",
-            url,
-          }),
-        );
+          const emailHtml = renderToStaticMarkup(
+            AuthEmail({
+              locale: LOCALE,
+              site: await getEmailSite(db),
+              type: "sign-in-code",
+              code: otp,
+            }),
+          );
 
-        await env.QUEUE.send({
-          type: "EMAIL",
-          data: {
-            to: user.email,
-            subject: m.email_auth_reset_subject({}, { locale: LOCALE }),
-            html: emailHtml,
-          },
-        });
-      },
-    },
-    emailVerification: {
-      sendVerificationEmail: async ({ user, url }) => {
-        // Per-email rate limit: 3 per hour — silently skip if exceeded
-        const allowed = await checkEmailRateLimit("email-verify", user.email);
-        if (!allowed) return;
-
-        const emailHtml = renderToStaticMarkup(
-          AuthEmail({
-            locale: LOCALE,
-            site: await getEmailSite(db),
-            type: "verification",
-            url,
-          }),
-        );
-
-        await env.QUEUE.send({
-          type: "EMAIL",
-          data: {
-            to: user.email,
-            subject: m.email_auth_verification_subject({}, { locale: LOCALE }),
-            html: emailHtml,
-          },
-        });
-      },
-      autoSignInAfterVerification: true,
-    },
+          await env.QUEUE.send({
+            type: "EMAIL",
+            data: {
+              to: email,
+              subject: m.email_auth_sign_in_code_subject(
+                {},
+                { locale: LOCALE },
+              ),
+              html: emailHtml,
+            },
+          });
+        },
+      }),
+    ],
+    disabledPaths: DISABLED_AUTH_PATHS,
+    // handleAuthRequest rate limits auth POSTs through the RateLimiter Durable
+    // Object; Better Auth's per-isolate limiter would answer the Sign-in Code
+    // paths first, with a different 429 shape.
+    rateLimit: { enabled: false },
     database: drizzleAdapter(db, {
       provider: "sqlite",
       schema: authSchema,

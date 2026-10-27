@@ -13,6 +13,7 @@ import {
   type EmailTestStatus,
   type TestEmailConnectionInput,
 } from "@/features/email/email.schema";
+import { emailHtmlToText } from "@/features/email/email-text";
 import { verifyUnsubscribeToken } from "@/features/email/email.utils";
 import { emailSiteOf } from "@/features/email/templates/email-theme";
 import { TestEmail } from "@/features/email/templates/TestEmail";
@@ -281,8 +282,9 @@ export async function sendEmail(
   }
 
   if (isNotInProduction(context.env)) {
+    const rule = "-".repeat(40);
     console.log(
-      `[EMAIL_SERVICE] 开发环境跳过发送至 ${options.to} 的邮件：${options.subject}:\n${options.html}`,
+      `[EMAIL_SERVICE] 开发环境跳过发送，邮件内容如下\n收件人：${options.to}\n主题：${options.subject}\n${rule}\n${emailHtmlToText(options.html)}\n${rule}`,
     );
     return ok({ success: true });
   }

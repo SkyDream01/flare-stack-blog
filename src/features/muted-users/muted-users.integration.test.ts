@@ -58,6 +58,44 @@ describe("Muted Users", () => {
     expect(result.error?.reason).toBe("USER_MUTED");
   });
 
+  it.each(["", "   ", "\n\t"])(
+    "refuses a comment from a user whose name is %j",
+    async (name) => {
+      const nameless = createAuthTestContext({
+        session: createMockSession({
+          user: { id: "nameless-1", name, email: "nameless@example.com" },
+        }),
+      });
+      await seedUser(nameless.db, nameless.session.user);
+
+      const result = await CommentService.createComment(nameless, {
+        postId,
+        content: "No name",
+      });
+      expect(result.error?.reason).toBe("NAME_REQUIRED");
+    },
+  );
+
+  it("does not exempt an admin without a name from commenting", async () => {
+    const nameless = createAdminTestContext({
+      session: createMockSession({
+        user: {
+          id: "nameless-admin",
+          name: " ",
+          email: "na@example.com",
+          role: "admin",
+        },
+      }),
+    });
+    await seedUser(nameless.db, nameless.session.user);
+
+    const result = await CommentService.createComment(nameless, {
+      postId,
+      content: "No name",
+    });
+    expect(result.error?.reason).toBe("NAME_REQUIRED");
+  });
+
   it("lets a muted user comment again after unmute", async () => {
     unwrap(
       await MutedUserService.muteUser(adminContext, {

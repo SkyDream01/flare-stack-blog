@@ -40,9 +40,11 @@ export function useFriendLinkSubmitForm(
       setSubmitError(
         code === "DUPLICATE_URL"
           ? m.friend_links_toast_submit_duplicate()
-          : code === "INVALID_STATE" || code === "NOT_FOUND"
-            ? m.friend_apply_conflict()
-            : m.friend_apply_failed(),
+          : code === "NAME_REQUIRED"
+            ? m.friend_apply_name_required()
+            : code === "INVALID_STATE" || code === "NOT_FOUND"
+              ? m.friend_apply_conflict()
+              : m.friend_apply_failed(),
       );
     } finally {
       resetTurnstile();

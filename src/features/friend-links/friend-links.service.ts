@@ -20,6 +20,10 @@ export async function submitFriendLink(
   context: AuthContext & { executionCtx: ExecutionContext },
   data: SubmitFriendLinkInput,
 ) {
+  if (!context.session.user.name.trim()) {
+    return err({ reason: "NAME_REQUIRED" });
+  }
+
   const existing = await FriendLinkRepo.getFriendLinksByUserId(
     context.db,
     context.session.user.id,

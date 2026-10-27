@@ -15,10 +15,6 @@ export function emailTestStatusQuery() {
   return orpc.email.testStatus.queryOptions();
 }
 
-export function hasPasswordQuery(enabled: boolean) {
-  return orpc.email.hasPassword.queryOptions({ enabled });
-}
-
 export function unsubscribeQuery(
   input: { userId: string; type: EmailUnsubscribeType; token: string },
   enabled: boolean,

@@ -1,32 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
-import { VerifyEmailPage } from "@/features/auth/components/verify-email-page";
-import { useVerifyEmail } from "@/features/auth/hooks";
-import { m } from "@/paraglide/messages";
 
+// Verification links in old emails still land here; sign-in is by code now.
 export const Route = createFileRoute("/_public/_auth/verify-email")({
   validateSearch: z.object({
-    error: z.string().optional().catch(undefined),
+    redirectTo: z.string().optional().catch(undefined),
   }),
-  beforeLoad: ({ context }) => {
-    // If email verification is not required, redirect to login
-    if (!context.isEmailConfigured) {
-      throw redirect({ to: "/login" });
-    }
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/login", search: { redirectTo: search.redirectTo } });
   },
-  component: RouteComponent,
-  head: () => ({
-    meta: [
-      {
-        title: m.verify_email_title(),
-      },
-    ],
-  }),
 });
-
-function RouteComponent() {
-  const { error } = Route.useSearch();
-  const { status } = useVerifyEmail({ error });
-
-  return <VerifyEmailPage status={status} error={error} />;
-}

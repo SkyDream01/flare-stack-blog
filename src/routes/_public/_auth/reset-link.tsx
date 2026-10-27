@@ -1,38 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
-import { ResetPasswordPage } from "@/features/auth/components/reset-password-page";
-import { useResetPasswordForm } from "@/features/auth/hooks";
-import { m } from "@/paraglide/messages";
 
+// Passwords are gone, so this old entry point leads to the one sign-in page.
 export const Route = createFileRoute("/_public/_auth/reset-link")({
   validateSearch: z.object({
-    token: z.string().optional().catch(undefined),
-    error: z.string().optional().catch(undefined),
+    redirectTo: z.string().optional().catch(undefined),
   }),
-  beforeLoad: ({ context }) => {
-    if (!context.isEmailConfigured) {
-      throw redirect({ to: "/login" });
-    }
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/login", search: { redirectTo: search.redirectTo } });
   },
-  component: RouteComponent,
-  head: () => ({
-    meta: [
-      {
-        title: m.reset_password_title(),
-      },
-    ],
-  }),
 });
-
-function RouteComponent() {
-  const { token, error } = Route.useSearch();
-  const resetPasswordForm = useResetPasswordForm({ token });
-
-  return (
-    <ResetPasswordPage
-      resetPasswordForm={resetPasswordForm}
-      token={token}
-      error={error}
-    />
-  );
-}

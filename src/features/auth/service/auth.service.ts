@@ -1,9 +1,4 @@
-import * as AuthRepo from "@/features/auth/data/auth.data";
 import * as ConfigService from "@/features/config/service/config.service";
-
-export async function userHasPassword(context: AuthContext) {
-  return await AuthRepo.userHasPassword(context.db, context.session.user.id);
-}
 
 export async function getIsEmailConfigured(
   context: DbContext & { executionCtx: ExecutionContext },

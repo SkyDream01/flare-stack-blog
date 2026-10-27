@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { RateLimitOptions } from "@/lib/do/rate-limiter";
 import { getRateLimiter } from "@/lib/do/rate-limiter-binding";
 import { serverEnv } from "@/lib/env/server.env";
+import { rateLimitKeyFromIp } from "@/lib/http/rate-limit-key";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import type { ApiContext, AuthedApiContext } from "./context";
 
@@ -87,21 +88,31 @@ export const adminProcedure = authProcedure.use(
   },
 );
 
+// A signed-in User gets a bucket of their own; the IP bucket behind it only
+// caps what one network can do through many accounts.
+const IP_BACKSTOP: RateLimitOptions = { capacity: 30, interval: "1m" };
+
 export function withRateLimit(options: RateLimitOptions & { key?: string }) {
   return publicProcedure.middleware(async ({ context, errors, next }) => {
     const session = await readSession(context);
-    const identifier =
-      context.headers.get("cf-connecting-ip") || session?.user.id || "unknown";
     const scope = options.key || "default";
-    const uniqueIdentifier = `${identifier}:${scope}`;
+    const ip = rateLimitKeyFromIp(context.headers.get("cf-connecting-ip"));
 
-    const rateLimiter = await getRateLimiter(uniqueIdentifier);
-    const result = await rateLimiter.checkLimit(options);
+    const buckets = session
+      ? [
+          { name: `user:${session.user.id}:${scope}`, limit: options },
+          { name: `${ip}:${scope}:backstop`, limit: IP_BACKSTOP },
+        ]
+      : [{ name: `${ip}:${scope}`, limit: options }];
 
-    if (!result.allowed) {
-      throw errors.RATE_LIMITED({
-        data: { retryAfterMs: result.retryAfterMs },
-      });
+    for (const bucket of buckets) {
+      const rateLimiter = await getRateLimiter(bucket.name);
+      const result = await rateLimiter.checkLimit(bucket.limit);
+      if (!result.allowed) {
+        throw errors.RATE_LIMITED({
+          data: { retryAfterMs: result.retryAfterMs },
+        });
+      }
     }
 
     return next();

@@ -183,6 +183,30 @@ export function EmailPanel({ children }: { children: ReactNode }) {
   );
 }
 
+/** A one-time code, large and letter-spaced so it reads and copies easily. */
+export function EmailCode({ children }: { children: ReactNode }) {
+  const theme = useEmailTheme();
+  return (
+    <div
+      style={{
+        backgroundColor: theme.regularBg,
+        borderRadius: "12px",
+        padding: "16px",
+        margin: "20px 0",
+        color: theme.text,
+        fontFamily:
+          'ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace',
+        fontSize: "32px",
+        fontWeight: 700,
+        letterSpacing: "8px",
+        textAlign: "center",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function EmailButton({
   href,
   children,

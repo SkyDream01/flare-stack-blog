@@ -1,13 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ProfilePage as ProfileView } from "@/features/auth/components/profile-page";
 import {
   useLogout,
   useNotificationToggle,
-  usePasswordForm,
   useProfileForm,
 } from "@/features/auth/hooks";
-import { hasPasswordQuery } from "@/features/email/queries";
 import { authClient } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 
@@ -34,8 +31,6 @@ function ProfilePage() {
   const user = session?.user;
 
   const profileForm = useProfileForm({ user });
-  const passwordForm = usePasswordForm();
-  const { data: hasPassword } = useQuery(hasPasswordQuery(!!user));
   const notification = useNotificationToggle(user?.id);
   const { logout } = useLogout({
     onSuccess: () => {
@@ -49,7 +44,6 @@ function ProfilePage() {
     <ProfileView
       user={user}
       profileForm={profileForm}
-      passwordForm={hasPassword ? passwordForm : null}
       notification={notification}
       logout={logout}
     />

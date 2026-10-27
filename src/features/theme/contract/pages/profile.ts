@@ -20,19 +20,6 @@ export interface ProfileFormData {
   isSubmitting: boolean;
 }
 
-export interface PasswordSchema {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
-export interface PasswordFormData {
-  register: UseFormRegister<PasswordSchema>;
-  errors: FieldErrors<PasswordSchema>;
-  handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
-  isSubmitting: boolean;
-}
-
 export interface NotificationData {
   available: boolean;
   enabled: boolean | undefined;
@@ -44,7 +31,6 @@ export interface NotificationData {
 export interface ProfilePageProps {
   user: ProfileUserInfo;
   profileForm: ProfileFormData;
-  passwordForm: PasswordFormData | null;
   notification: NotificationData;
   logout: () => Promise<void>;
 }

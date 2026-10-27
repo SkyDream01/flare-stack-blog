@@ -80,6 +80,10 @@ _Avoid_: Alert, message
 A signed-in person who can interact with the blog through comments, profile, and submissions.
 _Avoid_: Account
 
+**Sign-in Code**:
+A short-lived one-time code emailed to an address so its owner can sign in as the **User** with that email.
+_Avoid_: OTP, verification code, magic link, password
+
 **Muted User**:
 A **User** an **Admin** has stopped from creating **Comments**. They remain a **User**: they can sign in, edit their profile, submit **Friend Links**, and delete their own **Comments**. Muting applies to every **Post** and lasts until an **Admin** unmutes them.
 _Avoid_: Banned user, blocked user, silenced user, banned
@@ -180,6 +184,9 @@ _Avoid_: New commit, fork update
 - An **API Key** authenticates as its owning **Admin** and has that Admin's content-management permissions.
 - An **API Key** cannot create or revoke **API Keys**. Only a signed-in **Admin** in the admin UI can.
 - A **User** can create **Comments** and submit **Friend Links**.
+- A **User** signs in with GitHub or with a **Sign-in Code**. There are no passwords.
+- A **Sign-in Code** for an email that has no **User** creates one; the person chooses that **User**'s public name before the sign-in completes.
+- A **Sign-in Code** is offered only when email delivery is configured in **System Config**.
 - The **Search Index** includes **Published Posts** and excludes **Draft Posts**.
 - Publishing a **Post** updates the **Search Index** from its **Public Content Snapshot** and current Category/Tag assignments. Unpublishing removes that **Post** from the **Search Index**. Category/Tag changes may remain stale in search until republishing or rebuilding the index.
 - Publishing, deleting, or retagging a **Published Post** can update the **Public Cache**.

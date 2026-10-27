@@ -185,7 +185,7 @@ describe("Durable Objects Integration", () => {
         },
       };
 
-      const url = "http://localhost/api/auth/sign-in/email";
+      const url = "http://localhost/api/auth/sign-in/email-otp";
 
       for (let i = 0; i < 5; i++) {
         const res = await handleAuthRequest(new Request(url, reqInit), env);

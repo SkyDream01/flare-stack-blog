@@ -4,10 +4,11 @@ import { admin } from "better-auth/plugins";
 
 export function createAuthConfig() {
   return {
-    emailAndPassword: {
-      enabled: true,
-    },
     session: {
+      // Readers visit rarely; a month-long session that slides on use spares
+      // them a new Sign-in Code on most visits.
+      expiresIn: 60 * 60 * 24 * 30,
+      updateAge: 60 * 60 * 24,
       storeSessionInDatabase: true,
       cookieCache: {
         enabled: true,

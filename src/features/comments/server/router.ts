@@ -52,6 +52,10 @@ const commentErrors = {
     status: 403,
     message: "Muted users cannot create comments.",
   },
+  NAME_REQUIRED: {
+    status: 403,
+    message: "Set a public name before commenting.",
+  },
 } as const;
 
 const roots = optionalSessionProcedure
@@ -139,6 +143,9 @@ const create = authProcedure
       },
       USER_MUTED: () => {
         throw errors.USER_MUTED();
+      },
+      NAME_REQUIRED: () => {
+        throw errors.NAME_REQUIRED();
       },
     }),
   );

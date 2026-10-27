@@ -9,7 +9,6 @@ import { m } from "@/paraglide/messages";
 export function ProfilePage({
   user,
   profileForm,
-  passwordForm,
   notification,
   logout,
 }: ProfilePageProps) {
@@ -171,85 +170,6 @@ export function ProfilePage({
               </Button>
             </div>
           </section>
-        )}
-
-        {/* Security Section */}
-        {passwordForm && (
-          <>
-            <div className="w-full h-px bg-border/40" />
-            <section className="space-y-8">
-              <h3 className="text-lg font-serif font-medium text-foreground">
-                {m.profile_security_settings()}
-              </h3>
-              <form onSubmit={passwordForm.handleSubmit} className="space-y-6">
-                <div className="space-y-2 group">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider group-focus-within:text-foreground transition-colors">
-                    {m.profile_current_password()}
-                  </label>
-                  <Input
-                    type="password"
-                    {...passwordForm.register("currentPassword")}
-                    className="bg-transparent border-0 border-b border-border text-foreground font-sans text-sm px-0 rounded-none focus-visible:ring-0 focus-visible:border-foreground transition-all placeholder:text-muted-foreground/30 shadow-none h-auto py-2"
-                  />
-                  {passwordForm.errors.currentPassword && (
-                    <span className="text-[10px] text-destructive font-mono">
-                      {passwordForm.errors.currentPassword.message}
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-2 group">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider group-focus-within:text-foreground transition-colors">
-                    {m.profile_new_password()}
-                  </label>
-                  <Input
-                    type="password"
-                    {...passwordForm.register("newPassword")}
-                    className="bg-transparent border-0 border-b border-border text-foreground font-sans text-sm px-0 rounded-none focus-visible:ring-0 focus-visible:border-foreground transition-all placeholder:text-muted-foreground/30 shadow-none h-auto py-2"
-                  />
-                  {passwordForm.errors.newPassword && (
-                    <span className="text-[10px] text-destructive font-mono">
-                      {passwordForm.errors.newPassword.message}
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-2 group">
-                  <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider group-focus-within:text-foreground transition-colors">
-                    {m.profile_confirm_password()}
-                  </label>
-                  <Input
-                    type="password"
-                    {...passwordForm.register("confirmPassword")}
-                    className="bg-transparent border-0 border-b border-border text-foreground font-sans text-sm px-0 rounded-none focus-visible:ring-0 focus-visible:border-foreground transition-all placeholder:text-muted-foreground/30 shadow-none h-auto py-2"
-                  />
-                  {passwordForm.errors.confirmPassword && (
-                    <span className="text-[10px] text-destructive font-mono">
-                      {passwordForm.errors.confirmPassword.message}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex justify-start pt-2">
-                  <Button
-                    type="submit"
-                    disabled={passwordForm.isSubmitting}
-                    variant="ghost"
-                    className="font-mono text-xs text-muted-foreground hover:text-foreground hover:bg-transparent p-0 h-auto transition-colors"
-                  >
-                    {passwordForm.isSubmitting ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 size={12} className="animate-spin" />{" "}
-                        {m.profile_updating()}
-                      </span>
-                    ) : (
-                      `[ ${m.profile_update_password()} ]`
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </section>
-          </>
         )}
 
         <div className="w-full h-px bg-border/40" />

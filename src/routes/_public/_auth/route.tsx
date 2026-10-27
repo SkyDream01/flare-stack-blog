@@ -5,12 +5,12 @@ import { useNavigateBack } from "@/hooks/use-navigate-back";
 import { CACHE_CONTROL } from "@/lib/constants";
 
 export const Route = createFileRoute("/_public/_auth")({
-  beforeLoad: async ({ context, location }) => {
+  beforeLoad: async ({ context }) => {
     const session = await context.queryClient.fetchQuery(sessionQuery);
     const isEmailConfigured =
       await context.queryClient.fetchQuery(emailConfiguredQuery);
 
-    if (session && !location.pathname.includes("verify-email")) {
+    if (session) {
       throw redirect({ to: "/" });
     }
 

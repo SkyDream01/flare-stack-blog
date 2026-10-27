@@ -59,31 +59,10 @@
   display: grid;
   gap: 18px;
 }
-.auth-field-link {
-  color: var(--fuwari-primary);
-  font-size: 12px;
-  padding-block: 4px;
-}
-.auth-note {
-  color: var(--fuwari-fg-50);
-  font-size: 13px;
-  line-height: 1.6;
-}
 .auth-verification {
   display: flex;
   justify-content: center;
   min-width: 0;
-}
-.auth-register {
-  border-top: 1px solid color-mix(in srgb, var(--fuwari-fg-50) 20%, transparent);
-  padding-top: 20px;
-  text-align: center;
-  color: var(--fuwari-fg-50);
-  font-size: 13px;
-  line-height: 1.7;
-}
-.auth-register a {
-  color: var(--fuwari-primary);
 }
 @media (max-width: 639px) {
   .auth-card:has(.auth-page) {
@@ -95,19 +74,25 @@
   gap: 18px;
   min-width: 0;
 }
-.auth-status {
-  padding-top: 8px;
+.auth-code-input {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.4em;
   text-align: center;
 }
-.auth-status-actions {
-  display: grid;
+.auth-code-input::placeholder {
+  letter-spacing: 0.4em;
+}
+.auth-code-actions {
+  display: flex;
+  justify-content: space-between;
   gap: 16px;
 }
-.auth-status-link,
-.auth-feedback a {
-  color: var(--fuwari-primary);
-  font-size: 14px;
+.name-gate {
+  padding: 28px 32px 32px;
 }
-.auth-status .auth-heading p {
-  overflow-wrap: anywhere;
+@media (max-width: 639px) {
+  .name-gate {
+    padding: 24px;
+  }
 }

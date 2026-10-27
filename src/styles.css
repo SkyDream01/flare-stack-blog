@@ -44,6 +44,7 @@
   html {
     scroll-behavior: smooth;
     color: var(--fuwari-fg);
+    background-color: var(--fuwari-page-bg);
   }
 
   /* Admin workbench: 16px through laptop width, 18px at 1920, 20px from 2560. */

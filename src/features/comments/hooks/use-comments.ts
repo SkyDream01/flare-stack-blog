@@ -49,6 +49,9 @@ export function useComments(
             options.onMuted?.();
             toast.error(m.comments_toast_muted());
           },
+          NAME_REQUIRED: () => {
+            toast.error(m.comments_toast_name_required());
+          },
           ROOT_COMMENT_NOT_FOUND: () => {
             toast.error(m.comments_toast_deleted_refresh());
           },

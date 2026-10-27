@@ -1,29 +1,16 @@
-import type { FieldErrors, UseFormRegister } from "react-hook-form";
-import type { TurnstileProps } from "@/components/common/turnstile";
+import type { ReactNode } from "react";
+import type { useLoginForm } from "@/features/auth/hooks/use-login-form";
+import type { useSocialLogin } from "@/features/auth/hooks/use-social-login";
 
-export interface LoginSchema {
-  email: string;
-  password: string;
-}
-
-export interface LoginFormData {
-  register: UseFormRegister<LoginSchema>;
-  errors: FieldErrors<LoginSchema>;
-  handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
-  loginStep: "IDLE" | "VERIFYING" | "SUCCESS";
-  isSubmitting: boolean;
-  turnstileProps: TurnstileProps;
+export type LoginFormData = ReturnType<typeof useLoginForm> & {
   turnstilePending: boolean;
-}
+};
 
-export interface SocialLoginData {
-  isLoading: boolean;
-  handleGithubLogin: () => Promise<void>;
-}
+export type SocialLoginData = ReturnType<typeof useSocialLogin>;
 
 export interface LoginPageProps {
   isEmailConfigured: boolean;
   loginForm: LoginFormData;
   socialLogin: SocialLoginData;
-  turnstileElement: React.ReactNode;
+  turnstileElement: ReactNode;
 }

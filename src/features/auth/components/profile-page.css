@@ -86,14 +86,6 @@
   line-height: 1.65;
   margin-top: 6px;
 }
-.account-password-form {
-  padding: 4px 20px 28px;
-}
-.account-password-pair {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-}
 .account-footer {
   border-top: 1px solid color-mix(in srgb, var(--fuwari-fg-50) 20%, transparent);
   padding: 20px 20px 0;
@@ -116,11 +108,5 @@
   .account-setting-row {
     padding: 22px 0;
     gap: 16px;
-  }
-  .account-password-form {
-    padding: 0 0 24px;
-  }
-  .account-password-pair {
-    grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -6,11 +6,7 @@ import { config } from "./config";
 import { AuthLayout } from "./layouts/auth-layout";
 import { PublicLayout } from "./layouts/public-layout";
 import { UserLayout } from "./layouts/user-layout";
-import { ForgotPasswordPage } from "./pages/auth/forgot-password";
 import { LoginPage } from "./pages/auth/login";
-import { RegisterPage } from "./pages/auth/register";
-import { ResetPasswordPage } from "./pages/auth/reset-password";
-import { VerifyEmailPage } from "./pages/auth/verify-email";
 import { FriendLinksPage, FriendLinksPageSkeleton } from "./pages/friend-links";
 import { HomePage, HomePageSkeleton } from "./pages/home";
 import { PostPage, PostPageSkeleton } from "./pages/post";
@@ -40,10 +36,6 @@ export default {
   SearchPage,
   SubmitFriendLinkPage,
   LoginPage,
-  RegisterPage,
-  ForgotPasswordPage,
-  ResetPasswordPage,
-  VerifyEmailPage,
   ProfilePage,
   Toaster,
 } satisfies ThemeComponents;

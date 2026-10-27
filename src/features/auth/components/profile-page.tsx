@@ -1,14 +1,11 @@
 import { LogOut, UserRound } from "lucide-react";
 import { lazy, Suspense, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DisclosureChevron, DisclosurePanel } from "@/components/ui/disclosure";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { PublicPageHeading } from "@/components/ui/page-heading";
-import { PasswordInput } from "@/components/ui/password-input";
 import { Switch } from "@/components/ui/switch";
 import type { useProfileForm } from "../hooks/use-profile-form";
-import type { usePasswordForm } from "../hooks/use-password-form";
 import type { useNotificationToggle } from "../hooks/use-notification-toggle";
 import { StatusText } from "@/components/ui/status-text";
 import { m } from "@/paraglide/messages";
@@ -31,7 +28,6 @@ interface ProfilePageProps {
     role?: string | null;
   };
   profileForm: ReturnType<typeof useProfileForm>;
-  passwordForm: ReturnType<typeof usePasswordForm> | null;
   notification: ReturnType<typeof useNotificationToggle>;
   logout: () => Promise<void>;
 }
@@ -39,7 +35,6 @@ interface ProfilePageProps {
 export function ProfilePage({
   user,
   profileForm,
-  passwordForm,
   notification,
   logout,
 }: ProfilePageProps) {
@@ -177,7 +172,6 @@ export function ProfilePage({
           )}
         </div>
       </section>
-      {passwordForm && <PasswordSection form={passwordForm} />}
       <footer className="account-footer">
         <Button
           variant="plain"
@@ -196,97 +190,6 @@ export function ProfilePage({
           {m.profile_logout_fuwari()}
         </Button>
       </footer>
-    </section>
-  );
-}
-function PasswordSection({
-  form,
-}: {
-  form: NonNullable<ProfilePageProps["passwordForm"]>;
-}) {
-  const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const close = () => {
-    setOpen(false);
-    form.clear();
-    triggerRef.current?.focus();
-  };
-  return (
-    <section className="account-setting">
-      <div className="account-setting-row">
-        <div>
-          <h2>{m.profile_password_security()}</h2>
-          <p>{m.account_password_hint()}</p>
-        </div>
-        <Button
-          ref={triggerRef}
-          variant="text"
-          aria-expanded={open}
-          aria-controls="account-password-fields"
-          disabled={form.isSubmitting}
-          onClick={() => (open ? close() : setOpen(true))}
-        >
-          {open ? m.common_cancel() : m.account_change_password()}
-          <DisclosureChevron />
-        </Button>
-      </div>
-      <DisclosurePanel id="account-password-fields" open={open}>
-        <form
-          className="account-password-form"
-          onSubmit={form.handleSubmit}
-          noValidate
-        >
-          <fieldset disabled={form.isSubmitting}>
-            <FormField
-              label={m.profile_current_password()}
-              error={form.errors.currentPassword?.message}
-              required
-            >
-              <PasswordInput
-                autoComplete="current-password"
-                {...form.register("currentPassword")}
-              />
-            </FormField>
-            <div className="account-password-pair">
-              <FormField
-                label={m.profile_new_password()}
-                error={form.errors.newPassword?.message}
-                required
-              >
-                <PasswordInput
-                  autoComplete="new-password"
-                  {...form.register("newPassword")}
-                />
-              </FormField>
-              <FormField
-                label={m.profile_confirm_password()}
-                error={form.errors.confirmPassword?.message}
-                required
-              >
-                <PasswordInput
-                  autoComplete="new-password"
-                  {...form.register("confirmPassword")}
-                />
-              </FormField>
-            </div>
-            <div className="account-save">
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                loading={form.isSubmitting}
-              >
-                {m.profile_update_password_fuwari()}
-              </Button>
-            </div>
-            {form.feedback && (
-              <StatusText error={form.feedback.error}>
-                {form.feedback.message}
-              </StatusText>
-            )}
-          </fieldset>
-        </form>
-      </DisclosurePanel>
     </section>
   );
 }

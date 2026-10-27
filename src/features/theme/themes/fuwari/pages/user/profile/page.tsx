@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { CodeSquare, Loader2, LogOut, Settings2, Shield } from "lucide-react";
+import { CodeSquare, Loader2, LogOut, Settings2 } from "lucide-react";
 import type { ProfilePageProps } from "@/features/theme/contract/pages";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
@@ -7,7 +7,6 @@ import { m } from "@/paraglide/messages";
 export function ProfilePage({
   user,
   profileForm,
-  passwordForm,
   notification,
   logout,
 }: ProfilePageProps) {
@@ -114,86 +113,6 @@ export function ProfilePage({
               </div>
             </form>
           </div>
-
-          {/* Security Document section if form is available */}
-          {passwordForm && (
-            <div
-              className="fuwari-card-base p-6 md:p-8 fuwari-onload-animation flex flex-col gap-6"
-              style={{ animationDelay: "300ms" }}
-            >
-              <div className="flex items-center gap-3 pb-4 border-b border-(--fuwari-btn-regular-bg)">
-                <div className="w-10 h-10 rounded-xl bg-(--fuwari-btn-regular-bg) text-(--fuwari-btn-content) flex items-center justify-center">
-                  <Shield className="w-5 h-5" />
-                </div>
-                <h2 className="text-xl font-bold fuwari-text-90">
-                  {m.profile_password_security()}
-                </h2>
-              </div>
-
-              <form onSubmit={passwordForm.handleSubmit} className="space-y-6">
-                <div>
-                  <label className={labelClassName}>
-                    {m.profile_current_password()}
-                  </label>
-                  <input
-                    type="password"
-                    {...passwordForm.register("currentPassword")}
-                    className={inputClassName}
-                  />
-                  {passwordForm.errors.currentPassword && (
-                    <span className="text-sm text-red-500 font-medium ml-1 mt-1 block">
-                      {passwordForm.errors.currentPassword.message}
-                    </span>
-                  )}
-                </div>
-
-                <div>
-                  <label className={labelClassName}>
-                    {m.profile_new_password()}
-                  </label>
-                  <input
-                    type="password"
-                    {...passwordForm.register("newPassword")}
-                    className={inputClassName}
-                  />
-                  {passwordForm.errors.newPassword && (
-                    <span className="text-sm text-red-500 font-medium ml-1 mt-1 block">
-                      {passwordForm.errors.newPassword.message}
-                    </span>
-                  )}
-                </div>
-
-                <div>
-                  <label className={labelClassName}>
-                    {m.profile_confirm_password()}
-                  </label>
-                  <input
-                    type="password"
-                    {...passwordForm.register("confirmPassword")}
-                    className={inputClassName}
-                  />
-                  {passwordForm.errors.confirmPassword && (
-                    <span className="text-sm text-red-500 font-medium ml-1 mt-1 block">
-                      {passwordForm.errors.confirmPassword.message}
-                    </span>
-                  )}
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={passwordForm.isSubmitting}
-                    className="fuwari-btn-primary px-6 py-2.5 rounded-xl font-bold flex items-center justify-center min-w-32 gap-2 active:scale-95 transition-all text-sm disabled:opacity-50"
-                  >
-                    {passwordForm.isSubmitting && (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    )}
-                    {m.profile_update_password_fuwari()}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
         </div>
 
         {/* Right Column: Mini Widgets like Mail Prefs & Actions */}

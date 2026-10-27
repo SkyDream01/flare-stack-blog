@@ -160,6 +160,11 @@ export async function createComment(
     return err({ reason: "POST_NOT_PUBLISHED" });
   }
 
+  // The sign-in UI asks for a name, but the server is what enforces it.
+  if (!context.session.user.name.trim()) {
+    return err({ reason: "NAME_REQUIRED" });
+  }
+
   if (context.session.user.role !== "admin") {
     const actor = await MutedUserRepo.findUserById(
       context.db,

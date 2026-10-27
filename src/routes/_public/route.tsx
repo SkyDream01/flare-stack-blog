@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import theme from "@theme";
+import { NameGate } from "@/features/auth/components/name-gate";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 import { getThemePreloadImages } from "@/features/theme/site-config.helpers";
 import { authClient } from "@/lib/auth/auth-client";
@@ -76,6 +77,7 @@ function PublicLayout() {
       >
         <Outlet />
       </theme.PublicLayout>
+      <NameGate user={session?.user} logout={logout} />
       <theme.Toaster />
     </>
   );

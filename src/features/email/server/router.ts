@@ -132,15 +132,6 @@ const testStatus = adminProcedure
   })
   .handler(({ context }) => EmailService.getEmailTestStatus(context));
 
-const hasPassword = authProcedure
-  .route({
-    method: "GET",
-    path: "/me/has-password",
-    summary: "Check if the current user has a password",
-    tags: ["Auth"],
-  })
-  .handler(({ context }) => AuthService.userHasPassword(context));
-
 export default {
   configured,
   testStatus,
@@ -149,5 +140,4 @@ export default {
   availability,
   toggleReply,
   testConnection,
-  hasPassword,
 };

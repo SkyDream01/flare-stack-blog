@@ -10,13 +10,11 @@ const CUSTOM_AUTH_ERROR_CODES = [
 type CustomAuthErrorCode = (typeof CUSTOM_AUTH_ERROR_CODES)[number];
 
 const COMMON_AUTH_ERROR_CODES = [
-  "USER_ALREADY_EXISTS",
-  "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
-  "INVALID_PASSWORD",
   "USER_NOT_FOUND",
-  "INVALID_TOKEN",
   "SESSION_EXPIRED",
-  "CREDENTIAL_ACCOUNT_NOT_FOUND",
+  "INVALID_OTP",
+  "OTP_EXPIRED",
+  "TOO_MANY_ATTEMPTS",
 ] as const satisfies ReadonlyArray<BetterAuthErrorCode>;
 
 type CommonAuthErrorCode = (typeof COMMON_AUTH_ERROR_CODES)[number];
@@ -69,10 +67,6 @@ function getCustomAuthErrorMessage(
 function getSharedAuthErrorMessage(
   error: AuthClientErrorLike | null | undefined,
   messages: Messages,
-  options?: {
-    invalidTokenMessage?: string;
-    userNotFoundMessage?: string;
-  },
 ): string | undefined {
   const customMessage = getCustomAuthErrorMessage(error, messages);
   if (customMessage) return customMessage;
@@ -81,70 +75,43 @@ function getSharedAuthErrorMessage(
   if (!code || !isCommonAuthErrorCode(code)) return undefined;
 
   switch (code) {
-    case "USER_ALREADY_EXISTS":
-    case "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL":
-      return messages.auth_error_user_already_exists();
-    case "INVALID_PASSWORD":
-      return messages.auth_error_invalid_password();
     case "USER_NOT_FOUND":
-      return (
-        options?.userNotFoundMessage ?? messages.auth_error_user_not_found()
-      );
-    case "INVALID_TOKEN":
-      return (
-        options?.invalidTokenMessage ?? messages.auth_error_invalid_token()
-      );
+      return messages.auth_error_user_not_found();
     case "SESSION_EXPIRED":
       return messages.auth_error_session_expired();
-    case "CREDENTIAL_ACCOUNT_NOT_FOUND":
-      return messages.auth_error_credential_not_found();
+    case "INVALID_OTP":
+      return messages.auth_error_invalid_otp();
+    case "OTP_EXPIRED":
+      return messages.auth_error_otp_expired();
+    case "TOO_MANY_ATTEMPTS":
+      return messages.auth_error_otp_too_many_attempts();
   }
 }
 
-export function isEmailNotVerifiedError(
+/** The code can no longer be used, so the user has to request a new one. */
+export function isSignInCodeSpentError(
   error: AuthClientErrorLike | null | undefined,
 ) {
-  return getErrorCode(error) === "EMAIL_NOT_VERIFIED";
-}
-
-export function getLoginAuthErrorMessage(
-  error: AuthClientErrorLike | null | undefined,
-  messages: Messages,
-): string | undefined {
   const code = getErrorCode(error);
-  switch (code) {
-    case "EMAIL_NOT_VERIFIED":
-      return messages.login_error_email_not_verified();
-    case "INVALID_EMAIL_OR_PASSWORD":
-      return messages.login_error_invalid_credentials();
-    default:
-      return getSharedAuthErrorMessage(error, messages, {
-        userNotFoundMessage: messages.login_error_invalid_credentials(),
-      });
-  }
+  return code === "OTP_EXPIRED" || code === "TOO_MANY_ATTEMPTS";
 }
 
-export function getRegisterAuthErrorMessage(
+/** How long the server asks the client to wait, when it rate limited us. */
+export function getRetryAfterMs(error: AuthClientErrorLike | null | undefined) {
+  const retryAfterMs = error?.retryAfterMs;
+  return getErrorCode(error) === "RATE_LIMITED" &&
+    typeof retryAfterMs === "number" &&
+    Number.isFinite(retryAfterMs) &&
+    retryAfterMs > 0
+    ? retryAfterMs
+    : undefined;
+}
+
+export function getSignInCodeAuthErrorMessage(
   error: AuthClientErrorLike | null | undefined,
   messages: Messages,
 ): string | undefined {
   return getSharedAuthErrorMessage(error, messages);
-}
-
-export function getForgotPasswordAuthErrorMessage(
-  error: AuthClientErrorLike | null | undefined,
-  messages: Messages,
-): string | undefined {
-  return getSharedAuthErrorMessage(error, messages);
-}
-
-export function getResetPasswordAuthErrorMessage(
-  error: AuthClientErrorLike | null | undefined,
-  messages: Messages,
-): string | undefined {
-  return getSharedAuthErrorMessage(error, messages, {
-    invalidTokenMessage: messages.reset_password_toast_failed_desc(),
-  });
 }
 
 export function getSocialLoginAuthErrorMessage(
@@ -155,13 +122,6 @@ export function getSocialLoginAuthErrorMessage(
 }
 
 export function getProfileAuthErrorMessage(
-  error: AuthClientErrorLike | null | undefined,
-  messages: Messages,
-): string | undefined {
-  return getSharedAuthErrorMessage(error, messages);
-}
-
-export function getPasswordAuthErrorMessage(
   error: AuthClientErrorLike | null | undefined,
   messages: Messages,
 ): string | undefined {
