@@ -1,4 +1,5 @@
 import { invalidate } from "@/features/cache/public-cache";
+import { SuccessResponseSchema } from "@/lib/orpc/success-schema";
 import { adminProcedure } from "@/lib/orpc/procedure";
 
 const invalidateSite = adminProcedure
@@ -8,6 +9,7 @@ const invalidateSite = adminProcedure
     summary: "Invalidate the public cache",
     tags: ["Admin Cache"],
   })
+  .output(SuccessResponseSchema)
   .handler(async ({ context }) => {
     await invalidate.all(context);
     return { success: true };

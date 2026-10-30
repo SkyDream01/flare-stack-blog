@@ -4,6 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { ORPCError } from "@orpc/client";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { toast } from "sonner";
@@ -74,8 +75,15 @@ export function useMediaLibrary() {
       await invalidate();
       toast.success(m.media_replace_success());
     },
-    onError: () => {
-      toast.error(m.media_replace_fail());
+    onError: (error) => {
+      const typeChanged =
+        error instanceof ORPCError &&
+        error.code === "MEDIA_INVALID" &&
+        (error.data as { detail?: string } | undefined)?.detail ===
+          "TYPE_CHANGED";
+      toast.error(
+        typeChanged ? m.media_replace_type_changed() : m.media_replace_fail(),
+      );
     },
   });
 

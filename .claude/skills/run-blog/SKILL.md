@@ -1,6 +1,8 @@
 ---
 name: run-blog
 description: Launch the local blog and drive it in headless Chromium, signed in as a throwaway Admin. Use when checking a change in the real app (the admin post editor, publishing, a public post page) or taking screenshots of it.
+metadata:
+  internal: true
 ---
 
 # Run the blog locally
@@ -15,6 +17,8 @@ timeout 120 bash -c 'until curl -sf -o /dev/null http://localhost:3000; do sleep
 ```
 
 Stop it with `lsof -ti:3000 -sTCP:LISTEN | xargs -r kill`.
+
+After pulling or merging, `bun run db:migrate:local` applies pending migrations to the local database and exits.
 
 If pages answer 500 or the log shows `Cannot read properties of null (reading 'useContext')` after dependencies changed, the Vite prebundle is stale: stop the server, `rm -rf node_modules/.vite`, start again.
 

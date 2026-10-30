@@ -37,24 +37,21 @@ function buildManifest(
 
 // The feed library (feed, xml-js, sax) is only for the three feed documents,
 // so the route tree that imports this module doesn't evaluate it.
-async function buildFeed(env: Env, executionCtx: ExecutionContext) {
-  const Feed = await import("@/features/posts/utils/feed");
-  return Feed.buildFeed(env, executionCtx);
-}
+const loadFeeds = () => import("@/features/posts/utils/feed");
 
 export async function buildFeedJson(env: Env, executionCtx: ExecutionContext) {
-  const feed = await buildFeed(env, executionCtx);
-  return feed.json1();
+  const Feeds = await loadFeeds();
+  return Feeds.buildFeedJson(env, executionCtx);
 }
 
 export async function buildRssXml(env: Env, executionCtx: ExecutionContext) {
-  const feed = await buildFeed(env, executionCtx);
-  return feed.rss2();
+  const Feeds = await loadFeeds();
+  return Feeds.buildRssXml(env, executionCtx);
 }
 
 export async function buildAtomXml(env: Env, executionCtx: ExecutionContext) {
-  const feed = await buildFeed(env, executionCtx);
-  return feed.atom1();
+  const Feeds = await loadFeeds();
+  return Feeds.buildAtomXml(env, executionCtx);
 }
 
 const SITEMAP_BATCH_SIZE = 500;
@@ -130,9 +127,9 @@ export async function buildSitemapXml(env: Env) {
   </url>
   ${posts
     .map((post) => {
-      const lastModifiedAt = formatDate(post.updatedAt, [
+      // The draft's updatedAt would show edits that are not published.
+      const lastModifiedAt = formatDate(post.lastPublishedAt, [
         post.publishedAt,
-        post.createdAt,
       ]);
 
       return `

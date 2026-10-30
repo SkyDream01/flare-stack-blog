@@ -1,1 +1,19 @@
+# Pushing to dev or main deploys the live blog (Workers Builds), and CI only
+# runs on pull requests, so gate those pushes on a build and the node tests.
+deploys=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/dev | refs/heads/main)
+      case "$local_sha" in
+        *[!0]*) deploys=1 ;;
+      esac
+      ;;
+  esac
+done
+
 bun typecheck
+
+if [ "$deploys" = 1 ]; then
+  echo "pre-push: pushing to dev/main deploys the blog, running build and node tests first"
+  bun run build && bun run test:node || exit 1
+fi

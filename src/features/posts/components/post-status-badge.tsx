@@ -1,12 +1,12 @@
 import { Badge } from "@/components/ui/badge";
-import { m } from "@/paraglide/messages";
+import { postStateLabel, type PostState } from "./post-state";
 
-export function PostStatusBadge({ published }: { published: boolean }) {
-  return (
-    <Badge tone={published ? "success" : "neutral"}>
-      {published
-        ? m.admin_posts_status_published()
-        : m.admin_posts_status_draft()}
-    </Badge>
-  );
+const TONES = {
+  draft: "neutral",
+  published: "success",
+  "published-changed": "warning",
+} as const;
+
+export function PostStatusBadge({ state }: { state: PostState }) {
+  return <Badge tone={TONES[state]}>{postStateLabel(state)}</Badge>;
 }

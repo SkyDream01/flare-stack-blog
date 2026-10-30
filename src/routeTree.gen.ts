@@ -46,6 +46,7 @@ import { Route as AdminFriendLinksIndexRouteImport } from './routes/admin/friend
 import { Route as AdminMediaIndexRouteImport } from './routes/admin/media/index'
 import { Route as AdminPostsIndexRouteImport } from './routes/admin/posts/index'
 import { Route as AdminSettingsIndexRouteImport } from './routes/admin/settings/index'
+import { Route as AdminSettingsAgentSkillRouteImport } from './routes/admin/settings/agent-skill'
 import { Route as AdminSettingsApiKeysRouteImport } from './routes/admin/settings/api-keys'
 import { Route as AdminSettingsMaintenanceRouteImport } from './routes/admin/settings/maintenance'
 import { Route as AdminSettingsMutedUsersRouteImport } from './routes/admin/settings/muted-users'
@@ -241,6 +242,11 @@ const AdminSettingsIndexRoute = AdminSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminSettingsRouteRoute,
 } as any)
+const AdminSettingsAgentSkillRoute = AdminSettingsAgentSkillRouteImport.update({
+  id: '/agent-skill',
+  path: '/agent-skill',
+  getParentRoute: () => AdminSettingsRouteRoute,
+} as any)
 const AdminSettingsApiKeysRoute = AdminSettingsApiKeysRouteImport.update({
   id: '/api-keys',
   path: '/api-keys',
@@ -326,6 +332,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof PublicUserProfileRoute
   '/submit-friend-link': typeof PublicUserSubmitFriendLinkRoute
   '/post/$slug': typeof PublicPostSlugRoute
+  '/admin/settings/agent-skill': typeof AdminSettingsAgentSkillRoute
   '/admin/settings/api-keys': typeof AdminSettingsApiKeysRoute
   '/admin/settings/maintenance': typeof AdminSettingsMaintenanceRoute
   '/admin/settings/muted-users': typeof AdminSettingsMutedUsersRoute
@@ -369,6 +376,7 @@ export interface FileRoutesByTo {
   '/profile': typeof PublicUserProfileRoute
   '/submit-friend-link': typeof PublicUserSubmitFriendLinkRoute
   '/post/$slug': typeof PublicPostSlugRoute
+  '/admin/settings/agent-skill': typeof AdminSettingsAgentSkillRoute
   '/admin/settings/api-keys': typeof AdminSettingsApiKeysRoute
   '/admin/settings/maintenance': typeof AdminSettingsMaintenanceRoute
   '/admin/settings/muted-users': typeof AdminSettingsMutedUsersRoute
@@ -418,6 +426,7 @@ export interface FileRoutesById {
   '/_public/_user/profile': typeof PublicUserProfileRoute
   '/_public/_user/submit-friend-link': typeof PublicUserSubmitFriendLinkRoute
   '/_public/post/$slug': typeof PublicPostSlugRoute
+  '/admin/settings/agent-skill': typeof AdminSettingsAgentSkillRoute
   '/admin/settings/api-keys': typeof AdminSettingsApiKeysRoute
   '/admin/settings/maintenance': typeof AdminSettingsMaintenanceRoute
   '/admin/settings/muted-users': typeof AdminSettingsMutedUsersRoute
@@ -466,6 +475,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/submit-friend-link'
     | '/post/$slug'
+    | '/admin/settings/agent-skill'
     | '/admin/settings/api-keys'
     | '/admin/settings/maintenance'
     | '/admin/settings/muted-users'
@@ -509,6 +519,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/submit-friend-link'
     | '/post/$slug'
+    | '/admin/settings/agent-skill'
     | '/admin/settings/api-keys'
     | '/admin/settings/maintenance'
     | '/admin/settings/muted-users'
@@ -557,6 +568,7 @@ export interface FileRouteTypes {
     | '/_public/_user/profile'
     | '/_public/_user/submit-friend-link'
     | '/_public/post/$slug'
+    | '/admin/settings/agent-skill'
     | '/admin/settings/api-keys'
     | '/admin/settings/maintenance'
     | '/admin/settings/muted-users'
@@ -850,6 +862,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsIndexRouteImport
       parentRoute: typeof AdminSettingsRouteRoute
     }
+    '/admin/settings/agent-skill': {
+      id: '/admin/settings/agent-skill'
+      path: '/agent-skill'
+      fullPath: '/admin/settings/agent-skill'
+      preLoaderRoute: typeof AdminSettingsAgentSkillRouteImport
+      parentRoute: typeof AdminSettingsRouteRoute
+    }
     '/admin/settings/api-keys': {
       id: '/admin/settings/api-keys'
       path: '/api-keys'
@@ -1018,6 +1037,7 @@ const AdminPostsRouteRouteWithChildren = AdminPostsRouteRoute._addFileChildren(
 )
 
 interface AdminSettingsRouteRouteChildren {
+  AdminSettingsAgentSkillRoute: typeof AdminSettingsAgentSkillRoute
   AdminSettingsApiKeysRoute: typeof AdminSettingsApiKeysRoute
   AdminSettingsMaintenanceRoute: typeof AdminSettingsMaintenanceRoute
   AdminSettingsMutedUsersRoute: typeof AdminSettingsMutedUsersRoute
@@ -1027,6 +1047,7 @@ interface AdminSettingsRouteRouteChildren {
 }
 
 const AdminSettingsRouteRouteChildren: AdminSettingsRouteRouteChildren = {
+  AdminSettingsAgentSkillRoute: AdminSettingsAgentSkillRoute,
   AdminSettingsApiKeysRoute: AdminSettingsApiKeysRoute,
   AdminSettingsMaintenanceRoute: AdminSettingsMaintenanceRoute,
   AdminSettingsMutedUsersRoute: AdminSettingsMutedUsersRoute,

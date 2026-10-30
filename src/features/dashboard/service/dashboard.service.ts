@@ -25,6 +25,7 @@ import * as FriendLinkRepo from "@/features/friend-links/data/friend-links.data"
 import { isMuted } from "@/features/muted-users/muted-users";
 import { postPopularityService } from "@/features/post-popularity/service/post-popularity.service";
 import * as PostRepo from "@/features/posts/data/posts.data";
+import * as UnpublishedChangesService from "@/features/posts/services/unpublished-changes.service";
 import { versionChecker } from "@/features/version/service/version.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -72,6 +73,8 @@ export async function getDashboardOverview(
     now - DASHBOARD_RECENT_COMMENT_DAYS * DAY_MS,
   );
   const writingSince = new Date(now - DASHBOARD_WRITING_LOOKBACK_DAYS * DAY_MS);
+  // Recent posts compare fingerprints in SQL, so migrated Posts need theirs.
+  await UnpublishedChangesService.settleFingerprints(db);
 
   const [
     { alert, popularity },

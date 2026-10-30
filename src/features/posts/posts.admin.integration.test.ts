@@ -258,7 +258,6 @@ describe("Admin posts API for external editors", () => {
           slug: "edited-by-editor",
           contentJson: paragraph("new body"),
           publishedAt: null,
-          pinnedAt: null,
           coverMediaId: null,
           categoryId: null,
         },
@@ -292,7 +291,7 @@ describe("Admin posts API for external editors", () => {
         PostService.createDraft(context, {
           title: "Same Title",
           contentJson: null,
-        }),
+        }).then(unwrap),
       ),
     );
 
@@ -310,10 +309,12 @@ describe("Admin posts API for external editors", () => {
     const context = createAdminTestContext();
     const slugs: string[] = [];
     for (let index = 0; index < 3; index += 1) {
-      const { id } = await PostService.createDraft(context, {
-        title: "Seq Title",
-        contentJson: null,
-      });
+      const { id } = unwrap(
+        await PostService.createDraft(context, {
+          title: "Seq Title",
+          contentJson: null,
+        }),
+      );
       const post = await PostService.findPostById(context, { id });
       slugs.push(post?.slug ?? "");
     }
@@ -383,6 +384,47 @@ describe("Admin posts list for external editors", () => {
 
     expect(paged).toEqual(expectedOrder);
     expect(new Set(paged).size).toBe(expectedOrder.length);
+  });
+
+  it("sorts by createdAt with the id as tiebreaker", async () => {
+    const apiKey = await seedAdminApiKey();
+    const context = createAdminTestContext();
+    // The oldest post gets the highest id, so a createdAt order differs from id.
+    const created = [
+      new Date("2026-03-01T00:00:00.000Z"),
+      new Date("2026-01-01T00:00:00.000Z"),
+      new Date("2026-02-01T00:00:00.000Z"),
+      new Date("2026-02-01T00:00:00.000Z"),
+    ];
+    const inserted = await context.db
+      .insert(PostsTable)
+      .values(
+        created.map((createdAt, index) => ({
+          title: `Created ${index}`,
+          slug: `created-${index}`,
+          createdAt,
+        })),
+      )
+      .returning({ id: PostsTable.id });
+    const [march, january, februaryA, februaryB] = inserted.map(
+      (row) => row.id,
+    );
+
+    const ascending = await listPosts(apiKey, "sortBy=createdAt&sortDir=ASC");
+    expect(ascending.items.map((item) => item.id)).toEqual([
+      january,
+      februaryA,
+      februaryB,
+      march,
+    ]);
+
+    const descending = await listPosts(apiKey, "sortBy=createdAt&sortDir=DESC");
+    expect(descending.items.map((item) => item.id)).toEqual([
+      march,
+      februaryB,
+      februaryA,
+      january,
+    ]);
   });
 
   it("omits the body unless includeContent is requested", async () => {
@@ -472,11 +514,18 @@ describe("Admin posts list for external editors", () => {
       await context.db.insert(PostsTable).values(bulk.slice(index, index + 20));
     }
 
-    const page = await listPosts(apiKey, "includeContent=true&limit=100");
+    // Above the limit is refused rather than cut to it.
+    const tooMany = await callAdminApi(
+      apiKey,
+      "/admin/posts?includeContent=true&limit=100",
+    );
+    expect(tooMany.status).toBe(400);
+
+    const page = await listPosts(apiKey, "includeContent=true&limit=50");
 
     expect(page.items).toHaveLength(50);
     expect(page.total).toBe(55);
-    expect(page.statusCounts).toEqual({ draft: 55, published: 0 });
+    expect(page.statusCounts).toMatchObject({ draft: 55, published: 0 });
   });
 
   it("supports id sorting in both directions", async () => {
@@ -534,6 +583,6 @@ describe("Admin posts list for external editors", () => {
     expect(byTag.items.map((item) => item.id)).toEqual([tagged.id]);
     expect(uncategorized.items.map((item) => item.id)).toEqual([tagged.id]);
     expect(both.total).toBe(0);
-    expect(both.statusCounts).toEqual({ draft: 0, published: 0 });
+    expect(both.statusCounts).toMatchObject({ draft: 0, published: 0 });
   });
 });

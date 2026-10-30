@@ -1,4 +1,5 @@
 import { orpc } from "@/lib/orpc";
+import { emptyListOnNotFound } from "@/lib/orpc/null-on-not-found";
 
 export function mediaInfiniteQueryOptions(
   search: string = "",
@@ -15,11 +16,15 @@ export function mediaInfiniteQueryOptions(
   });
 }
 
+/** Resolves to no posts for an image that does not exist (the server answers 404). */
 export function linkedPostsQuery(key: string) {
-  return orpc.media.linkedPosts.queryOptions({
-    input: { key },
-    enabled: !!key,
-  });
+  return emptyListOnNotFound(
+    orpc.media.linkedPosts.queryOptions({
+      input: { key },
+      enabled: !!key,
+    }),
+    "MEDIA_NOT_FOUND",
+  );
 }
 
 export const mediaStatsQuery = orpc.media.stats.queryOptions();

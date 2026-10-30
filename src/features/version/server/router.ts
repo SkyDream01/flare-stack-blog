@@ -1,4 +1,5 @@
 import { versionChecker } from "@/features/version/service/version.service";
+import { UpdateCheckResultSchema } from "@/features/version/version.schema";
 import { adminProcedure } from "@/lib/orpc/procedure";
 import { unwrapResult } from "@/lib/orpc/unwrap-result";
 
@@ -14,6 +15,7 @@ const check = adminProcedure
     summary: "Check for application updates",
     tags: ["Admin Version"],
   })
+  .output(UpdateCheckResultSchema)
   .handler(({ context, errors }) =>
     unwrapResult(versionChecker.check(context), {
       FETCH_FAILED: () => {
@@ -30,6 +32,7 @@ const forceCheck = adminProcedure
     summary: "Force-check for application updates",
     tags: ["Admin Version"],
   })
+  .output(UpdateCheckResultSchema)
   .handler(({ context, errors }) =>
     unwrapResult(versionChecker.refresh(context), {
       FETCH_FAILED: () => {

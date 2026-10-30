@@ -5,9 +5,14 @@ import {
   POST_STATUSES,
   PostRevisionsTable,
 } from "@/lib/db/schema";
+import { PathIdSchema } from "@/lib/orpc/path-ids";
 import { NullableJsonContentSchema } from "./json-content.schema";
-
-const coercedDate = z.union([z.date(), z.string().pipe(z.coerce.date())]);
+import {
+  ContentMarkdownOutputSchema,
+  PostContentFormatSchema,
+  StatedSaveTokenSchema,
+} from "./posts.schema";
+import { coercedDate } from "@/lib/orpc/dates";
 
 export const PostRevisionSnapshotSchema = z.object({
   title: z.string(),
@@ -21,32 +26,56 @@ export const PostRevisionSnapshotSchema = z.object({
   coverMediaId: z.number().int().nullable().default(null),
 });
 
+export const PostRevisionReasonSchema = z
+  .enum(POST_REVISION_REASONS)
+  .describe(
+    "Why the revision was taken. publish: taken when the post is published. restore_backup: the draft saved automatically before restoring a revision or discarding Unpublished Changes, so it can be restored. auto: legacy autosave revisions from older versions; new ones are no longer taken.",
+  );
+
 export const PostRevisionSelectSchema = createSelectSchema(PostRevisionsTable, {
   createdAt: coercedDate,
   snapshotJson: PostRevisionSnapshotSchema,
+  reason: PostRevisionReasonSchema,
 });
 
-export const ListPostRevisionsInputSchema = z.object({
-  postId: z.number(),
+export const PostRevisionSchema = PostRevisionSelectSchema.extend({
+  snapshotJson: PostRevisionSnapshotSchema.extend({
+    contentJson: NullableJsonContentSchema.optional().describe(
+      "The body as TipTap JSON. Not returned when the request asks for contentFormat=markdown.",
+    ),
+    contentMarkdown: ContentMarkdownOutputSchema,
+  }),
 });
 
-export const FindPostRevisionByIdInputSchema = z.object({
-  postId: z.number(),
-  revisionId: z.number(),
+export const ListPostRevisionsInputSchema = z.strictObject({
+  postId: PathIdSchema,
 });
+
+export const FindPostRevisionByIdInputSchema = z.strictObject({
+  postId: PathIdSchema,
+  revisionId: PathIdSchema,
+});
+
+export const GetPostRevisionInputSchema =
+  FindPostRevisionByIdInputSchema.extend({
+    contentFormat: PostContentFormatSchema,
+  });
 
 const CreatePostRevisionInputSchema = z.object({
   postId: z.number(),
-  reason: z.enum(POST_REVISION_REASONS).optional(),
+  reason: PostRevisionReasonSchema.optional(),
 });
 
-export const RestorePostRevisionInputSchema = z.object({
-  postId: z.number(),
-  revisionId: z.number(),
+export const RestorePostRevisionInputSchema = z.strictObject({
+  postId: PathIdSchema,
+  revisionId: PathIdSchema,
+  saveToken: StatedSaveTokenSchema.describe(
+    "The saveToken of the draft you read and mean to replace. If the post was saved since, nothing is written, not even the revision of the current draft, and the response is 409 EDIT_CONFLICT with the current token in data.saveToken. Omit it to restore over whatever the draft is now; the restore still answers 409 EDIT_CONFLICT if a save lands while it runs, since that save would not be in the revision it keeps of the draft.",
+  ),
 });
 
-export const DeletePostRevisionsInputSchema = z.object({
-  postId: z.number(),
+export const DeletePostRevisionsInputSchema = z.strictObject({
+  postId: PathIdSchema,
   revisionIds: z.array(z.number().int()).min(1),
 });
 
@@ -63,6 +92,25 @@ export const PostRevisionListItemSchema = PostRevisionSelectSchema.pick({
 });
 
 export type PostRevisionSnapshot = z.infer<typeof PostRevisionSnapshotSchema>;
+
+/**
+ * A Post Revision's snapshot, or null when it is not a valid one. The body
+ * is returned as stored, not as parsed: parsing rebuilds every node with its
+ * keys in the schema's order, so a body stored in another order, as Markdown
+ * writes once stored it, would no longer hash like the draft it was taken
+ * from, and restoring it would write a draft that differs from that one.
+ */
+export function parseRevisionSnapshot(
+  snapshotJson: unknown,
+): PostRevisionSnapshot | null {
+  const parsed = PostRevisionSnapshotSchema.safeParse(snapshotJson);
+  if (!parsed.success) return null;
+  return {
+    ...parsed.data,
+    contentJson: (snapshotJson as PostRevisionSnapshot).contentJson,
+  };
+}
+
 export type ListPostRevisionsInput = z.infer<
   typeof ListPostRevisionsInputSchema
 >;

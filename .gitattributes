@@ -1,0 +1,1 @@
+src/lib/orpc/contract.generated.json -merge linguist-generated=true

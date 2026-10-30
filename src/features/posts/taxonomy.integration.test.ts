@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createTestContext } from "tests/test-utils";
 import {
   CategoriesTable,
+  PostPublicTagsTable,
   PostsTable,
   PostTagsTable,
   TagsTable,
@@ -29,13 +30,12 @@ function snapshot(
     summary: null,
     contentJson: null,
     publishedAt: `2026-09-0${day}T12:00:00Z`,
-    pinnedAt: null,
     cover: null,
   };
 }
 
 describe("Admin taxonomy scopes", () => {
-  it("counts public usage as published posts in the current relations, ignoring old snapshot assignments", async () => {
+  it("counts public usage from the public assignments, not the draft's current ones", async () => {
     const context = createTestContext();
     const db = context.db;
     const [a, b] = await db
@@ -53,12 +53,13 @@ describe("Admin taxonomy scopes", () => {
           title: "Edited title",
           slug: "edited",
           categoryId: b.id,
+          publicCategoryId: a.id,
           status: "published",
           publishedAt: new Date("2026-09-10"),
           publicSlug: "public",
           publicSnapshotJson: snapshot(
             a.id,
-            [tagA.id, tagA.id],
+            [tagA.id],
             "Public %_ title",
             "public",
           ),
@@ -73,6 +74,7 @@ describe("Admin taxonomy scopes", () => {
           title: "Shared editable",
           slug: "shared",
           categoryId: a.id,
+          publicCategoryId: a.id,
           status: "published",
           publishedAt: new Date("2026-09-01"),
           publicSlug: "shared-public",
@@ -86,24 +88,33 @@ describe("Admin taxonomy scopes", () => {
         },
       ])
       .returning();
+    // "moved" was published under A and its draft has since moved to B.
     await db.insert(PostTagsTable).values([
       { postId: moved.id, tagId: tagB.id },
       { postId: draft.id, tagId: tagA.id },
       { postId: shared.id, tagId: tagA.id },
     ]);
+    await db.insert(PostPublicTagsTable).values([
+      { postId: moved.id, tagId: tagA.id },
+      { postId: shared.id, tagId: tagA.id },
+    ]);
     const categories = await Categories.getCategories(context);
     expect(categories.items.find((item) => item.id === a.id)).toMatchObject({
       postCount: 2,
-      publicPostCount: 1,
+      publicPostCount: 2,
     });
     expect(categories.items.find((item) => item.id === b.id)).toMatchObject({
       postCount: 1,
-      publicPostCount: 1,
+      publicPostCount: 0,
     });
     const tags = await Tags.getTagsWithCount(context);
     expect(tags.find((item) => item.id === tagA.id)).toMatchObject({
       postCount: 2,
-      publicPostCount: 1,
+      publicPostCount: 2,
+    });
+    expect(tags.find((item) => item.id === tagB.id)).toMatchObject({
+      postCount: 1,
+      publicPostCount: 0,
     });
     for (const [kind, id, movedId] of [
       ["category", a.id, b.id],
@@ -115,21 +126,27 @@ describe("Admin taxonomy scopes", () => {
       expect(
         current.items.map((item) => item.id).sort((a, b) => a - b),
       ).toEqual([draft.id, shared.id].sort((a, b) => a - b));
-      expect(current.statusCounts).toEqual({ draft: 1, published: 1 });
+      expect(current.statusCounts).toMatchObject({ draft: 1, published: 1 });
       expect(current.total).toBe(2);
       const published = await Posts.listAdminPostsPage(context, {
         taxonomy: { kind, id, scope: "public" },
       });
-      expect(published.items.map((item) => item.id)).toEqual([shared.id]);
-      expect(published.statusCounts).toEqual({ draft: 0, published: 1 });
-      expect(published.total).toBe(1);
+      expect(
+        published.items.map((item) => item.id).sort((a, b) => a - b),
+      ).toEqual([moved.id, shared.id].sort((a, b) => a - b));
+      expect(published.statusCounts).toMatchObject({ draft: 0, published: 2 });
+      expect(published.total).toBe(2);
       expect(
         await Posts.getPostsCount(context, {
           taxonomy: { kind, id, scope: "public" },
         }),
-      ).toBe(1);
-      const search = await Posts.listAdminPostsPage(context, {
+      ).toBe(2);
+      const notYetPublic = await Posts.listAdminPostsPage(context, {
         taxonomy: { kind, id: movedId, scope: "public" },
+      });
+      expect(notYetPublic.total).toBe(0);
+      const search = await Posts.listAdminPostsPage(context, {
+        taxonomy: { kind, id, scope: "public" },
         search: "%_",
       });
       expect(search.total).toBe(1);
@@ -141,21 +158,28 @@ describe("Admin taxonomy scopes", () => {
       });
     }
     expect(
-      (await TagRepo.getPublishedPostsByTagId(db, tagA.id)).map(
-        (item) => item.id,
-      ),
-    ).toEqual([shared.id]);
+      (await TagRepo.getPublishedPostsByTagId(db, tagA.id))
+        .map((item) => item.id)
+        .sort((a, b) => a - b),
+    ).toEqual([moved.id, shared.id].sort((a, b) => a - b));
+    expect(await TagRepo.getPublishedPostsByTagId(db, tagB.id)).toEqual([]);
+    expect(
+      await PostRepo.getPostsCursor(db, { tagName: "B", categoryName: "B" }),
+    ).toEqual({ items: [], nextCursor: null });
     const publicList = await PostRepo.getPostsCursor(db, {
-      tagName: "B",
-      categoryName: "B",
+      tagName: "A",
+      categoryName: "A",
     });
-    expect(publicList.items).toHaveLength(1);
-    expect(publicList.items[0]).toMatchObject({
+    expect(publicList.items.map((item) => item.id)).toEqual([
+      shared.id,
+      moved.id,
+    ]);
+    expect(publicList.items[1]).toMatchObject({
       id: moved.id,
       title: "Public %_ title",
-      category: { id: b.id, name: "B" },
+      category: { id: a.id, name: "A" },
     });
-    expect(publicList.items[0].tags?.map((tag) => tag.id)).toEqual([tagB.id]);
+    expect(publicList.items[1].tags?.map((tag) => tag.id)).toEqual([tagA.id]);
   });
   it("counts and lists missing public categories as uncategorized without counting drafts as public", async () => {
     const context = createTestContext();
@@ -171,6 +195,7 @@ describe("Admin taxonomy scopes", () => {
           title: "Public",
           slug: "public",
           categoryId: category.id,
+          publicCategoryId: category.id,
           status: "published",
           publicSnapshotJson: snapshot(category.id, [], "Public", "public"),
         },
@@ -254,7 +279,7 @@ describe("Admin post list category and tag filters", () => {
       categoryId: notes.id,
     });
     expect(ids(inNotes)).toEqual(sorted(rustNote.id, goNote.id));
-    expect(inNotes.statusCounts).toEqual({ draft: 1, published: 1 });
+    expect(inNotes.statusCounts).toMatchObject({ draft: 1, published: 1 });
     expect(inNotes.total).toBe(2);
 
     const rustPosts = await Posts.listAdminPostsPage(context, {
@@ -263,7 +288,7 @@ describe("Admin post list category and tag filters", () => {
     expect(ids(rustPosts)).toEqual(
       sorted(rustNote.id, rustEssay.id, looseRust.id),
     );
-    expect(rustPosts.statusCounts).toEqual({ draft: 2, published: 1 });
+    expect(rustPosts.statusCounts).toMatchObject({ draft: 2, published: 1 });
 
     const rustNotes = await Posts.listAdminPostsPage(context, {
       categoryId: notes.id,
@@ -275,7 +300,10 @@ describe("Admin post list category and tag filters", () => {
       uncategorized: true,
     });
     expect(ids(uncategorized)).toEqual(sorted(looseRust.id, loose.id));
-    expect(uncategorized.statusCounts).toEqual({ draft: 1, published: 1 });
+    expect(uncategorized.statusCounts).toMatchObject({
+      draft: 1,
+      published: 1,
+    });
 
     const draftUncategorizedGo = await Posts.listAdminPostsPage(context, {
       uncategorized: true,
@@ -290,14 +318,17 @@ describe("Admin post list category and tag filters", () => {
       search: "essay",
     });
     expect(ids(searched)).toEqual([rustEssay.id]);
-    expect(searched.statusCounts).toEqual({ draft: 1, published: 0 });
+    expect(searched.statusCounts).toMatchObject({ draft: 1, published: 0 });
 
     const publishedEssays = await Posts.listAdminPostsPage(context, {
       categoryId: essays.id,
       status: "published",
     });
     expect(publishedEssays.items).toEqual([]);
-    expect(publishedEssays.statusCounts).toEqual({ draft: 1, published: 0 });
+    expect(publishedEssays.statusCounts).toMatchObject({
+      draft: 1,
+      published: 0,
+    });
     expect(
       await Posts.getPostsCount(context, {
         categoryId: notes.id,

@@ -6,12 +6,30 @@ import {
   videoSourceOf,
 } from "@/features/posts/utils/video-source";
 
+/**
+ * What a slug made from a title falls back to when no character of the title
+ * can be kept, such as a title of emoji alone. It is not unique by itself: the
+ * slug generator numbers it (`untitled-log-1`) when another post has it.
+ */
+export const FALLBACK_SLUG = "untitled-log";
+
+/**
+ * A slug made from `text`: lower case Latin letters and digits, Chinese
+ * characters and single dashes. Compatibility forms are folded first (NFKC:
+ * fullwidth letters, ligatures such as ﬁ) and ß becomes ss, so those keep
+ * their letters; accents are dropped (café becomes cafe). Any other
+ * character is dropped, and a title with none left gets `FALLBACK_SLUG`.
+ */
 export function slugify(text: string | null | undefined) {
-  if (!text) return "untitled-log";
+  if (!text) return FALLBACK_SLUG;
 
   const cleaned = text
     .toString()
+    .normalize("NFKC")
     .toLowerCase()
+    .replaceAll("ß", "ss")
+    .normalize("NFD")
+    .replace(/\p{M}+/gu, "")
     .trim()
     // 1. 把所有空格 (space) 和下划线 (_) 替换为横杠 (-)
     .replace(/[\s_]+/g, "-")
@@ -30,7 +48,7 @@ export function slugify(text: string | null | undefined) {
     .replace(/^-+/, "")
     .replace(/-+$/, "");
 
-  return cleaned || "untitled-log";
+  return cleaned || FALLBACK_SLUG;
 }
 
 export function jsonContentHasType(
@@ -68,34 +86,46 @@ export function extractAllImageKeys(doc: JSONContent | null): Array<string> {
 }
 
 /**
- * Points every image of `key` at `src`. Returns null when the document has no
- * image of that key, so callers can skip the write.
+ * The Media key `src` names by its path, `/images/{key}`, alone or on the
+ * site's own address (`siteHost`, the bare host such as `blog.example.com`,
+ * over http or https). An address on any other host is an external image
+ * even when its path looks the same.
  */
-export function replaceImageSrc(
-  doc: JSONContent | null,
-  key: string,
-  src: string,
-): JSONContent | null {
-  let changed = false;
+export function mediaPathKey(src: string, siteHost: string) {
+  if (src.startsWith("/images/")) return extractImageKey(src);
+  if (!/^https?:\/\//i.test(src)) return undefined;
+  let url: URL;
+  try {
+    url = new URL(src);
+  } catch {
+    return undefined;
+  }
+  return url.host === siteHost.toLowerCase()
+    ? extractImageKey(url.pathname)
+    : undefined;
+}
 
-  function traverse(node: JSONContent): JSONContent {
-    let next = node;
-    if (
-      node.type === "image" &&
-      typeof node.attrs?.src === "string" &&
-      extractImageKey(node.attrs.src) === key &&
-      node.attrs.src !== src
-    ) {
-      changed = true;
-      next = { ...node, attrs: { ...node.attrs, src } };
+/**
+ * The images the body shows from the media library by its path (see
+ * `mediaPathKey`), with the Media key each names. These must exist.
+ */
+export function extractMediaPathImages(
+  doc: JSONContent | null | undefined,
+  siteHost: string,
+): Array<{ src: string; key: string }> {
+  const images: Array<{ src: string; key: string }> = [];
+
+  function traverse(node: JSONContent) {
+    const src = node.type === "image" ? node.attrs?.src : undefined;
+    if (typeof src === "string") {
+      const key = mediaPathKey(src, siteHost);
+      if (key) images.push({ src, key });
     }
-    if (next.content) next = { ...next, content: next.content.map(traverse) };
-    return next;
+    node.content?.forEach(traverse);
   }
 
-  if (!doc) return null;
-  const next = traverse(doc);
-  return changed ? next : null;
+  if (doc) traverse(doc);
+  return images;
 }
 
 export function convertToPlainText(doc: JSONContent | null): string {

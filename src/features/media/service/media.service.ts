@@ -2,6 +2,7 @@ import * as MediaRepo from "@/features/media/data/media.data";
 import * as Storage from "@/features/media/data/media.storage";
 import type {
   GetMediaListInput,
+  MediaInvalidDetail,
   UpdateMediaNameInput,
 } from "@/features/media/media.schema";
 import {
@@ -9,16 +10,28 @@ import {
   MAX_FILE_SIZE,
 } from "@/features/media/media.schema";
 import { getImageDimensions } from "@/features/media/utils/image-dimensions";
+import { matchesDeclaredImageType } from "@/features/media/utils/image-signature";
 import {
+  cleanMediaName,
   getContentTypeFromKey,
   getOriginalImageUrl,
   getTransformSourceUrl,
+  importedMediaName,
+  imageExtensionOf,
+  isSameImageType,
   parseImageTransform,
   isGifKey,
 } from "@/features/media/utils/media.utils";
+import { purgeWorkersCache } from "@/features/cache/workers-cache";
+import { mediaPurgeTarget } from "@/features/cache/workers-cache-policy";
 import * as PostMediaRepo from "@/features/posts/data/post-media.data";
 import { CACHE_CONTROL } from "@/lib/constants";
+import { fetchPublicUrl } from "@/lib/http/public-fetch";
 import { err, ok } from "@/lib/errors";
+
+function mediaInvalid(detail: MediaInvalidDetail) {
+  return err({ reason: "MEDIA_INVALID" as const, detail });
+}
 
 export async function upload(
   context: DbContext & { executionCtx: ExecutionContext },
@@ -26,7 +39,11 @@ export async function upload(
 ) {
   const { file } = input;
 
-  const dimensions = getImageDimensions(await file.arrayBuffer());
+  const buffer = await file.arrayBuffer();
+  if (!matchesDeclaredImageType(buffer, file.type)) {
+    return mediaInvalid("TYPE_MISMATCH");
+  }
+  const dimensions = getImageDimensions(buffer);
   const width = dimensions?.width;
   const height = dimensions?.height;
 
@@ -36,7 +53,9 @@ export async function upload(
     const mediaRecord = await MediaRepo.insertMedia(context.db, {
       key: uploaded.key,
       url: uploaded.url,
-      fileName: uploaded.fileName,
+      fileName:
+        cleanMediaName(uploaded.fileName) ||
+        `image.${imageExtensionOf(uploaded.mimeType)}`,
       mimeType: uploaded.mimeType,
       sizeInBytes: uploaded.sizeInBytes,
       width,
@@ -73,15 +92,13 @@ export async function deleteImage(
   context: DbContext & { executionCtx: ExecutionContext },
   key: string,
 ) {
-  // 后端兜底检查：防止删除正在被引用的媒体
-  const inUse =
-    (await PostMediaRepo.isMediaInUse(context.db, key)) ||
-    (await MediaRepo.isUsedAsAdminAvatar(context.db, key));
-  if (inUse) {
-    return err({ reason: "MEDIA_IN_USE" });
+  // The in-use check is part of the delete, so a Post saved meanwhile with
+  // the image either makes it refuse or is refused itself.
+  if (!(await MediaRepo.deleteMediaIfUnused(context.db, key))) {
+    return (await MediaRepo.findMediaByKey(context.db, key))
+      ? err({ reason: "MEDIA_IN_USE" })
+      : err({ reason: "MEDIA_NOT_FOUND" });
   }
-
-  await MediaRepo.deleteMedia(context.db, key);
   context.executionCtx.waitUntil(
     Storage.deleteFromR2(context.env, key).catch((deleteError) =>
       console.error(
@@ -111,6 +128,10 @@ export async function isMediaInUse(context: DbContext, key: string) {
   return await PostMediaRepo.isMediaInUse(context.db, key);
 }
 
+export async function mediaExists(context: DbContext, key: string) {
+  return (await MediaRepo.findMediaByKey(context.db, key)) !== null;
+}
+
 export async function getLinkedPosts(context: DbContext, key: string) {
   return await PostMediaRepo.getPostsByMediaKey(context.db, key);
 }
@@ -134,11 +155,27 @@ export async function updateMediaName(
   context: DbContext,
   data: UpdateMediaNameInput,
 ) {
-  return await MediaRepo.updateMediaName(context.db, data.key, data.name);
+  const renamed = await MediaRepo.updateMediaName(
+    context.db,
+    data.key,
+    data.name,
+  );
+  if (!renamed) {
+    return err({ reason: "MEDIA_NOT_FOUND" });
+  }
+  return ok(undefined);
 }
 
+/**
+ * Puts a new file at an existing key. Posts keep naming the key, so their
+ * drafts, Public Content Snapshots and Post Revisions are not written: the
+ * cached copies of the key are purged instead, and every address of it,
+ * public pages and editor alike, serves the new file from then on. The new
+ * file must be the same image type: the key's extension and the content type
+ * served at it would otherwise disagree.
+ */
 export async function replaceImage(
-  context: DbContext,
+  context: DbContext & { executionCtx: ExecutionContext },
   input: { key: string; file: File },
 ) {
   const existing = await MediaRepo.findMediaByKey(context.db, input.key);
@@ -146,14 +183,21 @@ export async function replaceImage(
     return err({ reason: "MEDIA_NOT_FOUND" });
   }
 
-  const dimensions = getImageDimensions(await input.file.arrayBuffer());
+  const buffer = await input.file.arrayBuffer();
+  if (!matchesDeclaredImageType(buffer, input.file.type)) {
+    return mediaInvalid("TYPE_MISMATCH");
+  }
+  if (!isSameImageType(input.file.type, existing.mimeType)) {
+    return mediaInvalid("TYPE_CHANGED");
+  }
+  const dimensions = getImageDimensions(buffer);
   await Storage.putToR2(context.env, input.file, input.key);
-  // The key stays, so a new version keeps cached copies of the old file from
-  // answering for the new one.
+  // Only the Media record's own address changes, so a page that already
+  // shows it (the media library) loads the new file instead of its copy.
   const url = `${getOriginalImageUrl(input.key)}?v=${Date.now()}`;
   const updated = await MediaRepo.updateMediaFile(context.db, input.key, {
     url,
-    fileName: input.file.name || existing.fileName,
+    fileName: cleanMediaName(input.file.name) || existing.fileName,
     mimeType: input.file.type || existing.mimeType,
     sizeInBytes: input.file.size,
     width: dimensions?.width,
@@ -162,7 +206,7 @@ export async function replaceImage(
   if (!updated) {
     return err({ reason: "MEDIA_NOT_FOUND" });
   }
-  await PostMediaRepo.pointDraftImagesAt(context.db, existing, url);
+  await purgeWorkersCache(context.executionCtx, mediaPurgeTarget(input.key));
   return ok(updated);
 }
 
@@ -191,22 +235,24 @@ export async function deleteUnused(
 
 export async function importFromUrl(
   context: DbContext & { executionCtx: ExecutionContext },
-  input: { url: string },
+  input: { url: string; name?: string },
 ) {
-  const parsed = parsePublicImageUrl(input.url);
+  const parsed = parseImageUrl(input.url);
   if (!parsed) {
     return err({ reason: "MEDIA_INVALID_URL" });
   }
 
-  let response: Response;
-  try {
-    response = await fetch(parsed, {
-      redirect: "follow",
-      signal: AbortSignal.timeout(15_000),
-    });
-  } catch {
-    return err({ reason: "MEDIA_IMPORT_FAILED" });
+  // The address, the DNS answers of its name and every redirect must all
+  // be on the public internet.
+  const fetched = await fetchPublicUrl(parsed, {
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (fetched.error) {
+    return fetched.error.reason === "NOT_PUBLIC"
+      ? err({ reason: "MEDIA_INVALID_URL" })
+      : err({ reason: "MEDIA_IMPORT_FAILED" });
   }
+  const response = fetched.data;
 
   if (!response.ok) {
     return err({ reason: "MEDIA_IMPORT_FAILED" });
@@ -217,66 +263,64 @@ export async function importFromUrl(
     .trim()
     .toLowerCase();
   if (!ACCEPTED_IMAGE_TYPES.includes(mime)) {
-    return err({ reason: "MEDIA_INVALID" });
+    return mediaInvalid("TYPE_UNRECOGNIZED");
   }
 
   const buffer = await response.arrayBuffer();
-  if (buffer.byteLength === 0 || buffer.byteLength > MAX_FILE_SIZE) {
-    return err({ reason: "MEDIA_INVALID" });
+  if (buffer.byteLength === 0) {
+    return mediaInvalid("EMPTY");
+  }
+  if (buffer.byteLength > MAX_FILE_SIZE) {
+    return mediaInvalid("TOO_LARGE");
   }
 
-  const file = new File([buffer], fileNameFromUrl(parsed, mime), {
-    type: mime,
-  });
+  const file = new File(
+    [buffer],
+    importedMediaName(input.name ?? lastPathPart(parsed), mime),
+    { type: mime },
+  );
   return upload(context, { file });
 }
 
-function parsePublicImageUrl(raw: string): URL | null {
-  let url: URL;
+function parseImageUrl(raw: string): URL | null {
   try {
-    url = new URL(raw.trim());
+    return new URL(raw.trim());
   } catch {
     return null;
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-
-  const host = url.hostname.toLowerCase();
-  if (
-    host === "localhost" ||
-    host.endsWith(".localhost") ||
-    host === "::1" ||
-    host === "0.0.0.0" ||
-    host.endsWith(".local") ||
-    host.endsWith(".internal")
-  ) {
-    return null;
-  }
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
-    const [a, b] = host.split(".").map(Number);
-    if (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168)
-    ) {
-      return null;
-    }
-  }
-  return url;
 }
 
-function fileNameFromUrl(url: URL, mimeType: string) {
-  const last = decodeURIComponent(
-    url.pathname.split("/").filter(Boolean).pop() || "",
-  );
-  if (last && /\.(jpe?g|png|webp|gif)$/i.test(last)) return last;
-  const ext =
-    mimeType === "image/jpeg" || mimeType === "image/jpg"
-      ? "jpg"
-      : mimeType.split("/")[1] || "jpg";
-  return `image.${ext}`;
+/** The last part of the address path, decoded; empty when it has none or is not valid UTF-8 escapes. */
+function lastPathPart(url: URL) {
+  const last = url.pathname.split("/").filter(Boolean).pop() ?? "";
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return "";
+  }
+}
+
+// An SVG opened at its own address is a document on the site origin. Served
+// as a sandboxed document with no script source it cannot run script, and
+// nosniff keeps any image from being read as another type. As an <img>, an
+// SVG never runs script anyway, so this changes nothing on the site's pages.
+const IMAGE_SECURITY_HEADERS = {
+  "Content-Security-Policy":
+    "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox",
+  "X-Content-Type-Options": "nosniff",
+} as const;
+
+function withImageHeaders(
+  response: Response,
+  cacheControl: Record<string, string>,
+) {
+  for (const [name, value] of Object.entries({
+    ...cacheControl,
+    ...IMAGE_SECURITY_HEADERS,
+  })) {
+    response.headers.set(name, value);
+  }
+  return response;
 }
 
 export async function handleImageRequest(
@@ -290,7 +334,10 @@ export async function handleImageRequest(
   const serveOriginal = async () => {
     const object = await env.R2.get(key);
     if (!object) {
-      return new Response("Image not found", { status: 404 });
+      return withImageHeaders(
+        new Response("Image not found", { status: 404 }),
+        {},
+      );
     }
 
     const contentType =
@@ -302,11 +349,11 @@ export async function handleImageRequest(
     object.writeHttpMetadata(headers);
     headers.set("Content-Type", contentType);
     headers.set("ETag", object.httpEtag);
-    Object.entries(CACHE_CONTROL.public).forEach(([k, v]) => {
-      headers.set(k, v);
-    });
 
-    return new Response(object.body, { headers });
+    return withImageHeaders(
+      new Response(object.body, { headers }),
+      CACHE_CONTROL.public,
+    );
   };
 
   // 1. 防止循环调用 & 显式请求原图
@@ -337,7 +384,13 @@ export async function handleImageRequest(
 
   // 3. 尝试进行图片处理
   try {
-    const sourceImageUrl = getTransformSourceUrl(url, key);
+    // The transform names the stored file's version, so a replaced file is
+    // transformed afresh; this read runs only when the edge has no copy.
+    const stored = await env.R2.head(key);
+    if (!stored) {
+      return await serveOriginal();
+    }
+    const sourceImageUrl = getTransformSourceUrl(url, key, stored.etag);
 
     const subRequestHeaders = new Headers();
 
@@ -375,11 +428,13 @@ export async function handleImageRequest(
     const newResponse = new Response(response.body, response);
 
     newResponse.headers.set("Vary", "Accept");
-    Object.entries(CACHE_CONTROL.immutable).forEach(([k, v]) => {
-      newResponse.headers.set(k, v);
-    });
-
-    return newResponse;
+    // Browsers revalidate (the address outlives a replaced file); the tag
+    // lets a revalidation of an unchanged variant answer without a body.
+    newResponse.headers.set(
+      "ETag",
+      `"${stored.etag}-${transformOptions.width}-${transformOptions.format ?? "auto"}"`,
+    );
+    return withImageHeaders(newResponse, CACHE_CONTROL.media);
   } catch (e) {
     console.error(
       JSON.stringify({

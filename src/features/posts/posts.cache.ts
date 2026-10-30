@@ -8,6 +8,7 @@ import {
 } from "@/features/posts/schema/posts.schema";
 import { toPublicCover } from "@/features/posts/public-snapshot";
 import { estimateReadTimeMinutes } from "@/features/posts/utils/content";
+import { publicPostContent } from "@/features/posts/utils/post-content-rules";
 import { generateTableOfContents } from "@/features/posts/utils/toc";
 
 const POST_PUBLIC_REASONS = [
@@ -130,7 +131,7 @@ export const postBySlug = defineEntry({
       pinnedAt: post.pinnedAt,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt,
-      contentJson: post.contentJson,
+      contentJson: post.contentJson && publicPostContent(post.contentJson),
       readTimeInMinutes: estimateReadTimeMinutes(post.contentJson),
       tags: post.tags,
       category: "category" in post ? (post.category ?? null) : null,

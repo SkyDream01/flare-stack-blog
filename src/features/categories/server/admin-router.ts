@@ -1,8 +1,11 @@
 import { z } from "zod";
 import {
+  AdminCategoryListSchema,
   CategoryOptionSchema,
+  CategorySelectSchema,
   CreateCategoryInputSchema,
   DeleteCategoryInputSchema,
+  DeleteCategoryResultSchema,
   GetCategoriesInputSchema,
   UpdateCategoryInputSchema,
 } from "@/features/categories/categories.schema";
@@ -26,6 +29,7 @@ const adminList = adminProcedure
     tags: ["Admin Categories"],
   })
   .input(GetCategoriesInputSchema)
+  .output(AdminCategoryListSchema)
   .handler(({ context, input }) =>
     CategoryService.getCategories(context, input),
   );
@@ -41,7 +45,9 @@ const options = adminProcedure
   .handler(({ context }) => CategoryService.getCategoryOptions(context));
 
 const create = adminProcedure
-  .errors(categoryErrors)
+  .errors({
+    CATEGORY_NAME_ALREADY_EXISTS: categoryErrors.CATEGORY_NAME_ALREADY_EXISTS,
+  })
   .route({
     method: "POST",
     path: "/admin/categories",
@@ -49,6 +55,7 @@ const create = adminProcedure
     tags: ["Admin Categories"],
   })
   .input(CreateCategoryInputSchema)
+  .output(CategorySelectSchema)
   .handler(({ context, input, errors }) =>
     unwrapResult(CategoryService.createCategory(context, input), {
       CATEGORY_NAME_ALREADY_EXISTS: () => {
@@ -66,6 +73,7 @@ const update = adminProcedure
     tags: ["Admin Categories"],
   })
   .input(UpdateCategoryInputSchema)
+  .output(CategorySelectSchema)
   .handler(({ context, input, errors }) =>
     unwrapResult(CategoryService.updateCategory(context, input), {
       CATEGORY_NOT_FOUND: () => {
@@ -78,7 +86,7 @@ const update = adminProcedure
   );
 
 const remove = adminProcedure
-  .errors(categoryErrors)
+  .errors({ CATEGORY_NOT_FOUND: categoryErrors.CATEGORY_NOT_FOUND })
   .route({
     method: "DELETE",
     path: "/admin/categories/{id}",
@@ -86,6 +94,7 @@ const remove = adminProcedure
     tags: ["Admin Categories"],
   })
   .input(DeleteCategoryInputSchema)
+  .output(DeleteCategoryResultSchema)
   .handler(({ context, input, errors }) =>
     unwrapResult(CategoryService.deleteCategory(context, input), {
       CATEGORY_NOT_FOUND: () => {

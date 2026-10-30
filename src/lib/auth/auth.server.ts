@@ -15,6 +15,7 @@ import {
 import {
   inspectApiKeyManagementAccess,
   isApiKeyManagementPath,
+  sendsApiKey,
 } from "@/lib/auth/api-key-guard";
 import { createAuthConfig } from "@/lib/auth/auth.config";
 import { getRateLimiter } from "@/lib/do/rate-limiter-binding";
@@ -108,7 +109,7 @@ export function getAuth({ db, env }: { db: DB; env: Env }) {
         if (!isApiKeyManagementPath(ctx.path)) return;
 
         const headers = ctx.headers ?? ctx.request?.headers ?? null;
-        const hasApiKeyHeader = Boolean(headers?.get("x-api-key"));
+        const hasApiKeyHeader = sendsApiKey(headers);
         let role: string | null = null;
         if (ctx.request && !hasApiKeyHeader) {
           const session = await getSessionFromCtx(ctx);

@@ -1,19 +1,19 @@
 import type { JSONContent } from "@tiptap/react";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
-import {
-  extractAllImageKeys,
-  replaceImageSrc,
-} from "@/features/posts/utils/content";
+import { extractAllImageKeys } from "@/features/posts/utils/content";
 import {
   MediaTable,
   PostMediaTable,
+  PostRevisionMediaTable,
+  PostRevisionsTable,
   PostsTable,
   type PublicPostSnapshot,
 } from "@/lib/db/schema";
 
 export type PostMediaSource = {
   id: number;
+  saveToken: string;
   contentJson: JSONContent | null;
   publicSnapshotJson: PublicPostSnapshot | null;
   coverMediaId: number | null;
@@ -36,6 +36,14 @@ function sameMediaIdSet(existing: Array<number>, next: Set<number>) {
   return existing.every((mediaId) => next.has(mediaId));
 }
 
+/**
+ * Sets the Media the Post uses (`post_media`) to what `post`, as read, refers
+ * to. It writes only while the Post still carries the saveToken of that read:
+ * a write landing since then syncs after it, and a sync from an older read
+ * must not drop what that write added. Adding never waits for a sync: a save
+ * records the Media its body adds in the same batch (`mediaReferenceGuards`),
+ * so a sync only ever removes what is no longer used.
+ */
 export async function syncPostMedia(db: DB, post: PostMediaSource) {
   const usedKeys = referencedImageKeys(
     post.contentJson,
@@ -65,20 +73,24 @@ export async function syncPostMedia(db: DB, post: PostMediaSource) {
   const existingIds = existing.map((row) => row.mediaId);
   if (sameMediaIdSet(existingIds, mediaIds)) return;
 
+  const readCurrent = sql`EXISTS (SELECT 1 FROM ${PostsTable} WHERE ${PostsTable.id} = ${post.id} AND ${PostsTable.saveToken} = ${post.saveToken})`;
   const statements: Array<BatchItem<"sqlite">> = [];
   if (existingIds.length > 0) {
     statements.push(
-      db.delete(PostMediaTable).where(eq(PostMediaTable.postId, post.id)),
+      db
+        .delete(PostMediaTable)
+        .where(and(eq(PostMediaTable.postId, post.id), readCurrent)),
     );
   }
   if (mediaIds.size > 0) {
+    // From `media`, so an item deleted since it was looked up is left out
+    // instead of failing the foreign key.
     statements.push(
-      db.insert(PostMediaTable).values(
-        [...mediaIds].map((mediaId) => ({
-          postId: post.id,
-          mediaId,
-        })),
-      ),
+      db
+        .insert(PostMediaTable)
+        .select(
+          sql`SELECT ${post.id}, ${MediaTable.id} FROM ${MediaTable} WHERE ${inArray(MediaTable.id, [...mediaIds])} AND ${readCurrent}`,
+        ),
     );
   }
   const [head, ...rest] = statements;
@@ -87,58 +99,111 @@ export async function syncPostMedia(db: DB, post: PostMediaSource) {
 }
 
 /**
- * Points the editable body of every Post that uses a Media item at `src`.
- * The Public Content Snapshot keeps its URL until the Post is published again.
+ * Which of `keys` no Media has.
  */
-export async function pointDraftImagesAt(
-  db: DB,
-  media: { id: number; key: string },
-  src: string,
-) {
-  const rows = await db
-    .select({ id: PostsTable.id, contentJson: PostsTable.contentJson })
-    .from(PostsTable)
-    .innerJoin(PostMediaTable, eq(PostsTable.id, PostMediaTable.postId))
-    .where(eq(PostMediaTable.mediaId, media.id));
+export async function findMissingMediaKeys(db: DB, keys: Array<string>) {
+  const unique = [...new Set(keys)];
+  if (unique.length === 0) return [];
+  const found = await db
+    .select({ key: MediaTable.key })
+    .from(MediaTable)
+    .where(inArray(MediaTable.key, unique));
+  const existing = new Set(found.map((media) => media.key));
+  return unique.filter((key) => !existing.has(key));
+}
 
-  const statements: Array<BatchItem<"sqlite">> = [];
-  for (const row of rows) {
-    const contentJson = replaceImageSrc(row.contentJson, media.key, src);
-    if (!contentJson) continue;
-    statements.push(
-      db
-        .update(PostsTable)
-        .set({ contentJson, updatedAt: sql`${PostsTable.updatedAt}` })
-        .where(eq(PostsTable.id, row.id)),
-    );
+/**
+ * Statements, for the batch that writes a Post, that record the Post as
+ * using the Media with `keys` and `mediaIds`. They apply once the Post
+ * (`postId`, when the write knows it) carries `saveToken`, the token that
+ * write sets, and each one fails the
+ * whole batch with a NOT NULL constraint failure on `post_media.media_id`
+ * (see `isMediaGone`) if its Media no longer exists. Deleting Media is one
+ * statement that refuses Media in `post_media`, so either the write commits
+ * first and the delete refuses, or the delete commits first and the write
+ * fails: no Post is left referring to deleted Media.
+ */
+export function mediaReferenceGuards(
+  db: DB,
+  written: { postId?: number; saveToken: string },
+  refs: { keys: Array<string>; mediaIds: Array<number> },
+): Array<BatchItem<"sqlite">> {
+  const post = sql`(SELECT ${PostsTable.id} FROM ${PostsTable} WHERE ${
+    written.postId === undefined
+      ? sql`true`
+      : sql`${PostsTable.id} = ${written.postId}`
+  } AND ${PostsTable.saveToken} = ${written.saveToken})`;
+  const media = [
+    ...[...new Set(refs.keys)].map(
+      (key) =>
+        sql`(SELECT ${MediaTable.id} FROM ${MediaTable} WHERE ${MediaTable.key} = ${key})`,
+    ),
+    ...[...new Set(refs.mediaIds)].map(
+      (id) =>
+        sql`(SELECT ${MediaTable.id} FROM ${MediaTable} WHERE ${MediaTable.id} = ${id})`,
+    ),
+  ];
+  return media.map((mediaId) =>
+    db
+      .insert(PostMediaTable)
+      .select(sql`SELECT ${post}, ${mediaId} WHERE ${post} IS NOT NULL`)
+      .onConflictDoNothing(),
+  );
+}
+
+/** Whether a batch failed because Media a guard records was deleted. */
+export function isMediaGone(error: unknown) {
+  for (let current = error; current instanceof Error; current = current.cause) {
+    if (
+      /NOT NULL constraint failed:\s*post_media\.media_id/i.test(
+        current.message,
+      )
+    ) {
+      return true;
+    }
   }
-  const [head, ...rest] = statements;
-  if (!head) return;
-  await db.batch([head, ...rest]);
+  return false;
 }
 
 export async function getPostsByMediaKey(db: DB, key: string) {
-  const posts = await db
-    .select({
-      id: PostsTable.id,
-      title: PostsTable.title,
-      slug: PostsTable.slug,
-      status: PostsTable.status,
-      coverMediaId: PostsTable.coverMediaId,
-      snapshotCoverKey: sql<
-        string | null
-      >`json_extract(${PostsTable.publicSnapshotJson}, '$.cover.key')`,
-      snapshotCoverMediaId: sql<
-        number | null
-      >`json_extract(${PostsTable.publicSnapshotJson}, '$.cover.mediaId')`,
-      mediaId: MediaTable.id,
-    })
-    .from(PostsTable)
-    .innerJoin(PostMediaTable, eq(PostsTable.id, PostMediaTable.postId))
-    .innerJoin(MediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
-    .where(eq(MediaTable.key, key));
+  const [posts, revisionPosts] = await Promise.all([
+    db
+      .select({
+        id: PostsTable.id,
+        title: PostsTable.title,
+        slug: PostsTable.slug,
+        status: PostsTable.status,
+        coverMediaId: PostsTable.coverMediaId,
+        snapshotCoverKey: sql<
+          string | null
+        >`json_extract(${PostsTable.publicSnapshotJson}, '$.cover.key')`,
+        snapshotCoverMediaId: sql<
+          number | null
+        >`json_extract(${PostsTable.publicSnapshotJson}, '$.cover.mediaId')`,
+        mediaId: MediaTable.id,
+      })
+      .from(PostsTable)
+      .innerJoin(PostMediaTable, eq(PostsTable.id, PostMediaTable.postId))
+      .innerJoin(MediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
+      .where(eq(MediaTable.key, key)),
+    db
+      .selectDistinct({
+        id: PostsTable.id,
+        title: PostsTable.title,
+        slug: PostsTable.slug,
+        status: PostsTable.status,
+      })
+      .from(PostRevisionMediaTable)
+      .innerJoin(MediaTable, eq(MediaTable.id, PostRevisionMediaTable.mediaId))
+      .innerJoin(
+        PostRevisionsTable,
+        eq(PostRevisionsTable.id, PostRevisionMediaTable.revisionId),
+      )
+      .innerJoin(PostsTable, eq(PostsTable.id, PostRevisionsTable.postId))
+      .where(eq(MediaTable.key, key)),
+  ]);
 
-  return posts.map((post) => ({
+  const linked = posts.map((post) => ({
     id: post.id,
     title: post.title,
     slug: post.slug,
@@ -148,18 +213,33 @@ export async function getPostsByMediaKey(db: DB, key: string) {
       post.snapshotCoverKey === key ||
       (post.snapshotCoverMediaId != null &&
         Number(post.snapshotCoverMediaId) === post.mediaId),
+    revisionsOnly: false,
   }));
+  const listed = new Set(linked.map((post) => post.id));
+  for (const post of revisionPosts) {
+    if (listed.has(post.id)) continue;
+    linked.push({ ...post, isCover: false, revisionsOnly: true });
+  }
+  return linked;
 }
 
 export async function isMediaInUse(db: DB, key: string): Promise<boolean> {
-  const result = await db
-    .select({ id: PostMediaTable.postId })
-    .from(PostMediaTable)
-    .innerJoin(MediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
-    .where(eq(MediaTable.key, key))
-    .limit(1);
+  const [inPost, inRevision] = await Promise.all([
+    db
+      .select({ id: PostMediaTable.postId })
+      .from(PostMediaTable)
+      .innerJoin(MediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
+      .where(eq(MediaTable.key, key))
+      .limit(1),
+    db
+      .select({ id: PostRevisionMediaTable.revisionId })
+      .from(PostRevisionMediaTable)
+      .innerJoin(MediaTable, eq(MediaTable.id, PostRevisionMediaTable.mediaId))
+      .where(eq(MediaTable.key, key))
+      .limit(1),
+  ]);
 
-  return result.length > 0;
+  return inPost.length > 0 || inRevision.length > 0;
 }
 
 export async function getLinkedMediaKeys(
@@ -168,11 +248,21 @@ export async function getLinkedMediaKeys(
 ): Promise<Array<string>> {
   if (keys.length === 0) return [];
 
-  const results = await db
-    .selectDistinct({ key: MediaTable.key })
-    .from(MediaTable)
-    .innerJoin(PostMediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
-    .where(inArray(MediaTable.key, keys));
+  const [inPosts, inRevisions] = await Promise.all([
+    db
+      .selectDistinct({ key: MediaTable.key })
+      .from(MediaTable)
+      .innerJoin(PostMediaTable, eq(MediaTable.id, PostMediaTable.mediaId))
+      .where(inArray(MediaTable.key, keys)),
+    db
+      .selectDistinct({ key: MediaTable.key })
+      .from(MediaTable)
+      .innerJoin(
+        PostRevisionMediaTable,
+        eq(MediaTable.id, PostRevisionMediaTable.mediaId),
+      )
+      .where(inArray(MediaTable.key, keys)),
+  ]);
 
-  return results.map((r) => r.key);
+  return [...new Set([...inPosts, ...inRevisions].map((r) => r.key))];
 }

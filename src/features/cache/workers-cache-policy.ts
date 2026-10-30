@@ -35,6 +35,11 @@ function postCacheTag(slug: string): string {
   return `post:${encodeURIComponent(slug)}`;
 }
 
+// Every cached response for one Media key, original and transforms alike.
+function mediaCacheTag(key: string): string {
+  return `media:${encodeURIComponent(key)}`;
+}
+
 export function workersCacheKey(url: string | URL): string {
   const parsed = typeof url === "string" ? new URL(url) : url;
   const pathname = parsed.pathname;
@@ -92,7 +97,9 @@ export function workersCachePolicy(pathname: string): WorkersCachePolicy {
     return { cache: "public", tags: [] };
   }
   if (path.startsWith("/images/")) {
-    return { cache: "public", tags: [] };
+    // The image route reads the key from the raw path, as here.
+    const key = path.slice("/images/".length);
+    return { cache: "public", tags: key ? [mediaCacheTag(key)] : [] };
   }
 
   const postMatch = /^\/post\/(.+)$/.exec(path);
@@ -136,6 +143,14 @@ export function purgeOptionsFor(
     return { tags: [POSTS_TAG, postCacheTag(params.slug)] };
   }
   return { tags: [POSTS_TAG] };
+}
+
+/**
+ * Replacing a Media file keeps its key and every address that names it, so
+ * the cached copies of that key go instead (ADR 0009 purges by Cache-Tag).
+ */
+export function mediaPurgeTarget(key: string): WorkersCachePurgeTarget {
+  return { tags: [mediaCacheTag(key)] };
 }
 
 export function applyWorkersCachePolicy(

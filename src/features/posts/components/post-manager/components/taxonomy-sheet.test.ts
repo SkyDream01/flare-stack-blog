@@ -29,7 +29,12 @@ vi.mock("@/hooks/use-motion", async (importOriginal) => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-type Row = { id: number; name: string; postCount: number };
+type Row = {
+  id: number;
+  name: string;
+  postCount: number;
+  publicPostCount: number;
+};
 const data = vi.hoisted(() => ({
   categories: [] as Array<Row>,
   tags: [] as Array<Row>,
@@ -86,13 +91,13 @@ vi.mock("@/lib/orpc", async () => {
 
 beforeEach(() => {
   data.categories = [
-    { id: 1, name: "Rust", postCount: 3 },
-    { id: 2, name: "Notes", postCount: 0 },
+    { id: 1, name: "Rust", postCount: 3, publicPostCount: 2 },
+    { id: 2, name: "Notes", postCount: 0, publicPostCount: 0 },
   ];
   data.tags = [
-    { id: 7, name: "react", postCount: 4 },
-    { id: 8, name: "old", postCount: 0 },
-    { id: 9, name: "stale", postCount: 0 },
+    { id: 7, name: "react", postCount: 4, publicPostCount: 1 },
+    { id: 8, name: "old", postCount: 0, publicPostCount: 0 },
+    { id: 9, name: "stale", postCount: 0, publicPostCount: 0 },
   ];
   for (const request of Object.values(requests)) request.mockReset();
   vi.stubGlobal("matchMedia", () => ({
@@ -150,9 +155,9 @@ async function openRowMenu(name: string, command: string) {
 
 it("filters by substring ignoring case, and creates only a new name", () => {
   const items: Array<TaxonomyItem> = [
-    { id: 1, name: "Rust", postCount: 1 },
-    { id: 2, name: "Trusty", postCount: 0 },
-    { id: 3, name: "Go", postCount: 0 },
+    { id: 1, name: "Rust", postCount: 1, publicPostCount: 0 },
+    { id: 2, name: "Trusty", postCount: 0, publicPostCount: 0 },
+    { id: 3, name: "Go", postCount: 0, publicPostCount: 0 },
   ];
   expect(filterTaxonomy(items, " rUs ").map((item) => item.id)).toEqual([1, 2]);
   expect(filterTaxonomy(items, "")).toBe(items);
@@ -179,7 +184,10 @@ it("focuses the field, filters live and picks a row as the list filter", async (
 
 it("creates the typed name on Enter, then clears the field", async () => {
   requests.createCategory.mockImplementation(async ({ name }) => {
-    data.categories = [...data.categories, { id: 3, name, postCount: 0 }];
+    data.categories = [
+      ...data.categories,
+      { id: 3, name, postCount: 0, publicPostCount: 0 },
+    ];
     return { id: 3, name };
   });
   renderSheet();
@@ -260,7 +268,7 @@ it("renames a row inline: Escape cancels, Enter saves, errors stay inline", asyn
   await rowButton("Rustacean", 3);
 });
 
-it("confirms a delete with how many posts lose the category", async () => {
+it("confirms a delete with how many posts, and how many published ones, lose the category", async () => {
   requests.removeCategory.mockImplementation(async ({ id }) => {
     data.categories = data.categories.filter((item) => item.id !== id);
     return {};
@@ -274,7 +282,11 @@ it("confirms a delete with how many posts lose the category", async () => {
   });
   expect(
     within(dialog).getByText(
-      m.taxonomy_sheet_delete_category_desc({ name: "Rust", count: 3 }),
+      m.taxonomy_sheet_delete_category_desc({
+        name: "Rust",
+        count: 3,
+        published: 2,
+      }),
     ),
   ).toBeDefined();
   await act(async () =>
@@ -287,6 +299,43 @@ it("confirms a delete with how many posts lose the category", async () => {
   await waitFor(() =>
     expect(screen.queryByRole("button", { name: /Rust/ })).toBeNull(),
   );
+});
+
+it("says published posts are untouched when none of them carry the tag", async () => {
+  data.tags = [{ id: 7, name: "react", postCount: 4, publicPostCount: 0 }];
+  renderSheet();
+  fireEvent.click(screen.getByRole("radio", { name: m.tag_manager_title() }));
+  await rowButton("react", 4);
+
+  await openRowMenu("react", m.category_manager_delete());
+  const dialog = await screen.findByRole("dialog", {
+    name: m.tag_manager_delete_title(),
+  });
+  expect(
+    within(dialog).getByText(
+      m.taxonomy_sheet_delete_tag_desc_draft_only({ name: "react", count: 4 }),
+    ),
+  ).toBeDefined();
+});
+
+it("confirms a tag delete with how many published posts lose it at once", async () => {
+  renderSheet();
+  fireEvent.click(screen.getByRole("radio", { name: m.tag_manager_title() }));
+  await rowButton("react", 4);
+
+  await openRowMenu("react", m.category_manager_delete());
+  const dialog = await screen.findByRole("dialog", {
+    name: m.tag_manager_delete_title(),
+  });
+  expect(
+    within(dialog).getByText(
+      m.taxonomy_sheet_delete_tag_desc({
+        name: "react",
+        count: 4,
+        published: 1,
+      }),
+    ),
+  ).toBeDefined();
 });
 
 it("deletes every unused tag one by one", async () => {

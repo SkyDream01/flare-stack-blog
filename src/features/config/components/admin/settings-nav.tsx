@@ -12,6 +12,7 @@ const LABELS: Record<SettingsPageId, () => string> = {
   site: () => m.settings_nav_site(),
   notify: () => m.settings_nav_notify(),
   "api-keys": () => m.settings_nav_api_keys(),
+  "agent-skill": () => m.settings_nav_agent_skill(),
   "muted-users": () => m.muted_users_title(),
   maintenance: () => m.settings_nav_maintenance(),
 };

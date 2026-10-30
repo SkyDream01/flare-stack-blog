@@ -14,6 +14,7 @@ import {
 } from "@/features/webhook/webhook.schema";
 import { serverEnv } from "@/lib/env/server.env";
 import { adminProcedure } from "@/lib/orpc/procedure";
+import { SuccessResponseSchema } from "@/lib/orpc/success-schema";
 
 const webhookErrors = {
   ...CONFIG_ERRORS,
@@ -46,6 +47,7 @@ const test = adminProcedure
       })
       .strict(),
   )
+  .output(SuccessResponseSchema)
   .handler(async ({ context, input, errors }) => {
     const locale = serverEnv(context.env).LOCALE;
     const endpoint = {
@@ -93,6 +95,21 @@ const telegramChats = adminProcedure
     tags: ["Admin Webhooks"],
   })
   .input(z.object({ token: SavedSecretInputSchema }).strict())
+  .output(
+    z.object({
+      chats: z.array(
+        z.object({
+          id: z
+            .string()
+            .describe("The Chat ID to enter in the webhook settings."),
+          name: z.string().describe("Chat title, person name or username."),
+          type: z
+            .string()
+            .describe("Telegram chat type, such as private or group."),
+        }),
+      ),
+    }),
+  )
   .handler(async ({ context, input, errors }) => {
     const token = await resolveTestSecret(
       context,

@@ -24,7 +24,12 @@ export function useMediaUrlImport(known: ReadonlyArray<MediaAsset>) {
     setImporting(true);
     try {
       const media = await orpcClient.media.importFromUrl({ url: trimmed });
-      return { ...media, postCount: 0, isCover: false };
+      return {
+        ...media,
+        postCount: 0,
+        revisionOnlyPostCount: 0,
+        isCover: false,
+      };
     } catch {
       toast.error(m.media_import_fail());
       return null;

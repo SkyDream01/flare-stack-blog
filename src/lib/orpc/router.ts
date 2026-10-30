@@ -4,6 +4,7 @@ import "@/features/posts/posts.cache";
 import "@/features/categories/categories.cache";
 import "@/features/tags/tags.cache";
 import { lazy, type UnlaziedRouter } from "@orpc/server";
+import pairingRouter from "@/features/agent-pairing/server/router";
 import categoriesRouter from "@/features/categories/server/router";
 import commentsRouter from "@/features/comments/server/router";
 import configRouter from "@/features/config/server/router";
@@ -47,6 +48,7 @@ export const router = {
   webhooks: lazy(() => import("@/features/webhook/server/router"), {
     prefix: "/admin/webhooks",
   }),
+  pairing: pairingRouter,
 };
 
 /** The router with every lazy part loaded: the shape clients call. */

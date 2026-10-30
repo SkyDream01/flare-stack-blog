@@ -29,6 +29,7 @@ const CAT = {
   height: 480,
   createdAt: new Date("2026-10-01T00:00:00Z"),
   postCount: 1,
+  revisionOnlyPostCount: 0,
   isCover: false,
 };
 

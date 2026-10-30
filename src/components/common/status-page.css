@@ -40,6 +40,7 @@
   font-weight: 700;
   line-height: 1.4;
   text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 .site-status-description {
   max-width: 440px;

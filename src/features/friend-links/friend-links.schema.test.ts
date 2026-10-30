@@ -30,32 +30,34 @@ describe("Friend Link input schemas", () => {
   });
 
   it.each([
-    ["submit", SubmitFriendLinkInputSchema],
-    ["create", CreateFriendLinkInputSchema],
-    ["update", UpdateFriendLinkInputSchema],
-  ] as const)("preserves listing field boundaries for %s", (_, schema) => {
-    const input = { id: 1, ...listing };
-    expect(schema.safeParse(input).success).toBe(true);
-    expect(
-      schema.safeParse({
-        ...input,
-        siteName: "x".repeat(100),
-        description: "x".repeat(300),
-        logoUrl: "",
-      }).success,
-    ).toBe(true);
-    for (const invalid of [
-      { siteName: "" },
-      { siteName: "x".repeat(101) },
-      { siteUrl: "example.com" },
-      { description: "x".repeat(301) },
-      { description: null },
-      { logoUrl: "example.com/logo.png" },
-      { logoUrl: null },
-    ]) {
-      expect(schema.safeParse({ ...input, ...invalid }).success).toBe(false);
-    }
-  });
+    ["submit", SubmitFriendLinkInputSchema, { id: 1, ...listing }],
+    ["create", CreateFriendLinkInputSchema, listing],
+    ["update", UpdateFriendLinkInputSchema, { id: 1, ...listing }],
+  ] as const)(
+    "preserves listing field boundaries for %s",
+    (_, schema, input) => {
+      expect(schema.safeParse(input).success).toBe(true);
+      expect(
+        schema.safeParse({
+          ...input,
+          siteName: "x".repeat(100),
+          description: "x".repeat(300),
+          logoUrl: "",
+        }).success,
+      ).toBe(true);
+      for (const invalid of [
+        { siteName: "" },
+        { siteName: "x".repeat(101) },
+        { siteUrl: "example.com" },
+        { description: "x".repeat(301) },
+        { description: null },
+        { logoUrl: "example.com/logo.png" },
+        { logoUrl: null },
+      ]) {
+        expect(schema.safeParse({ ...input, ...invalid }).success).toBe(false);
+      }
+    },
+  );
 
   it("keeps submission, manual creation, and partial update IDs distinct", () => {
     expect(SubmitFriendLinkInputSchema.parse(listing)).toEqual(listing);
@@ -68,13 +70,16 @@ describe("Friend Link input schemas", () => {
         SubmitFriendLinkInputSchema.safeParse({ ...listing, id }).success,
       ).toBe(false);
     }
-    expect(CreateFriendLinkInputSchema.parse({ id: 1, ...listing })).toEqual(
-      listing,
-    );
+    // Manual creation takes no id: an unknown field is refused, not dropped.
+    expect(
+      CreateFriendLinkInputSchema.safeParse({ id: 1, ...listing }).success,
+    ).toBe(false);
     expect(UpdateFriendLinkInputSchema.safeParse({}).success).toBe(false);
+    // The update's id is its path id: a positive whole number.
     for (const id of [0, -1, 1.5]) {
-      expect(UpdateFriendLinkInputSchema.parse({ id })).toEqual({ id });
+      expect(UpdateFriendLinkInputSchema.safeParse({ id }).success).toBe(false);
     }
+    expect(UpdateFriendLinkInputSchema.parse({ id: 1 })).toEqual({ id: 1 });
     expect(UpdateFriendLinkInputSchema.parse({ id: 1, logoUrl: "" })).toEqual({
       id: 1,
       logoUrl: "",

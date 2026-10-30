@@ -15,6 +15,12 @@ export const CACHE_CONTROL = {
     "Cache-Control": "public, max-age=0, must-revalidate",
     "CDN-Cache-Control": "public, s-maxage=1, stale-while-revalidate=604800",
   },
+  // Media keeps its address when its file is replaced, so browsers revalidate
+  // every time; the edge keeps a copy until the replace purges it by Cache-Tag.
+  media: {
+    "Cache-Control": "public, max-age=0, must-revalidate",
+    "CDN-Cache-Control": "public, max-age=31536000",
+  },
   immutable: {
     "Cache-Control": "public, max-age=31536000, immutable",
     "CDN-Cache-Control": "public, max-age=31536000, immutable",

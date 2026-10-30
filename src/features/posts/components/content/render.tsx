@@ -14,6 +14,7 @@ import { cellAlign } from "@/features/posts/editor/extensions/table/column-align
 import { tableColumnLayout } from "@/features/posts/editor/extensions/table/column-widths";
 import { isMermaidLanguage } from "@/lib/code-languages";
 import { parseImageSize } from "@/features/posts/utils/normalize-content";
+import { publicLinkAttributes } from "@/features/posts/utils/public-link";
 import {
   clampHeadingLevel,
   withUniqueHeadingIds,
@@ -203,6 +204,21 @@ export function renderReact(
             >
               {latex}
             </div>
+          );
+        },
+      },
+      markMapping: {
+        link: ({ mark, children }) => {
+          const link = publicLinkAttributes(mark.attrs);
+          return (
+            <a
+              href={link.href}
+              title={link.title}
+              target={link.target}
+              rel={link.rel}
+            >
+              {children}
+            </a>
           );
         },
       },

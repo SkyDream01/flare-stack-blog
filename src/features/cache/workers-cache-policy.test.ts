@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CACHE_CONTROL } from "@/lib/constants";
 import {
   applyWorkersCachePolicy,
+  mediaPurgeTarget,
   purgeOptionsFor,
   workersCacheKey,
   workersCachePolicy,
@@ -96,11 +97,30 @@ describe("workersCachePolicy", () => {
     });
   });
 
-  it("allows images to cache without content tags", () => {
+  it("tags images by their Media key only", () => {
     expect(workersCachePolicy("/images/cover.webp")).toEqual({
       cache: "public",
-      tags: [],
+      tags: ["media:cover.webp"],
     });
+    expect(workersCachePolicy("/images/asset/themes/bg.webp")).toEqual({
+      cache: "public",
+      tags: ["media:asset%2Fthemes%2Fbg.webp"],
+    });
+  });
+
+  it("purges every cached copy of a replaced Media key", () => {
+    const target = mediaPurgeTarget("cover.webp") as { tags: string[] };
+    const policy = workersCachePolicy("/images/cover.webp");
+    if (policy.cache !== "public") throw new Error("images must be public");
+    expect(target.tags).toEqual(policy.tags);
+    for (const path of ["/", "/post/hello", "/images/other.webp"]) {
+      const other = workersCachePolicy(path);
+      if (other.cache !== "public") continue;
+      expect(
+        target.tags.some((tag) => other.tags.includes(tag)),
+        path,
+      ).toBe(false);
+    }
   });
 
   it("keeps APIs, admin, and unsubscribe out of the public cache", () => {

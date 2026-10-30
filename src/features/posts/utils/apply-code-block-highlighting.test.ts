@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyCodeBlockHighlighting,
   codeBlockHighlightKey,
+  removeCodeBlockHighlighting,
   snapshotHighlightedHtmlByKey,
 } from "./apply-code-block-highlighting";
 
@@ -172,5 +173,36 @@ describe("snapshotHighlightedHtmlByKey", () => {
 
   it("returns an empty map when there is no snapshot", () => {
     expect(snapshotHighlightedHtmlByKey(null).size).toBe(0);
+  });
+});
+
+describe("removeCodeBlockHighlighting", () => {
+  it("gives back the body a published snapshot was built from", () => {
+    const draft: JSONContent = {
+      type: "doc",
+      content: [
+        {
+          type: "codeBlock",
+          attrs: { language: "ts" },
+          content: [{ type: "text", text: "const answer = 42;" }],
+        },
+        { type: "codeBlock", content: [{ type: "text", text: "bare" }] },
+      ],
+    };
+    const published = applyCodeBlockHighlighting(draft, null)!;
+    const [typed, bare] = published.content!;
+    typed.attrs = { ...typed.attrs, highlightedHtml: SHIKI_TYPESCRIPT };
+    bare.attrs = { ...bare.attrs, highlightedHtml: ERROR_FALLBACK };
+
+    const restored = removeCodeBlockHighlighting(published);
+
+    expect(JSON.stringify(restored)).toBe(JSON.stringify(draft));
+    expect(typed.attrs.highlightedHtml).toBe(SHIKI_TYPESCRIPT);
+  });
+
+  it("keeps a body without code blocks as it is", () => {
+    const doc = codeDoc([], [{ type: "paragraph" }]);
+    expect(removeCodeBlockHighlighting(doc)).toEqual(doc);
+    expect(removeCodeBlockHighlighting(null)).toBeNull();
   });
 });

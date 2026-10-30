@@ -2,6 +2,7 @@ import { formatPublicPostDate } from "@/features/posts/utils/format-public-post-
 import { ClientOnly, Link } from "@tanstack/react-router";
 import { ExternalLink, EyeOff, Pin, PinOff, Trash2 } from "lucide-react";
 import { ActionMenu, type ActionMenuItem } from "@/components/ui/action-menu";
+import { postStateOf } from "@/features/posts/components/post-state";
 import { PostStatusBadge } from "@/features/posts/components/post-status-badge";
 import { openPublicPost } from "@/features/posts/utils/open-public-post";
 import { formatDate } from "@/lib/utils";
@@ -82,7 +83,12 @@ export function PostRow({
         </div>
       </td>
       <td>
-        <PostStatusBadge published={post.status === "published"} />
+        <PostStatusBadge
+          state={postStateOf({
+            published,
+            hasUnpublishedChanges: post.hasUnpublishedChanges,
+          })}
+        />
       </td>
       <td className="post-list-date">
         <span className="post-list-mobile-date-label">

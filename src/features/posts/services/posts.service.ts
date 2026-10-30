@@ -1,7 +1,12 @@
+import type { JSONContent } from "@tiptap/react";
 import { invalidate } from "@/features/cache/public-cache";
 import * as CategoryRepo from "@/features/categories/data/categories.data";
 import * as MediaRepo from "@/features/media/data/media.data";
-import { syncPostMedia } from "@/features/posts/data/post-media.data";
+import {
+  findMissingMediaKeys,
+  isMediaGone,
+  syncPostMedia,
+} from "@/features/posts/data/post-media.data";
 import * as PostRevisionRepo from "@/features/posts/data/post-revisions.data";
 import * as PostRepo from "@/features/posts/data/posts.data";
 import {
@@ -19,7 +24,9 @@ import type {
   GetPostsCountInput,
   GetPostsCursorInput,
   GetPostsInput,
+  PinPostInput,
   PublishPostInput,
+  UnpinPostInput,
   UnpublishPostInput,
   UpdatePostInput,
 } from "@/features/posts/schema/posts.schema";
@@ -30,27 +37,82 @@ import {
 import { toIsoOrNull } from "@/features/posts/public-snapshot";
 import type { PublicPostCover } from "@/lib/db/schema";
 
-import { slugify } from "@/features/posts/utils/content";
+import {
+  extractMediaPathImages,
+  slugify,
+} from "@/features/posts/utils/content";
+import {
+  isReservedPostSlug,
+  truncateGeneratedSlug,
+} from "@/features/posts/utils/post-fields";
 import { normalizePostContent } from "@/features/posts/utils/normalize-content";
+import { contentTooLarge } from "@/features/posts/utils/post-content-size";
+import { sameJson } from "@/features/posts/utils/same-json";
 import {
   isFuturePublishDate,
   serverUtcDateString,
+  toWholeSecond,
 } from "@/features/posts/utils/date";
-import { calculatePostHash } from "@/features/posts/utils/sync";
+import * as UnpublishedChangesService from "@/features/posts/services/unpublished-changes.service";
+import {
+  calculateDraftFingerprint,
+  calculatePostHash,
+} from "@/features/posts/utils/sync";
+import {
+  hasUnpublishedChanges,
+  needsFingerprints,
+} from "@/features/posts/utils/unpublished-changes";
 import { generateTableOfContents } from "@/features/posts/utils/toc";
 import * as SearchService from "@/features/search/service/search.service";
 import type { PublicPostSnapshot } from "@/lib/db/schema";
+import {
+  isUniqueViolation,
+  POST_PUBLIC_SLUG,
+  POST_SLUG,
+} from "@/lib/db/unique-keys";
+import { serverEnv } from "@/lib/env/server.env";
 import { err, ok } from "@/lib/errors";
 
 function stripPublicSnapshot<
-  T extends { publicSnapshotJson?: unknown; publicSlug?: unknown },
->(post: T): Omit<T, "publicSnapshotJson" | "publicSlug"> {
+  T extends {
+    publicSnapshotJson?: unknown;
+    publicSlug?: unknown;
+    draftFingerprint?: unknown;
+    publishedFingerprint?: unknown;
+  },
+>(
+  post: T,
+): Omit<
+  T,
+  | "publicSnapshotJson"
+  | "publicSlug"
+  | "draftFingerprint"
+  | "publishedFingerprint"
+> {
   const {
     publicSnapshotJson: _publicSnapshotJson,
     publicSlug: _publicSlug,
+    draftFingerprint: _draftFingerprint,
+    publishedFingerprint: _publishedFingerprint,
     ...rest
   } = post;
   return rest;
+}
+
+/** `post` with the fingerprints a Published Post had not computed yet. */
+async function withSettledFingerprints<
+  T extends {
+    id: number;
+    status: "draft" | "published";
+    draftFingerprint: string | null;
+    publishedFingerprint: string | null;
+  },
+>(db: DB, post: T): Promise<T> {
+  if (!needsFingerprints(post)) return post;
+  const settled = (
+    await UnpublishedChangesService.settleFingerprints(db, { postId: post.id })
+  ).get(post.id);
+  return settled ? { ...post, ...settled } : post;
 }
 
 async function resolveSnapshotCover(
@@ -94,10 +156,61 @@ async function buildPublicSnapshot(
     contentJson,
     tagIds: [...new Set(post.tags.map((tag) => tag.id))].sort((a, b) => a - b),
     categoryId: post.categoryId ?? null,
-    publishedAt: toIsoOrNull(post.publishedAt) ?? new Date().toISOString(),
-    pinnedAt: toIsoOrNull(post.pinnedAt),
+    publishedAt:
+      toIsoOrNull(post.publishedAt) ?? toWholeSecond(new Date()).toISOString(),
+    lastPublishedAt: new Date().toISOString(),
     cover: await resolveSnapshotCover(db, post.coverMediaId),
   };
+}
+
+/**
+ * The Media keys a body written into a draft uses by path (`/images/{key}`,
+ * alone or on the site's own address), or the images whose Media does not
+ * exist. An image the Post's stored draft (`postId`) already shows by path is
+ * accepted even when its Media is gone, so a body with an old broken image
+ * can still be saved; it cannot be added anew.
+ */
+async function bodyMediaReferences(
+  context: DbContext,
+  contentJson: JSONContent | null,
+  postId?: number,
+) {
+  const { db } = context;
+  const siteHost = serverEnv(context.env).DOMAIN;
+  const images = extractMediaPathImages(contentJson, siteHost);
+  const keys = [...new Set(images.map((image) => image.key))];
+  const missing = await findMissingMediaKeys(db, keys);
+  const refusedKeys = new Set(missing);
+  if (refusedKeys.size > 0 && postId !== undefined) {
+    const stored = await PostRepo.findPostContentJson(db, postId);
+    for (const { key } of extractMediaPathImages(stored, siteHost)) {
+      refusedKeys.delete(key);
+    }
+  }
+  const refused = images.filter((image) => refusedKeys.has(image.key));
+  if (refused.length > 0) {
+    return err({
+      reason: "CONTENT_IMAGE_NOT_FOUND",
+      images: [...new Set(refused.map((image) => image.src))],
+    });
+  }
+  return ok({ keys: keys.filter((key) => !missing.includes(key)) });
+}
+
+function isForeignKeyFailure(error: unknown) {
+  for (let current = error; current instanceof Error; current = current.cause) {
+    if (/FOREIGN KEY constraint failed/i.test(current.message)) return true;
+  }
+  return false;
+}
+
+/** A conditional write matched nothing: tell a missing Post from a newer save. */
+async function editConflictOrNotFound(db: DB, id: number) {
+  const saveToken = await PostRepo.findPostSaveToken(db, id);
+  if (saveToken === null) {
+    return err({ reason: "POST_NOT_FOUND" });
+  }
+  return err({ reason: "EDIT_CONFLICT", saveToken });
 }
 
 async function createPublishRevision(
@@ -114,7 +227,6 @@ async function createPublishRevision(
     tagIds,
     slug: post.slug,
     publishedAt: post.publishedAt,
-    pinnedAt: post.pinnedAt,
     coverMediaId: post.coverMediaId,
     categoryId: post.categoryId ?? null,
   });
@@ -193,11 +305,13 @@ export async function generateSlug(
   context: DbContext,
   data: GenerateSlugInput,
 ) {
-  const baseSlug = slugify(data.title);
-  // 1. 先查有没有完全一样的 (比如 'hello-world')
-  const exactMatch = await PostRepo.slugExists(context.db, baseSlug, {
-    excludeId: data.excludeId,
-  });
+  const baseSlug = truncateGeneratedSlug(slugify(data.title));
+  // 1. 先查有没有完全一样的 (比如 'hello-world')；保留的 slug 视同已被占用
+  const exactMatch =
+    isReservedPostSlug(baseSlug) ||
+    (await PostRepo.slugExists(context.db, baseSlug, {
+      excludeId: data.excludeId,
+    }));
   if (!exactMatch) {
     return { slug: baseSlug };
   }
@@ -209,7 +323,7 @@ export async function generateSlug(
 
   // 3. 在内存里找最大的数字后缀
   // 正则含义：匹配以 "-数字" 结尾的字符串，并捕获那个数字
-  const regex = new RegExp(`^${baseSlug}-(\\d+)$`);
+  const regex = new RegExp(`^${baseSlug}-(\\d+)$`, "i");
 
   let maxSuffix = 0;
   for (const slug of similarSlugs) {
@@ -226,15 +340,23 @@ export async function generateSlug(
   return { slug: `${baseSlug}-${maxSuffix + 1}` };
 }
 
-const SLUG_CONFLICT_PATTERN = /UNIQUE constraint failed:\s*posts\.slug/i;
 const SLUG_INSERT_ATTEMPTS = 5;
 const SLUG_DERIVED_ATTEMPTS = 2;
 
 function isSlugConflict(error: unknown) {
-  for (let current = error; current instanceof Error; current = current.cause) {
-    if (SLUG_CONFLICT_PATTERN.test(current.message)) return true;
-  }
-  return false;
+  return isUniqueViolation(error, POST_SLUG);
+}
+
+/**
+ * Whether saving `slug` would collide with another Post's slug or live page,
+ * ignoring case and NFKC forms. A Post already carrying exactly that slug
+ * keeps it, so a collision older than this check does not stop its saves.
+ */
+async function slugTakenByAnotherPost(db: DB, id: number, slug: string) {
+  if (!(await PostRepo.slugExists(db, slug, { excludeId: id }))) return false;
+  const own = await PostRepo.findPostSlug(db, id);
+  // A missing Post is answered by the write as POST_NOT_FOUND.
+  return own !== null && own !== slug;
 }
 
 function randomSlugSuffix() {
@@ -256,16 +378,18 @@ async function insertDraftWithGeneratedSlug(
   context: DbContext,
   title: string,
   values: Omit<Parameters<typeof PostRepo.insertPost>[1], "slug">,
+  options: Parameters<typeof PostRepo.insertPost>[2] = {},
 ) {
   for (let attempt = 1; ; attempt += 1) {
     const { slug } = await generateSlug(context, { title });
     const candidate =
       attempt <= SLUG_DERIVED_ATTEMPTS ? slug : `${slug}-${randomSlugSuffix()}`;
     try {
-      return await PostRepo.insertPost(context.db, {
-        ...values,
-        slug: candidate,
-      });
+      return await PostRepo.insertPost(
+        context.db,
+        { ...values, slug: candidate },
+        options,
+      );
     } catch (error) {
       if (attempt >= SLUG_INSERT_ATTEMPTS || !isSlugConflict(error))
         throw error;
@@ -279,23 +403,44 @@ async function insertDraftWithGeneratedSlug(
  * safely retry a failed create or create several posts in a row.
  */
 export async function createDraft(context: DbContext, data: CreatePostData) {
-  const post = await insertDraftWithGeneratedSlug(context, data.title, {
-    title: data.title,
-    summary: data.summary ?? null,
-    status: "draft",
-    contentJson: normalizePostContent(data.contentJson ?? null),
-  });
+  const contentJson = normalizePostContent(data.contentJson ?? null);
+  const tooLarge = contentTooLarge("contentJson", contentJson);
+  if (tooLarge) return err(tooLarge);
+
+  const references = await bodyMediaReferences(context, contentJson);
+  if (references.error) return references;
+
+  let post;
+  try {
+    post = await insertDraftWithGeneratedSlug(
+      context,
+      data.title,
+      {
+        title: data.title,
+        summary: data.summary ?? null,
+        status: "draft",
+        contentJson,
+      },
+      { media: { keys: references.data.keys, mediaIds: [] } },
+    );
+  } catch (error) {
+    // Media the body uses was deleted after the check; nothing was written.
+    if (!isMediaGone(error)) throw error;
+    const recheck = await bodyMediaReferences(context, contentJson);
+    if (recheck.error) return recheck;
+    throw error;
+  }
 
   await syncPostMedia(context.db, post);
 
-  return { id: post.id };
+  return ok({ id: post.id, saveToken: post.saveToken });
 }
 
 export async function createEmptyPost(context: DbContext) {
   try {
     const existing = await PostRepo.findReusableEmptyDraft(context.db);
     if (existing) {
-      return { id: existing.id };
+      return { id: existing.id, saveToken: existing.saveToken };
     }
   } catch (error) {
     console.warn(
@@ -313,13 +458,15 @@ export async function createEmptyPost(context: DbContext) {
     contentJson: null,
   });
 
-  return { id: post.id };
+  return { id: post.id, saveToken: post.saveToken };
 }
 
 export async function listAdminPostsPage(
   context: DbContext,
   data: GetPostsInput,
 ) {
+  // The list filters and counts in SQL, which compares fingerprints.
+  await UnpublishedChangesService.settleFingerprints(context.db);
   const [items, statusCounts] = await Promise.all([
     getPosts(context, data),
     PostRepo.getAdminPostStatusCounts(context.db, {
@@ -331,14 +478,18 @@ export async function listAdminPostsPage(
       tagId: data.tagId,
     }),
   ]);
+  const draftTotal = data.hasUnpublishedChanges ? 0 : statusCounts.draft;
+  const publishedTotal = data.hasUnpublishedChanges
+    ? statusCounts.unpublishedChanges
+    : statusCounts.published;
   const total =
     data.status === "draft"
-      ? statusCounts.draft
+      ? draftTotal
       : data.status === "published"
-        ? statusCounts.published
+        ? publishedTotal
         : data.status
           ? 0
-          : statusCounts.draft + statusCounts.published;
+          : draftTotal + publishedTotal;
   return { items, total, statusCounts };
 }
 
@@ -353,6 +504,7 @@ export async function getPosts(context: DbContext, data: GetPostsInput) {
     categoryId: data.categoryId,
     uncategorized: data.uncategorized,
     tagId: data.tagId,
+    hasUnpublishedChanges: data.hasUnpublishedChanges,
     sortDir: data.sortDir,
     sortBy: data.sortBy,
     includeContent: data.includeContent,
@@ -363,7 +515,11 @@ export async function getPostsCount(
   context: DbContext,
   data: GetPostsCountInput,
 ) {
+  if (data.hasUnpublishedChanges) {
+    await UnpublishedChangesService.settleFingerprints(context.db);
+  }
   return await PostRepo.getPostsCount(context.db, {
+    hasUnpublishedChanges: data.hasUnpublishedChanges,
     status: data.status,
     publicOnly: data.publicOnly,
     search: data.search,
@@ -392,8 +548,9 @@ export async function findPostById(
   context: DbContext,
   data: FindPostByIdInput,
 ) {
-  const post = await PostRepo.findPostById(context.db, data.id);
-  if (!post) return null;
+  const found = await PostRepo.findPostById(context.db, data.id);
+  if (!found) return null;
+  const post = await withSettledFingerprints(context.db, found);
 
   const coverMedia =
     post.coverMediaId == null
@@ -406,9 +563,44 @@ export async function findPostById(
     coverMediaId: coverMedia ? post.coverMediaId : null,
     cover: coverMedia ? toAdminCover(coverMedia) : null,
     hasPublicSnapshot: post.publicSnapshotJson != null,
+    hasUnpublishedChanges: hasUnpublishedChanges(post),
     publicSnapshotContentJson: post.publicSnapshotJson?.contentJson ?? null,
     serverToday: serverUtcDateString(),
   };
+}
+
+export async function postExists(context: DbContext, id: number) {
+  return (await PostRepo.findPostSaveToken(context.db, id)) !== null;
+}
+
+/**
+ * Whether saving `data` would leave the draft as it is: every field it states
+ * already holds that value. Dates compare to the whole second, which is all
+ * the column keeps.
+ */
+function leavesDraftUnchanged(
+  post: NonNullable<Awaited<ReturnType<typeof PostRepo.findPostById>>>,
+  data: UpdatePostInput["data"],
+) {
+  const seconds = (date: Date | null | undefined) =>
+    date == null ? null : Math.floor(date.getTime() / 1000);
+  return Object.entries(data).every(([field, value]) => {
+    if (value === undefined) return true;
+    switch (field) {
+      case "title":
+      case "summary":
+      case "slug":
+      case "coverMediaId":
+      case "categoryId":
+        return post[field] === value;
+      case "contentJson":
+        return sameJson(post.contentJson, value);
+      case "publishedAt":
+        return seconds(post.publishedAt) === seconds(value as Date | null);
+      default:
+        return false;
+    }
+  });
 }
 
 export async function updatePost(
@@ -435,6 +627,13 @@ export async function updatePost(
     }
   }
 
+  if (
+    data.data.slug !== undefined &&
+    (await slugTakenByAnotherPost(context.db, data.id, data.data.slug))
+  ) {
+    return err({ reason: "SLUG_TAKEN" });
+  }
+
   const updateData =
     data.data.contentJson !== undefined
       ? {
@@ -442,14 +641,79 @@ export async function updatePost(
           contentJson: normalizePostContent(data.data.contentJson),
         }
       : data.data;
-  const updatedPost = await PostRepo.updatePost(
-    context.db,
-    data.id,
-    updateData,
-  );
-  if (!updatedPost) {
-    return err({ reason: "POST_NOT_FOUND" });
+  const tooLarge = contentTooLarge("contentJson", updateData.contentJson);
+  if (tooLarge) return err(tooLarge);
+
+  // A save that changes nothing writes nothing, so it keeps the saveToken an
+  // open editor holds. A stated token still has to be the current one.
+  const current = await PostRepo.findPostById(context.db, data.id);
+  if (current && leavesDraftUnchanged(current, updateData)) {
+    if (data.saveToken !== undefined && data.saveToken !== current.saveToken) {
+      return err({ reason: "EDIT_CONFLICT", saveToken: current.saveToken });
+    }
+    const unchanged = await withSettledFingerprints(context.db, current);
+    return ok({
+      ...stripPublicSnapshot(unchanged),
+      hasUnpublishedChanges: hasUnpublishedChanges(unchanged),
+    });
   }
+
+  let bodyKeys: Array<string> = [];
+  if (updateData.contentJson !== undefined) {
+    const references = await bodyMediaReferences(
+      context,
+      updateData.contentJson,
+      data.id,
+    );
+    if (references.error) return references;
+    bodyKeys = references.data.keys;
+  }
+  const coverMediaId = updateData.coverMediaId;
+  let updatedPost;
+  try {
+    updatedPost = await PostRepo.updatePost(context.db, data.id, updateData, {
+      saveToken: data.saveToken,
+      media: {
+        keys: bodyKeys,
+        mediaIds: coverMediaId == null ? [] : [coverMediaId],
+      },
+    });
+  } catch (error) {
+    // A concurrent save claimed the same slug between the check and the write.
+    if (isSlugConflict(error)) return err({ reason: "SLUG_TAKEN" });
+    // Media or the Category the write uses was deleted after the check (the
+    // cover and the Category are foreign keys too); nothing was written.
+    if (isMediaGone(error) || isForeignKeyFailure(error)) {
+      if (
+        coverMediaId != null &&
+        !(await MediaRepo.findMediaById(context.db, coverMediaId))
+      ) {
+        return err({ reason: "MEDIA_NOT_FOUND" });
+      }
+      if (
+        updateData.categoryId != null &&
+        !(await CategoryRepo.findCategoryById(
+          context.db,
+          updateData.categoryId,
+        ))
+      ) {
+        return err({ reason: "CATEGORY_NOT_FOUND" });
+      }
+      if (updateData.contentJson !== undefined) {
+        const recheck = await bodyMediaReferences(
+          context,
+          updateData.contentJson,
+          data.id,
+        );
+        if (recheck.error) return recheck;
+      }
+    }
+    throw error;
+  }
+  if (!updatedPost) {
+    return editConflictOrNotFound(context.db, data.id);
+  }
+  const savedPost = await withSettledFingerprints(context.db, updatedPost);
 
   if (
     updateData.contentJson !== undefined ||
@@ -458,14 +722,12 @@ export async function updatePost(
     await syncPostMedia(context.db, updatedPost);
   }
 
-  if (updateData.categoryId !== undefined && updatedPost.publicSnapshotJson) {
-    context.executionCtx.waitUntil(
-      invalidate.categoryChanged(context, {
-        slugs: [updatedPost.publicSnapshotJson.slug],
-      }),
-    );
-  }
-  return ok(stripPublicSnapshot(updatedPost));
+  // The Category, like every other field, changes the draft only (ADR 0033),
+  // so no public cache needs purging.
+  return ok({
+    ...stripPublicSnapshot(savedPost),
+    hasUnpublishedChanges: hasUnpublishedChanges(savedPost),
+  });
 }
 
 export async function deletePost(
@@ -479,9 +741,11 @@ export async function deletePost(
 
   await PostRepo.deletePost(context.db, data.id);
 
+  // Whatever the slug is, even an empty one, the Post leaves the Search Index;
+  // the index then only moves if a document was there.
+  await SearchService.deleteIndex(context, { id: data.id });
   const publicSlug = post.publicSlug ?? post.publicSnapshotJson?.slug;
-  if (publicSlug) {
-    await SearchService.deleteIndex(context, { id: data.id });
+  if (publicSlug !== undefined && publicSlug !== null) {
     await invalidate.postDeleted(context, { slug: publicSlug });
   }
 
@@ -496,62 +760,91 @@ export async function publishPost(
   if (!post) {
     return err({ reason: "POST_NOT_FOUND" });
   }
+  if (data.saveToken !== undefined && data.saveToken !== post.saveToken) {
+    return err({ reason: "EDIT_CONFLICT", saveToken: post.saveToken });
+  }
 
-  let publishedPost = post;
-  if (!publishedPost.publishedAt) {
-    const now = new Date();
-    const updated = await PostRepo.updatePost(context.db, post.id, {
-      publishedAt: now,
-    });
-    if (!updated) {
-      return err({ reason: "POST_NOT_FOUND" });
-    }
-    publishedPost = updated;
-  } else if (isFuturePublishDate(publishedPost.publishedAt.toISOString())) {
+  // Draft fields publishing settles. They are written together with the
+  // snapshot below, so a refused publish leaves the draft untouched.
+  const draft: { publishedAt?: Date; contentJson?: typeof post.contentJson } =
+    {};
+  if (!post.publishedAt) {
+    draft.publishedAt = toWholeSecond(new Date());
+  } else if (isFuturePublishDate(post.publishedAt)) {
     return err({ reason: "PUBLISHED_AT_IN_FUTURE" });
   }
 
-  const slugTaken = await PostRepo.publicSlugExists(
-    context.db,
-    publishedPost.slug,
-    { excludeId: publishedPost.id },
-  );
+  // A Post whose live page already has this slug keeps it, even when an older
+  // page differs from it only in case.
+  const slugTaken =
+    post.publicSlug !== post.slug &&
+    (await PostRepo.publicSlugExists(context.db, post.slug, {
+      excludeId: post.id,
+    }));
   if (slugTaken) {
     return err({ reason: "PUBLIC_SLUG_TAKEN" });
   }
 
-  const normalizedContent = normalizePostContent(publishedPost.contentJson);
-  if (normalizedContent) {
-    const updated = await PostRepo.updatePost(context.db, publishedPost.id, {
-      contentJson: normalizedContent,
-    });
-    if (updated) {
-      publishedPost = updated;
-    }
+  const normalizedContent = normalizePostContent(post.contentJson);
+  if (
+    normalizedContent &&
+    JSON.stringify(normalizedContent) !== JSON.stringify(post.contentJson)
+  ) {
+    draft.contentJson = normalizedContent;
   }
+  const publishedPost = { ...post, ...draft };
 
-  await createPublishRevision(context, publishedPost);
-
-  const { highlightSnapshotContent } =
+  const { highlightSnapshotContent, snapshotContentFloor } =
     await import("@/features/posts/utils/highlight-code-blocks");
+  // Highlighting is the costliest step, so a snapshot that is too large even
+  // before it is refused without spending the CPU on it.
+  const floor = await buildPublicSnapshot(
+    context.db,
+    publishedPost,
+    snapshotContentFloor(
+      publishedPost.contentJson,
+      publishedPost.publicSnapshotJson?.contentJson,
+    ),
+  );
+  const floorTooLarge = contentTooLarge("publicSnapshot", floor);
+  if (floorTooLarge) return err(floorTooLarge);
   const snapshotContent = await highlightSnapshotContent(
     publishedPost.contentJson,
     publishedPost.publicSnapshotJson?.contentJson,
   );
-  const snapshot = await buildPublicSnapshot(
-    context.db,
-    publishedPost,
-    snapshotContent,
-  );
+  const snapshot = { ...floor, contentJson: snapshotContent };
+  const snapshotTooLarge = contentTooLarge("publicSnapshot", snapshot);
+  if (snapshotTooLarge) return err(snapshotTooLarge);
   const previousPublicSlug = publishedPost.publicSlug;
-  const published = await PostRepo.writePublicSnapshot(
-    context.db,
-    publishedPost.id,
-    snapshot,
-  );
-  if (!published) {
-    return err({ reason: "POST_NOT_FOUND" });
+  const fingerprint = await calculateDraftFingerprint({
+    ...publishedPost,
+    tagIds: publishedPost.tags.map((tag) => tag.id),
+  });
+  let published;
+  try {
+    // A save landing while the snapshot was built changes the token, so a
+    // stated token refuses it here rather than publishing a draft nobody read.
+    published = await PostRepo.writePublicSnapshot(
+      context.db,
+      publishedPost.id,
+      snapshot,
+      {
+        draft,
+        saveToken: data.saveToken,
+        fingerprint: { value: fingerprint, readSaveToken: post.saveToken },
+      },
+    );
+  } catch (error) {
+    // Another Post went live under the slug after the check.
+    if (isUniqueViolation(error, POST_PUBLIC_SLUG)) {
+      return err({ reason: "PUBLIC_SLUG_TAKEN" });
+    }
+    throw error;
   }
+  if (!published) {
+    return editConflictOrNotFound(context.db, publishedPost.id);
+  }
+  await createPublishRevision(context, publishedPost);
   await syncPostMedia(context.db, published);
 
   await SearchService.upsert(context, {
@@ -569,7 +862,7 @@ export async function publishPost(
   }
   await invalidate.postPublished(context, { slug: snapshot.slug });
 
-  return ok({ success: true });
+  return ok({ success: true, saveToken: published.saveToken });
 }
 
 export async function unpublishPost(
@@ -579,6 +872,11 @@ export async function unpublishPost(
   const post = await PostRepo.findPostById(context.db, data.id);
   if (!post) {
     return err({ reason: "POST_NOT_FOUND" });
+  }
+
+  // A draft has no snapshot to discard, so it is left as it is, token and all.
+  if (post.status === "draft" && post.publicSnapshotJson == null) {
+    return ok({ success: true, saveToken: post.saveToken });
   }
 
   const publicSlug =
@@ -591,5 +889,36 @@ export async function unpublishPost(
   await SearchService.deleteIndex(context, { id: post.id });
   await invalidate.postDeleted(context, { slug: publicSlug });
 
-  return ok({ success: true });
+  return ok({ success: true, saveToken: unpublished.saveToken });
+}
+
+async function setPostPinned(
+  context: DbContext & { executionCtx: ExecutionContext },
+  id: number,
+  pinned: boolean,
+) {
+  const written = await PostRepo.setPostPinned(context.db, id, pinned);
+  if (!written) {
+    return err({ reason: "POST_NOT_FOUND" });
+  }
+  // Pinning orders the whole public site, so a published Post purges at once;
+  // a draft's pin only matters once it is published.
+  if (written.publicSlug) {
+    await invalidate.postPublished(context, { slug: written.publicSlug });
+  }
+  return ok({ success: true, saveToken: written.saveToken });
+}
+
+export function pinPost(
+  context: DbContext & { executionCtx: ExecutionContext },
+  data: PinPostInput,
+) {
+  return setPostPinned(context, data.id, true);
+}
+
+export function unpinPost(
+  context: DbContext & { executionCtx: ExecutionContext },
+  data: UnpinPostInput,
+) {
+  return setPostPinned(context, data.id, false);
 }

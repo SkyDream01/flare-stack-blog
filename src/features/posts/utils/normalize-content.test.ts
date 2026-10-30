@@ -13,13 +13,13 @@ describe("parseImageSize", () => {
 });
 
 describe("normalizePostContent", () => {
-  it("clamps heading levels and strips dead image attrs", () => {
+  it("clamps heading levels and strips dead heading and image attrs", () => {
     const result = normalizePostContent({
       type: "doc",
       content: [
         {
           type: "heading",
-          attrs: { level: 1 },
+          attrs: { level: 1, id: "title", "data-toc-id": "toc-1" },
           content: [{ type: "text", text: "Title" }],
         },
         {
@@ -37,7 +37,7 @@ describe("normalizePostContent", () => {
       ],
     });
 
-    expect(result?.content?.[0]?.attrs?.level).toBe(2);
+    expect(result?.content?.[0]?.attrs).toEqual({ level: 2, id: "title" });
     expect(result?.content?.[1]?.attrs).toEqual({
       src: "https://cdn.example.com/a.png",
       alt: "A",

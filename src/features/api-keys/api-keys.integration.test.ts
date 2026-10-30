@@ -40,7 +40,35 @@ describe("Admin API Keys", () => {
     const revoked = await request(created.key);
     expect(revoked.status).toBe(401);
     expect(await revoked.json()).toMatchObject({ code: "UNAUTHORIZED" });
-    expect((await request("invalid")).status).toBe(403);
+    for (const key of [
+      "invalid",
+      "notakey",
+      "Bearer fsb_x",
+      created.key.slice(0, 10),
+      `${created.key.slice(0, -4)}zzzz`,
+    ]) {
+      const response = await request(key);
+      expect(response.status, key).toBe(401);
+      expect(await response.json()).toMatchObject({ code: "UNAUTHORIZED" });
+    }
+  });
+
+  it("answers 401 when no API Key is sent", async () => {
+    const context = createTestContext();
+    const auth = getAuth({ db: context.db, env });
+    const handler = new OpenAPIHandler({
+      protected: adminProcedure
+        .route({ method: "GET", path: "/protected" })
+        .handler(() => ({ success: true })),
+    });
+
+    for (const headers of [new Headers(), new Headers({ "x-api-key": "" })]) {
+      const result = await handler.handle(
+        new Request("http://localhost:3000/protected", { headers }),
+        { context: { ...context, getAuth: async () => auth, headers } },
+      );
+      expect(result.response?.status).toBe(401);
+    }
   });
 
   it("lets an Admin key impersonate the Admin session and blocks key management", async () => {

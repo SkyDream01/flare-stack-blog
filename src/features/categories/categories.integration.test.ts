@@ -95,7 +95,7 @@ describe("Category", () => {
     });
     expect(post?.category).toBeNull();
   });
-  it("updates shared assignments and warm public caches while keeping edited content unpublished", async () => {
+  it("keeps the published Category and Tags, cached or not, until the Post is published again", async () => {
     const category = unwrap(
       await CategoryService.createCategory(adminContext, {
         name: "New category",
@@ -108,12 +108,12 @@ describe("Category", () => {
     unwrap(
       await PostService.updatePost(adminContext, {
         id,
-        data: { title: "Public title", slug: "shared-assignments" },
+        data: { title: "Public title", slug: "published-assignments" },
       }),
     );
     unwrap(await PostService.publishPost(adminContext, { id }));
     const reader = createTestContext();
-    await PostService.findPostBySlug(reader, { slug: "shared-assignments" });
+    await PostService.findPostBySlug(reader, { slug: "published-assignments" });
     await CategoryService.getPublicCategories(reader);
     await TagService.getPublicTags(reader);
     await waitForBackgroundTasks(reader.executionCtx);
@@ -130,23 +130,31 @@ describe("Category", () => {
     });
     await waitForBackgroundTasks(adminContext.executionCtx);
 
-    const post = await PostService.findPostBySlug(createTestContext(), {
-      slug: "shared-assignments",
+    const before = await PostService.findPostBySlug(createTestContext(), {
+      slug: "published-assignments",
     });
-    expect(post?.title).toBe("Public title");
-    expect(post?.category).toEqual({ id: category.id, name: category.name });
-    expect(post?.tags?.map((item) => item.id)).toEqual([tag.id]);
+    expect(before?.title).toBe("Public title");
+    expect(before?.category).toBeNull();
+    expect(before?.tags).toEqual([]);
     expect(
       await CategoryService.getPublicCategories(createTestContext()),
-    ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: category.id, postCount: 1 }),
-      ]),
-    );
-    expect(await TagService.getPublicTags(createTestContext())).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: tag.id, postCount: 1 }),
-      ]),
-    );
+    ).toEqual([]);
+    expect(await TagService.getPublicTags(createTestContext())).toEqual([]);
+
+    unwrap(await PostService.publishPost(adminContext, { id }));
+    await waitForBackgroundTasks(adminContext.executionCtx);
+
+    const after = await PostService.findPostBySlug(createTestContext(), {
+      slug: "published-assignments",
+    });
+    expect(after?.title).toBe("Unpublished title");
+    expect(after?.category).toEqual({ id: category.id, name: category.name });
+    expect(after?.tags?.map((item) => item.id)).toEqual([tag.id]);
+    expect(
+      await CategoryService.getPublicCategories(createTestContext()),
+    ).toEqual([expect.objectContaining({ id: category.id, postCount: 1 })]);
+    expect(await TagService.getPublicTags(createTestContext())).toEqual([
+      expect.objectContaining({ id: tag.id, postCount: 1 }),
+    ]);
   });
 });

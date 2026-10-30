@@ -1,6 +1,5 @@
 import { z } from "zod";
-
-const coercedDate = z.union([z.date(), z.string().pipe(z.coerce.date())]);
+import { coercedDate } from "@/lib/orpc/dates";
 
 const DashboardRecentPostSchema = z.object({
   id: z.number().int().positive(),
@@ -8,6 +7,7 @@ const DashboardRecentPostSchema = z.object({
   status: z.enum(["draft", "published"]),
   pinnedAt: coercedDate.nullable(),
   updatedAt: coercedDate,
+  hasUnpublishedChanges: z.boolean(),
 });
 
 const DashboardPendingFriendLinkSchema = z.object({
@@ -100,7 +100,7 @@ export const DashboardOverviewSchema = z.object({
   }),
 });
 
-export const UnrepliedCommentsInputSchema = z.object({
+export const UnrepliedCommentsInputSchema = z.strictObject({
   limit: z.number().int().min(1).max(50).default(20),
   /** Continue after this Comment: the previous page's `nextBeforeId`. */
   beforeId: z.number().int().positive().optional(),

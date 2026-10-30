@@ -76,12 +76,14 @@ export function PostsToolbar({
   const labels: Record<StatusFilter, string> = {
     ALL: m.admin_posts_filter_all(),
     PUBLISHED: m.admin_posts_filter_published(),
+    CHANGED: m.admin_posts_filter_changed(),
     DRAFT: m.admin_posts_filter_draft(),
   };
   const counts = statusCounts
     ? {
         ALL: statusCounts.draft + statusCounts.published,
         PUBLISHED: statusCounts.published,
+        CHANGED: statusCounts.unpublishedChanges,
         DRAFT: statusCounts.draft,
       }
     : undefined;

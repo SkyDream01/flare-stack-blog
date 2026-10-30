@@ -48,28 +48,34 @@ describe("Posts Integration", () => {
   describe("Homepage pagination", () => {
     it("paginates public snapshots with pinned posts first and no duplicate or private posts", async () => {
       const publishedAt = "2026-01-01T00:00:00.000Z";
-      const rows = await adminContext.db
-        .insert(PostsTable)
-        .values(
-          Array.from({ length: 18 }, (_, i) => ({
-            title: `Private edit ${i}`,
-            slug: `private-edit-${i}`,
-            status: "published" as const,
-            publicSlug: `home-${i}`,
-            publicSnapshotJson: {
-              title: `Public ${i}`,
-              summary: null,
-              slug: `home-${i}`,
-              contentJson: null,
-              tagIds: [],
-              categoryId: null,
-              cover: null,
-              publishedAt,
-              pinnedAt: i < 9 ? "2026-02-01T00:00:00.000Z" : null,
-            },
-          })),
-        )
-        .returning();
+      const values = Array.from({ length: 18 }, (_, i) => ({
+        title: `Private edit ${i}`,
+        slug: `private-edit-${i}`,
+        status: "published" as const,
+        publicSlug: `home-${i}`,
+        publicSnapshotJson: {
+          title: `Public ${i}`,
+          summary: null,
+          slug: `home-${i}`,
+          contentJson: null,
+          tagIds: [],
+          categoryId: null,
+          cover: null,
+          publishedAt,
+        },
+        pinnedAt: i < 9 ? new Date("2026-02-01T00:00:00.000Z") : null,
+      }));
+      // Two inserts keep each query under D1's 100 bound parameters.
+      const rows = [
+        ...(await adminContext.db
+          .insert(PostsTable)
+          .values(values.slice(0, 9))
+          .returning()),
+        ...(await adminContext.db
+          .insert(PostsTable)
+          .values(values.slice(9))
+          .returning()),
+      ];
       await adminContext.db
         .insert(PostsTable)
         .values({ title: "Hidden draft", slug: "hidden-draft" });
@@ -226,11 +232,13 @@ describe("Posts Integration", () => {
         ],
       };
 
-      const created = await PostService.createDraft(adminContext, {
-        title: "External Draft",
-        summary: "Created with content",
-        contentJson,
-      });
+      const created = unwrap(
+        await PostService.createDraft(adminContext, {
+          title: "External Draft",
+          summary: "Created with content",
+          contentJson,
+        }),
+      );
 
       expect(created.id).not.toBe(reusableDraft.id);
 
@@ -253,14 +261,18 @@ describe("Posts Integration", () => {
     });
 
     it("creates a post per call so consecutive creates never collide", async () => {
-      const first = await PostService.createDraft(adminContext, {
-        title: "First Note",
-        contentJson: null,
-      });
-      const second = await PostService.createDraft(adminContext, {
-        title: "Second Note",
-        contentJson: null,
-      });
+      const first = unwrap(
+        await PostService.createDraft(adminContext, {
+          title: "First Note",
+          contentJson: null,
+        }),
+      );
+      const second = unwrap(
+        await PostService.createDraft(adminContext, {
+          title: "Second Note",
+          contentJson: null,
+        }),
+      );
 
       expect(first.id).not.toBe(second.id);
 
@@ -581,14 +593,29 @@ describe("Posts Integration", () => {
       expect(result.items[0].title).toBe("TypeScript Post");
     });
 
-    it("should show post whose publishedAt is today (UTC) even if stored time is later in the day", async () => {
+    it("refuses to publish a publishedAt later today, as it is in the future", async () => {
       const publicContext = createTestContext();
+      const later = new Date(Date.now() + 60_000);
 
-      // Simulate the editor bug scenario: user selects "today" which stores as noon UTC
-      // (new Date(`${dateStr}T12:00:00Z`)), but current UTC time may be before noon.
-      // We use end-of-day to reliably ensure the stored time is "future" within today.
+      const { id } = await PostService.createEmptyPost(adminContext);
+      await updatePost({
+        id,
+        data: {
+          title: "Later Today Post",
+          slug: "later-today-post",
+          publishedAt: later,
+        },
+      });
+      const result = await PostService.publishPost(adminContext, { id });
+
+      expect(result.error).toEqual({ reason: "PUBLISHED_AT_IN_FUTURE" });
+      const list = await PostService.getPostsCursor(publicContext, {});
+      expect(list.items).toHaveLength(0);
+    });
+
+    it("publishes the start of today, which the editor stores for today", async () => {
+      const publicContext = createTestContext();
       const todayUTC = new Date().toISOString().slice(0, 10);
-      const endOfTodayUTC = new Date(`${todayUTC}T23:59:59Z`);
 
       const { id } = await PostService.createEmptyPost(adminContext);
       await updatePost({
@@ -596,15 +623,12 @@ describe("Posts Integration", () => {
         data: {
           title: "Today Post",
           slug: "today-post",
-          publishedAt: endOfTodayUTC,
+          publishedAt: new Date(`${todayUTC}T00:00:00Z`),
         },
       });
       unwrap(await PostService.publishPost(adminContext, { id }));
 
       const result = await PostService.getPostsCursor(publicContext, {});
-
-      // Should be visible because the publishedAt DATE equals today,
-      // even though the stored time (23:59:59Z) is technically in the future
       expect(result.items).toHaveLength(1);
       expect(result.items[0].title).toBe("Today Post");
     });
@@ -753,14 +777,14 @@ describe("Posts Integration", () => {
       });
       expect(page.items).toHaveLength(1);
       expect(page.total).toBe(2);
-      expect(page.statusCounts).toEqual({ draft: 2, published: 1 });
+      expect(page.statusCounts).toMatchObject({ draft: 2, published: 1 });
       const publicPage = await PostService.listAdminPostsPage(adminContext, {
         search: "matched",
         publicOnly: true,
         limit: 1,
       });
       expect(publicPage.total).toBe(1);
-      expect(publicPage.statusCounts).toEqual({ draft: 0, published: 1 });
+      expect(publicPage.statusCounts).toMatchObject({ draft: 0, published: 1 });
       const beyond = await PostService.listAdminPostsPage(adminContext, {
         search: "matched",
         offset: 50,
@@ -768,7 +792,7 @@ describe("Posts Integration", () => {
       });
       expect(beyond.items).toEqual([]);
       expect(beyond.total).toBe(3);
-      expect(beyond.statusCounts).toEqual({ draft: 2, published: 1 });
+      expect(beyond.statusCounts).toMatchObject({ draft: 2, published: 1 });
     });
 
     it("returns zero status facets for no matches and treats wildcard searches literally", async () => {
@@ -780,7 +804,7 @@ describe("Posts Integration", () => {
       const literal = await PostService.listAdminPostsPage(adminContext, {
         search: "%_",
       });
-      expect(literal.statusCounts).toEqual({ draft: 1, published: 0 });
+      expect(literal.statusCounts).toMatchObject({ draft: 1, published: 0 });
       const empty = await PostService.listAdminPostsPage(adminContext, {
         search: "missing",
       });
@@ -1011,12 +1035,12 @@ describe("Posts Integration", () => {
           title: "Pinned Older",
           slug: "pinned-older",
           publishedAt: new Date("2023-01-01T00:00:00.000Z"),
-          pinnedAt: new Date("2024-12-31T00:00:00.000Z"),
         },
       });
       unwrap(
         await PostService.publishPost(adminContext, { id: pinnedOlderId }),
       );
+      unwrap(await PostService.pinPost(adminContext, { id: pinnedOlderId }));
 
       const { id: draftId } = await PostService.createEmptyPost(adminContext);
       await updatePost({

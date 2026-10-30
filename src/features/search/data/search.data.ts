@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
   SearchDocumentsTable,
   SearchIndexMetaTable,
@@ -42,11 +42,69 @@ export async function upsertSearchDocument(
   await bumpSearchIndexVersion(db);
 }
 
+/**
+ * Removes the Post's document. The index version moves only when a document
+ * was there, so deleting a Post that was never indexed leaves search caches be.
+ */
 export async function deleteSearchDocument(db: DB, postId: number) {
-  await db
+  const deleted = await db
     .delete(SearchDocumentsTable)
-    .where(eq(SearchDocumentsTable.postId, postId));
-  await bumpSearchIndexVersion(db);
+    .where(eq(SearchDocumentsTable.postId, postId))
+    .returning({ postId: SearchDocumentsTable.postId });
+  if (deleted.length > 0) await bumpSearchIndexVersion(db);
+}
+
+// Each upsert carries 7 bound values and D1 caps a query at 100, so a delete
+// of this many ids is safe; the same size bounds one batch of upserts.
+const WRITE_BATCH = 25;
+
+/**
+ * Writes the given documents over those already indexed and removes the
+ * documents of `removedPostIds`, in batched D1 writes. The index version moves
+ * once, and only when something was given.
+ */
+export async function applySearchDocuments(
+  db: DB,
+  changes: {
+    documents: Array<SearchDocumentRow & { tokens: string }>;
+    removedPostIds: Array<number>;
+  },
+) {
+  const { documents, removedPostIds } = changes;
+  for (let i = 0; i < documents.length; i += WRITE_BATCH) {
+    const [first, ...rest] = documents
+      .slice(i, i + WRITE_BATCH)
+      .map((document) =>
+        db
+          .insert(SearchDocumentsTable)
+          .values(document)
+          .onConflictDoUpdate({
+            target: SearchDocumentsTable.postId,
+            set: {
+              slug: document.slug,
+              title: document.title,
+              summary: document.summary,
+              content: document.content,
+              tags: document.tags,
+              tokens: document.tokens,
+            },
+          }),
+      );
+    await db.batch([first, ...rest]);
+  }
+  for (let i = 0; i < removedPostIds.length; i += WRITE_BATCH) {
+    await db
+      .delete(SearchDocumentsTable)
+      .where(
+        inArray(
+          SearchDocumentsTable.postId,
+          removedPostIds.slice(i, i + WRITE_BATCH),
+        ),
+      );
+  }
+  if (documents.length > 0 || removedPostIds.length > 0) {
+    await bumpSearchIndexVersion(db);
+  }
 }
 
 const INSERT_BATCH = 10;

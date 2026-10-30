@@ -1,6 +1,38 @@
 import type { JSONContent } from "@tiptap/react";
 import { describe, expect, it } from "vitest";
-import { jsonContentHasType, replaceImageSrc } from "./content";
+import {
+  FALLBACK_SLUG,
+  jsonContentHasType,
+  mediaPathKey,
+  slugify,
+} from "./content";
+
+describe("mediaPathKey", () => {
+  it("reads the key of a Media path, alone or on the site's address", () => {
+    expect(mediaPathKey("/images/a.png?quality=80", "blog.example")).toBe(
+      "a.png",
+    );
+    expect(
+      mediaPathKey("https://blog.example/images/a.png", "blog.example"),
+    ).toBe("a.png");
+    expect(
+      mediaPathKey("http://BLOG.example/images/a.png?v=2", "blog.example"),
+    ).toBe("a.png");
+  });
+
+  it("takes any other address for an external image", () => {
+    for (const src of [
+      "https://cdn.example/images/a.png",
+      "https://blog.example.evil/images/a.png",
+      "https://blog.example:8443/images/a.png",
+      "//blog.example/images/a.png",
+      "https://blog.example/uploads/a.png",
+      "ftp://blog.example/images/a.png",
+    ]) {
+      expect(mediaPathKey(src, "blog.example")).toBeUndefined();
+    }
+  });
+});
 
 const doc = (...content: Array<JSONContent>): JSONContent => ({
   type: "doc",
@@ -33,35 +65,47 @@ describe("jsonContentHasType", () => {
   });
 });
 
-describe("replaceImageSrc", () => {
-  const doc: JSONContent = {
-    type: "doc",
-    content: [
-      { type: "image", attrs: { src: "/images/a.png", alt: "a" } },
-      {
-        type: "blockquote",
-        content: [{ type: "image", attrs: { src: "/images/a.png?v=1" } }],
-      },
-      { type: "image", attrs: { src: "/images/b.png" } },
-    ],
-  };
-
-  it("points every image of the key at the new src", () => {
-    const next = replaceImageSrc(doc, "a.png", "/images/a.png?v=2");
-    expect(next).toEqual({
-      type: "doc",
-      content: [
-        { type: "image", attrs: { src: "/images/a.png?v=2", alt: "a" } },
-        {
-          type: "blockquote",
-          content: [{ type: "image", attrs: { src: "/images/a.png?v=2" } }],
-        },
-        { type: "image", attrs: { src: "/images/b.png" } },
-      ],
-    });
+describe("slugify", () => {
+  it.each([
+    ["Hello, World!", "hello-world"],
+    ["Hello   under_score", "hello-under-score"],
+    ["你好，世界 2026", "你好世界-2026"],
+    ["--Dashes--  and---more--", "dashes-and-more"],
+  ])("makes a slug of %j", (title, slug) => {
+    expect(slugify(title)).toBe(slug);
   });
 
-  it("returns null when the document does not use the key", () => {
-    expect(replaceImageSrc(doc, "c.png", "/images/c.png?v=2")).toBeNull();
+  it.each([
+    ["a ligature", "ﬁle", "file"],
+    ["an ffi ligature", "o\uFB03ce", "office"],
+    [
+      "fullwidth letters and digits",
+      "ＡＵＤＩＴ３ Fullwidth",
+      "audit3-fullwidth",
+    ],
+    ["a fullwidth space", "ＡＢＣ\u3000ＤＥＦ", "abc-def"],
+    ["sharp s", "Straße", "strasse"],
+    ["capital sharp s", "STRAẞE", "strasse"],
+    ["accents", "Café Crème", "cafe-creme"],
+    ["decomposed accents", "Cafe\u0301", "cafe"],
+  ])("keeps the letters of %s", (_name, title, slug) => {
+    expect(slugify(title)).toBe(slug);
+  });
+
+  it.each([
+    ["emoji alone", "😀🎉"],
+    ["a joined emoji", "👩\u200D💻"],
+    ["symbols alone", "★ ✓ ?!"],
+    ["empty", ""],
+    ["blank", "   "],
+    ["nothing", null],
+    ["a script it does not keep", "ひらがな"],
+  ])("falls back to untitled-log for %s", (_name, title) => {
+    expect(slugify(title)).toBe(FALLBACK_SLUG);
+    expect(FALLBACK_SLUG).toBe("untitled-log");
+  });
+
+  it("drops emoji and keeps the letters around them", () => {
+    expect(slugify("Launch 🚀 day")).toBe("launch-day");
   });
 });

@@ -257,9 +257,11 @@ aside.media-inspector {
   color: var(--fuwari-fg-50);
 }
 .media-reference {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: calc(10 * var(--admin-unit));
+  column-gap: calc(10 * var(--admin-unit));
+  row-gap: calc(6 * var(--admin-unit));
   padding: calc(12 * var(--admin-unit));
   margin-top: calc(8 * var(--admin-unit));
   font-size: calc(13 * var(--admin-unit));
@@ -267,13 +269,24 @@ aside.media-inspector {
   background: var(--fuwari-btn-regular-bg);
   color: var(--fuwari-primary);
 }
-.media-reference > span {
+/* A long title wraps without leaving a lone character, and the badges sit on
+   their own line under it instead of squeezing it. */
+.media-reference-title {
   min-width: 0;
-  flex: 1;
   overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+.media-reference-badges {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(6 * var(--admin-unit));
 }
 .media-reference svg {
   flex-shrink: 0;
+}
+.media-inspector-usage > .media-inspector-note {
+  margin: calc(-6 * var(--admin-unit)) 0 calc(12 * var(--admin-unit));
 }
 .media-inspector-actions {
   display: flex;

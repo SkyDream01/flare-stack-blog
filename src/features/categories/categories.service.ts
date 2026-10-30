@@ -2,12 +2,14 @@ import { getCategoryOptions as readCategoryOptions } from "./data/category-optio
 import { invalidate } from "@/features/cache/public-cache";
 import { publicCategoryList } from "@/features/categories/categories.cache";
 import * as CategoryRepo from "@/features/categories/data/categories.data";
+import * as SearchService from "@/features/search/service/search.service";
 import type {
   CreateCategoryInput,
   DeleteCategoryInput,
   GetCategoriesInput,
   UpdateCategoryInput,
 } from "@/features/categories/categories.schema";
+import { CATEGORY_NAME, isUniqueViolation } from "@/lib/db/unique-keys";
 import { err, ok } from "@/lib/errors";
 
 async function invalidateCategoryRelatedCache(
@@ -69,10 +71,17 @@ export const createCategory = async (
     return err({ reason: "CATEGORY_NAME_ALREADY_EXISTS" });
   }
 
-  const category = await CategoryRepo.insertCategory(context.db, {
-    name: data.name,
-  });
-  return ok(category);
+  try {
+    return ok(
+      await CategoryRepo.insertCategory(context.db, { name: data.name }),
+    );
+  } catch (error) {
+    // A concurrent create or rename took the name after the check.
+    if (isUniqueViolation(error, CATEGORY_NAME)) {
+      return err({ reason: "CATEGORY_NAME_ALREADY_EXISTS" });
+    }
+    throw error;
+  }
 };
 
 export async function updateCategory(
@@ -97,11 +106,28 @@ export async function updateCategory(
     context.db,
     data.id,
   );
-  const category = await CategoryRepo.updateCategory(
-    context.db,
-    data.id,
-    data.data,
-  );
+  let category;
+  try {
+    category = await CategoryRepo.updateCategory(
+      context.db,
+      data.id,
+      data.data,
+    );
+  } catch (error) {
+    // A concurrent create or rename took the name after the check.
+    if (isUniqueViolation(error, CATEGORY_NAME)) {
+      return err({ reason: "CATEGORY_NAME_ALREADY_EXISTS" });
+    }
+    throw error;
+  }
+
+  // The new name is public at once, so search follows (not left to a rebuild).
+  if (data.data.name && data.data.name !== existing.name) {
+    await SearchService.reindexPosts(
+      context,
+      affectedPosts.map((post) => post.id),
+    );
+  }
 
   context.executionCtx.waitUntil(
     invalidateCategoryRelatedCache(context, affectedPosts),
@@ -124,6 +150,10 @@ export async function deleteCategory(
     data.id,
   );
   await CategoryRepo.deleteCategory(context.db, data.id);
+  await SearchService.reindexPosts(
+    context,
+    affectedPosts.map((post) => post.id),
+  );
 
   context.executionCtx.waitUntil(
     invalidateCategoryRelatedCache(context, affectedPosts),

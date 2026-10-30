@@ -1,7 +1,8 @@
-import { ClientOnly } from "@tanstack/react-router";
+import { ClientOnly, Link } from "@tanstack/react-router";
 import { Bot, Copy, KeyRound, Plus } from "lucide-react";
 import { Fragment, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Callout } from "@/components/ui/callout";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
@@ -10,45 +11,30 @@ import { FormField } from "@/components/ui/form-field";
 import { FuwariModal } from "@/components/ui/fuwari-modal";
 import { Input } from "@/components/ui/input";
 import { SectionHeading } from "@/components/ui/page-heading";
+import { isPairedApiKey } from "@/features/agent-pairing/agent-pairing.schema";
 import { useApiKeys } from "@/features/api-keys/hooks/use-api-keys";
 import { formatDate } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import "./api-key-settings.css";
 
-/** The skill zip attached to the upstream release this build was cut from. */
-const AGENT_SKILL_URL = `https://github.com/du2333/flare-stack-blog/releases/download/v${__APP_VERSION__}/flare-stack-blog-skills-v${__APP_VERSION__}.zip`;
-const AGENT_SKILL_COMMAND = "/flare-stack-blog";
-
-function AgentSkillHint() {
-  const slots = {
-    download: (
-      <a
-        href={AGENT_SKILL_URL}
-        target="_blank"
-        rel="noreferrer"
-        className="font-medium underline underline-offset-2"
-      >
-        {m.settings_api_keys_skill_download({ version: __APP_VERSION__ })}
-      </a>
-    ),
-    command: <code>{AGENT_SKILL_COMMAND}</code>,
-  };
-  // Slots go in as \0-wrapped names so each locale keeps its own word order.
+function AgentSkillPointer() {
+  const link = (
+    <Link
+      to="/admin/settings/agent-skill"
+      className="font-medium underline underline-offset-2"
+    >
+      {m.settings_api_keys_agent_pointer_link()}
+    </Link>
+  );
+  // The slot goes in as a \0-wrapped name so each locale keeps its own word order.
   const parts = m
-    .settings_api_keys_skill_hint({
-      download: "\0download\0",
-      command: "\0command\0",
-    })
+    .settings_api_keys_agent_pointer({ link: "\0link\0" })
     .split("\0");
   return (
     <Callout icon={Bot} className="settings-key-skill">
       <p>
         {parts.map((part, index) =>
-          index % 2 ? (
-            <Fragment key={part}>{slots[part as keyof typeof slots]}</Fragment>
-          ) : (
-            part
-          ),
+          index % 2 ? <Fragment key={part}>{link}</Fragment> : part,
         )}
       </p>
     </Callout>
@@ -111,7 +97,7 @@ export function ApiKeySettingsSection() {
           </Button>
         }
       />
-      <AgentSkillHint />
+      <AgentSkillPointer />
       <div className="settings-key-list" aria-busy={isLoading}>
         {isError ? (
           <EmptyState
@@ -148,6 +134,11 @@ export function ApiKeySettingsSection() {
                 <tr key={key.id}>
                   <td>
                     <strong>{key.name || m.settings_api_keys_unnamed()}</strong>
+                    {isPairedApiKey(key.metadata) && (
+                      <Badge tone="primary" size="sm" className="ml-2">
+                        {m.settings_api_keys_paired_badge()}
+                      </Badge>
+                    )}
                   </td>
                   <td>
                     <code>{key.start ? `${key.start}…` : "—"}</code>

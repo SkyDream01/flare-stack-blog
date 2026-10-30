@@ -21,8 +21,10 @@ export function normalizePostContent(
 
   function walk(node: JSONContent) {
     if (node.type === "heading") {
+      // `data-toc-id` is the table of contents an older editor kept.
+      const { "data-toc-id": _tocId, ...rest } = node.attrs ?? {};
       node.attrs = {
-        ...node.attrs,
+        ...rest,
         level: clampHeadingLevel(node.attrs?.level),
       };
     }

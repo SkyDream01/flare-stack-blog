@@ -3,12 +3,14 @@ import {
   ApproveFriendLinkInputSchema,
   CreateFriendLinkInputSchema,
   DeleteFriendLinkInputSchema,
+  FriendLinkSchema,
   GetAllFriendLinksInputSchema,
   RejectFriendLinkInputSchema,
   UpdateFriendLinkInputSchema,
 } from "@/features/friend-links/friend-links.schema";
 import * as FriendLinkService from "@/features/friend-links/friend-links.service";
 import { adminProcedure } from "@/lib/orpc/procedure";
+import { SuccessResponseSchema } from "@/lib/orpc/success-schema";
 import { unwrapResult } from "@/lib/orpc/unwrap-result";
 import { friendLinkErrors } from "./errors";
 
@@ -34,6 +36,7 @@ const create = adminProcedure
     tags: ["Admin Friend Links"],
   })
   .input(CreateFriendLinkInputSchema)
+  .output(FriendLinkSchema)
   .handler(({ context, input }) =>
     FriendLinkService.createFriendLink(context, input),
   );
@@ -47,6 +50,7 @@ const update = adminProcedure
     tags: ["Admin Friend Links"],
   })
   .input(UpdateFriendLinkInputSchema)
+  .output(FriendLinkSchema)
   .handler(({ context, input, errors }) =>
     unwrapResult(FriendLinkService.updateFriendLink(context, input), {
       NOT_FOUND: () => {
@@ -64,6 +68,7 @@ const approve = adminProcedure
     tags: ["Admin Friend Links"],
   })
   .input(ApproveFriendLinkInputSchema)
+  .output(FriendLinkSchema)
   .handler(({ context, input, errors }) =>
     unwrapResult(FriendLinkService.approveFriendLink(context, input), {
       NOT_FOUND: () => {
@@ -81,6 +86,7 @@ const reject = adminProcedure
     tags: ["Admin Friend Links"],
   })
   .input(RejectFriendLinkInputSchema)
+  .output(FriendLinkSchema)
   .handler(({ context, input, errors }) =>
     unwrapResult(FriendLinkService.rejectFriendLink(context, input), {
       NOT_FOUND: () => {
@@ -98,6 +104,7 @@ const remove = adminProcedure
     tags: ["Admin Friend Links"],
   })
   .input(DeleteFriendLinkInputSchema)
+  .output(SuccessResponseSchema)
   .handler(({ context, input, errors }) =>
     unwrapResult(FriendLinkService.deleteFriendLink(context, input), {
       NOT_FOUND: () => {

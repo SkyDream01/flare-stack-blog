@@ -1,17 +1,32 @@
 import type { JSONContent } from "@tiptap/react";
+import { toast } from "sonner";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BLOB_UPLOADING_ERROR,
+  CONTENT_TOO_LARGE_ERROR,
   contentHasBlobUrl,
+  contentTooLargeMessage,
+  EDIT_CONFLICT_ERROR,
+  editConflictOf,
+  isContentTooLarge,
+  isSlugTaken,
   persistableTagIds,
+  SLUG_TAKEN_ERROR,
 } from "../post-editor.model";
-import type { PostEditorData, SaveStatus } from "../types";
+import type {
+  EditConflict,
+  PostEditorData,
+  PostEditorSave,
+  SaveStatus,
+} from "../types";
 
 interface UseAutoSaveOptions {
   post: PostEditorData;
   getContent: () => JSONContent | null;
   contentEpoch: number;
-  onSave: (data: PostEditorData) => Promise<void>;
+  /** The post's `saveToken` as it was read. */
+  saveToken: string;
+  onSave: PostEditorSave;
   debounceMs?: number;
   enabled?: boolean;
 }
@@ -22,6 +37,14 @@ interface UseAutoSaveReturn {
   error: string | null;
   setError: (error: string | null) => void;
   isDirty: boolean;
+  /** Set once a save was refused; autosave stays stopped until it is resolved. */
+  conflict: EditConflict | null;
+  getSaveToken: () => string;
+  acceptSaveToken: (saveToken: string) => void;
+  /** Stops autosave over a conflict found by a write other than autosave. */
+  reportConflict: (conflict: EditConflict) => void;
+  /** Saves the editor's content over the conflicting write and resumes. */
+  overwrite: () => Promise<void>;
   markSaved: (post: PostEditorData, contentEpoch?: number) => void;
   flush: () => Promise<void>;
   waitForInFlightSave: () => Promise<void>;
@@ -33,7 +56,6 @@ type MetaSnapshot = {
   summary: string;
   slug: string;
   publishedAt: number | null;
-  pinnedAt: number | null;
   tagIds: string;
   categoryId: number | null;
   coverMediaId: number | null;
@@ -41,13 +63,17 @@ type MetaSnapshot = {
 
 type SaveResult = "synced" | "dirty" | "failed" | "discarded" | "blocked";
 
+/** Clears the save error, except that another post still uses the slug. */
+function keepSlugTaken(error: string | null) {
+  return error === SLUG_TAKEN_ERROR ? error : null;
+}
+
 function toMeta(post: PostEditorData): MetaSnapshot {
   return {
     title: post.title,
     summary: post.summary,
     slug: post.slug,
     publishedAt: post.publishedAt ? post.publishedAt.valueOf() : null,
-    pinnedAt: post.pinnedAt ? post.pinnedAt.valueOf() : null,
     tagIds: persistableTagIds(post.tagIds)
       .sort((left, right) => left - right)
       .join(","),
@@ -63,7 +89,6 @@ function isMetaDirty(curr: MetaSnapshot, prev: MetaSnapshot | null) {
     prev.summary !== curr.summary ||
     prev.slug !== curr.slug ||
     prev.publishedAt !== curr.publishedAt ||
-    prev.pinnedAt !== curr.pinnedAt ||
     prev.tagIds !== curr.tagIds ||
     prev.categoryId !== curr.categoryId ||
     prev.coverMediaId !== curr.coverMediaId
@@ -74,6 +99,7 @@ export function useAutoSave({
   post,
   getContent,
   contentEpoch,
+  saveToken,
   onSave,
   debounceMs = 1500,
   enabled = true,
@@ -81,6 +107,7 @@ export function useAutoSave({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("SYNCED");
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<EditConflict | null>(null);
 
   const isFirstMount = useRef(true);
   const isMounted = useRef(false);
@@ -97,6 +124,9 @@ export function useAutoSave({
   const onSaveRef = useRef(onSave);
   const getContentRef = useRef(getContent);
   const saveStatusRef = useRef(saveStatus);
+  const saveTokenRef = useRef(saveToken);
+  const conflictRef = useRef<EditConflict | null>(null);
+  const tooLargeRef = useRef(false);
 
   onSaveRef.current = onSave;
   getContentRef.current = getContent;
@@ -124,6 +154,22 @@ export function useAutoSave({
       timerRef.current = null;
     }
   };
+
+  const getSaveToken = useCallback(() => saveTokenRef.current, []);
+  const acceptSaveToken = useCallback((token: string) => {
+    saveTokenRef.current = token;
+  }, []);
+
+  const reportConflict = useCallback(
+    (found: EditConflict) => {
+      conflictRef.current = found;
+      clearTimer(debounceTimerRef);
+      clearTimer(retryTimerRef);
+      assignStatus("ERROR");
+      setConflict(found);
+    },
+    [assignStatus],
+  );
 
   const discardInFlightSave = useCallback(() => {
     generationRef.current += 1;
@@ -153,6 +199,7 @@ export function useAutoSave({
   );
 
   const attemptSave = useCallback(async (): Promise<SaveResult> => {
+    if (conflictRef.current) return "failed";
     if (isSaving.current) {
       if (inFlightRef.current) {
         await inFlightRef.current;
@@ -181,12 +228,13 @@ export function useAutoSave({
       epochAtStart === lastSavedEpochRef.current
     ) {
       assignStatus("SYNCED");
-      setError(null);
+      setError(keepSlugTaken);
       return "synced";
     }
 
     isSaving.current = true;
-    setError(null);
+    tooLargeRef.current = false;
+    setError(keepSlugTaken);
     assignStatus("SAVING");
 
     let settle!: () => void;
@@ -196,13 +244,19 @@ export function useAutoSave({
     inFlightRef.current = gate;
 
     try {
-      await onSaveRef.current(payload);
+      const outcome = await onSaveRef.current(
+        payload,
+        saveTokenRef.current,
+        acceptSaveToken,
+      );
       if (generationRef.current !== gen) return "discarded";
       lastSavedSnapshot.current = toMeta(payload);
       lastSavedEpochRef.current = epochAtStart;
       if (!isMounted.current) return "discarded";
       setLastSaved(new Date());
-      setError(null);
+      // The rest of the post was saved without a slug another post uses; the
+      // slug field keeps saying so until a save takes a slug again.
+      setError(outcome?.slugTaken ? SLUG_TAKEN_ERROR : null);
       if (isDirtyNow()) {
         assignStatus("PENDING");
         if (enabledRef.current) {
@@ -218,20 +272,48 @@ export function useAutoSave({
       return "synced";
     } catch (err) {
       if (generationRef.current !== gen) return "discarded";
+      const found = editConflictOf(err);
+      if (found) {
+        reportConflict(found);
+        return "failed";
+      }
       console.error("Auto-save failed:", err);
       assignStatus("ERROR");
-      setError("AUTO_SAVE_FAILED");
+      if (isContentTooLarge(err)) {
+        // Nothing was written; saying why is all there is to do until the
+        // Admin shortens the post.
+        tooLargeRef.current = true;
+        toast.error(contentTooLargeMessage(err));
+        setError(CONTENT_TOO_LARGE_ERROR);
+        return "failed";
+      }
+      setError(isSlugTaken(err) ? SLUG_TAKEN_ERROR : "AUTO_SAVE_FAILED");
       return "failed";
     } finally {
       isSaving.current = false;
       inFlightRef.current = null;
       settle();
     }
-  }, [assignStatus, debounceMs, isDirtyNow]);
+  }, [acceptSaveToken, assignStatus, debounceMs, isDirtyNow, reportConflict]);
+
+  const overwrite = useCallback(async () => {
+    const found = conflictRef.current;
+    if (!found) return;
+    saveTokenRef.current = found.saveToken;
+    conflictRef.current = null;
+    setConflict(null);
+    // The editor holds what the Admin wants stored, even if it matches the
+    // last save, so nothing counts as already saved.
+    lastSavedSnapshot.current = null;
+    await attemptSave();
+  }, [attemptSave]);
 
   const flush = useCallback(async () => {
     if (!enabledRef.current) {
       throw new Error("INSPECTING");
+    }
+    if (conflictRef.current) {
+      throw new Error(EDIT_CONFLICT_ERROR);
     }
 
     clearTimer(debounceTimerRef);
@@ -251,7 +333,13 @@ export function useAutoSave({
         throw new Error(BLOB_UPLOADING_ERROR);
       }
       if (result === "failed") {
-        throw new Error("AUTO_SAVE_FAILED");
+        throw new Error(
+          conflictRef.current
+            ? EDIT_CONFLICT_ERROR
+            : tooLargeRef.current
+              ? CONTENT_TOO_LARGE_ERROR
+              : "AUTO_SAVE_FAILED",
+        );
       }
       if (result === "synced") {
         return;
@@ -286,6 +374,8 @@ export function useAutoSave({
       return;
     }
 
+    if (conflictRef.current) return;
+
     if (!isDirtyNow()) {
       if (!isSaving.current) assignStatus("SYNCED");
       return;
@@ -317,6 +407,11 @@ export function useAutoSave({
     error,
     setError,
     isDirty: isDirtyNow(),
+    conflict,
+    getSaveToken,
+    acceptSaveToken,
+    reportConflict,
+    overwrite,
     markSaved,
     flush,
     waitForInFlightSave,

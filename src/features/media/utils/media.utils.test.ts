@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  cleanMediaName,
   getOptimizedImageUrl,
   getOriginalImageUrl,
   getPublicImageSrc,
   getPublicImageSrcSet,
   getTransformSourceUrl,
+  importedMediaName,
+  isSameImageType,
+  MEDIA_NAME_MAX_LENGTH,
+  mediaUsageOf,
   parseImageTransform,
   PUBLIC_IMAGE_WIDTH,
 } from "./media.utils";
@@ -84,22 +89,97 @@ describe("image URLs", () => {
     ).toBeUndefined();
   });
 
-  it("fetches the transform source at the requested version", () => {
+  it("fetches the transform source at the stored file's version", () => {
     expect(
       getTransformSourceUrl(
         new URL(
           "https://blog.example/images/asset/themes/fuwari/home-bg.webp?quality=80&width=1600&v=177",
         ),
         "asset/themes/fuwari/home-bg.webp",
+        "etag-1",
       ),
     ).toBe(
-      "https://blog.example/images/asset/themes/fuwari/home-bg.webp?original=true&v=177",
+      "https://blog.example/images/asset/themes/fuwari/home-bg.webp?original=true&v=etag-1",
     );
     expect(
       getTransformSourceUrl(
         new URL("https://blog.example/images/abc.png?quality=80&width=800"),
         "abc.png",
+        "etag-2",
       ),
-    ).toBe("https://blog.example/images/abc.png?original=true");
+    ).toBe("https://blog.example/images/abc.png?original=true&v=etag-2");
+  });
+});
+
+describe("cleanMediaName", () => {
+  it("drops control and format characters and trims", () => {
+    expect(cleanMediaName("  a\u202Eb\u0000c\u200B.png \n")).toBe("abc.png");
+    expect(cleanMediaName("a\tb")).toBe("a b");
+  });
+
+  it("keeps an emoji joiner and non-ASCII letters", () => {
+    expect(cleanMediaName("👩\u200D💻 封面.png")).toBe("👩\u200D💻 封面.png");
+  });
+
+  it("is empty when nothing is left", () => {
+    expect(cleanMediaName(" \u200B\u202E\n")).toBe("");
+  });
+
+  it("cuts a long name to the limit and keeps its extension", () => {
+    const cut = cleanMediaName(`${"n".repeat(500)}.webp`);
+    expect(cut).toHaveLength(MEDIA_NAME_MAX_LENGTH);
+    expect(cut.endsWith("n.webp")).toBe(true);
+    expect(cleanMediaName("😀".repeat(300)).length).toBeLessThanOrEqual(
+      MEDIA_NAME_MAX_LENGTH,
+    );
+    expect(cleanMediaName("😀".repeat(300))).not.toMatch(/[\uD800-\uDBFF]$/);
+  });
+});
+
+describe("importedMediaName", () => {
+  it.each([
+    ["sunset.png", "image/png", "sunset.png"],
+    ["12345", "image/png", "12345.png"],
+    ["photo.jpg", "image/png", "photo.png"],
+    ["photo.jpeg", "image/jpeg", "photo.jpeg"],
+    ["photo.JPG", "image/jpeg", "photo.JPG"],
+    ["photo.webp", "image/jpg", "photo.jpg"],
+    ["logo", "image/svg+xml", "logo.svg"],
+    ["v1.2", "image/gif", "v1.2.gif"],
+    ["", "image/webp", "image.webp"],
+    [".png", "image/png", "image.png"],
+    [".jpg", "image/png", "image.png"],
+    ["\u200B", "image/png", "image.png"],
+  ])("names %j as a %s: %s", (name, mimeType, expected) => {
+    expect(importedMediaName(name, mimeType)).toBe(expected);
+  });
+
+  it("stays within the limit when it adds an extension", () => {
+    const name = importedMediaName("n".repeat(255), "image/png");
+    expect(name).toHaveLength(MEDIA_NAME_MAX_LENGTH);
+    expect(name.endsWith(".png")).toBe(true);
+  });
+});
+
+describe("isSameImageType", () => {
+  it("treats image/jpg as image/jpeg and ignores case and parameters", () => {
+    expect(isSameImageType("image/jpg", "image/jpeg")).toBe(true);
+    expect(isSameImageType("IMAGE/PNG; charset=x", "image/png")).toBe(true);
+    expect(isSameImageType("image/png", "image/svg+xml")).toBe(false);
+    expect(isSameImageType("image/gif", "image/webp")).toBe(false);
+  });
+});
+
+describe("mediaUsageOf", () => {
+  it("tells current use from use only in Post Revisions", () => {
+    expect(mediaUsageOf({ postCount: 2, revisionOnlyPostCount: 1 })).toBe(
+      "current",
+    );
+    expect(mediaUsageOf({ postCount: 0, revisionOnlyPostCount: 1 })).toBe(
+      "revisions-only",
+    );
+    expect(mediaUsageOf({ postCount: 0, revisionOnlyPostCount: 0 })).toBe(
+      "none",
+    );
   });
 });

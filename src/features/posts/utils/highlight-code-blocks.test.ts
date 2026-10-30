@@ -2,7 +2,11 @@ import type { JSONContent } from "@tiptap/react";
 import { describe, expect, it } from "vitest";
 import { CODE_LANGUAGES } from "@/lib/code-languages";
 import { plainCodeHtml } from "@/lib/plain-code-html";
-import { highlightSnapshotContent } from "./highlight-code-blocks";
+import {
+  HIGHLIGHT_BUDGET_CHARS,
+  highlightSnapshotContent,
+  snapshotContentFloor,
+} from "./highlight-code-blocks";
 
 // One snippet per supported language; each must contain several token kinds.
 const SAMPLES: Record<string, string> = {
@@ -180,6 +184,89 @@ describe("highlightSnapshotContent", () => {
 
       expect(await republish("not-a-language", plain)).toBe(plain);
       expect(await republish("text", plain)).toBe(plain);
+    });
+  });
+
+  describe("within the highlight budget of one publish", () => {
+    const codeBlock = (text: string): JSONContent => ({
+      type: "codeBlock",
+      attrs: { language: "ts" },
+      content: [{ type: "text", text }],
+    });
+    const code = (length: number) =>
+      "let a = 1;\n".repeat(Math.ceil(length / 11)).slice(0, length);
+
+    it("highlights the blocks that fit, in order, and leaves the rest plain", async () => {
+      const first = code(HIGHLIGHT_BUDGET_CHARS - 100);
+      const tooBig = code(200);
+      const small = code(50);
+
+      const result = await highlightSnapshotContent(
+        {
+          type: "doc",
+          content: [codeBlock(first), codeBlock(tooBig), codeBlock(small)],
+        },
+        null,
+      );
+
+      const html = result?.content?.map((node) => node.attrs?.highlightedHtml);
+      expect(html?.[0]).toContain('class="shiki');
+      expect(html?.[1]).toBe(plainCodeHtml(tooBig));
+      expect(html?.[2]).toContain('class="shiki');
+    });
+
+    it("renders a block over the whole budget as plain HTML", async () => {
+      const huge = code(300_000);
+      const result = await highlightSnapshotContent(
+        { type: "doc", content: [codeBlock(huge)] },
+        null,
+      );
+      expect(result?.content?.[0]?.attrs?.highlightedHtml).toBe(
+        plainCodeHtml(huge),
+      );
+    });
+
+    it("spends none of it on HTML reused from the snapshot", async () => {
+      const reused = code(HIGHLIGHT_BUDGET_CHARS);
+      const fresh = code(100);
+      const result = await highlightSnapshotContent(
+        { type: "doc", content: [codeBlock(reused), codeBlock(fresh)] },
+        {
+          type: "doc",
+          content: [
+            {
+              ...codeBlock(reused),
+              attrs: { language: "ts", highlightedHtml: "<pre>kept</pre>" },
+            },
+          ],
+        },
+      );
+      expect(result?.content?.[0]?.attrs?.highlightedHtml).toBe(
+        "<pre>kept</pre>",
+      );
+      expect(result?.content?.[1]?.attrs?.highlightedHtml).toContain(
+        'class="shiki',
+      );
+    });
+  });
+
+  describe("snapshotContentFloor", () => {
+    it("stands the code in for the HTML still to be highlighted, keeping reused HTML", () => {
+      const block = (text: string, attrs: Record<string, unknown> = {}) => ({
+        type: "codeBlock",
+        attrs: { language: "ts", ...attrs },
+        content: [{ type: "text", text }],
+      });
+      const floor = snapshotContentFloor(
+        { type: "doc", content: [block("const a = 1;"), block("b < c")] },
+        {
+          type: "doc",
+          content: [block("const a = 1;", { highlightedHtml: "<pre>a</pre>" })],
+        },
+      );
+      expect(
+        floor?.content?.map((node) => node.attrs?.highlightedHtml),
+      ).toEqual(["<pre>a</pre>", "b < c"]);
     });
   });
 

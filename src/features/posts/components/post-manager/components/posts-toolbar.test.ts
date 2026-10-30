@@ -70,6 +70,41 @@ async function pick(menu: string, option: string) {
   fireEvent.click(await findInPopover("menuitemradio", { name: option }));
 }
 
+it("offers the unpublished changes filter with its count between published and draft", () => {
+  const onStatusChange = vi.fn();
+  render(
+    createElement(
+      QueryClientProvider,
+      { client: new QueryClient() },
+      createElement(PostsToolbar, {
+        searchTerm: "",
+        onSearchChange: vi.fn(),
+        searchRef: null,
+        status: "ALL",
+        statusCounts: { draft: 3, published: 5, unpublishedChanges: 2 },
+        onStatusChange,
+        sortBy: "updatedAt",
+        onSortByChange: vi.fn(),
+        onCategoryChange: vi.fn(),
+        onTagChange: vi.fn(),
+      }),
+    ),
+  );
+
+  const tabs = screen.getAllByRole("tab");
+  expect(tabs.map((tab) => tab.getAttribute("data-value"))).toEqual([
+    "ALL",
+    "PUBLISHED",
+    "CHANGED",
+    "DRAFT",
+  ]);
+  const changed = tabs[2]!;
+  expect(changed.textContent).toBe(`${m.admin_posts_filter_changed()} 2`);
+  expect(tabs[1]!.textContent).toBe(`${m.admin_posts_filter_published()} 5`);
+  fireEvent.click(changed);
+  expect(onStatusChange).toHaveBeenCalledWith("CHANGED");
+});
+
 it("filters by a category, by uncategorized posts and by a tag", async () => {
   const { onCategoryChange, onTagChange } = renderToolbar({});
   await screen.findByText(m.admin_posts_filter_category_all());

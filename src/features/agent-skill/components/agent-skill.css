@@ -1,0 +1,101 @@
+.agent-skill-steps {
+  display: grid;
+  gap: 28px;
+  margin: 0 0 32px;
+  padding: 0;
+  list-style: none;
+}
+.agent-skill-step {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.agent-skill-hint {
+  color: var(--fuwari-fg-50);
+  font-size: calc(13 * var(--admin-unit));
+  line-height: 1.7;
+}
+.agent-skill-hint a {
+  color: var(--fuwari-fg-90);
+}
+.agent-skill-copyline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.agent-skill-copyline code {
+  min-width: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--fuwari-btn-regular-bg);
+  font-size: calc(13 * var(--admin-unit));
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.agent-skill-examples {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agent-skill-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fuwari-fg-50);
+  font-size: calc(13 * var(--admin-unit));
+}
+.agent-skill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.agent-skill-agents {
+  display: grid;
+  gap: 12px;
+  padding-top: 24px;
+  border-top: 1px solid var(--admin-rule);
+}
+.agent-skill-table {
+  overflow-x: auto;
+}
+.agent-skill-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(14 * var(--admin-unit));
+}
+.agent-skill-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--fuwari-fg-50);
+}
+.agent-skill-table th,
+.agent-skill-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--admin-rule);
+}
+.agent-skill-table td:first-child {
+  overflow-wrap: anywhere;
+  max-width: 280px;
+}
+.agent-skill-table td:not(:first-child) {
+  white-space: nowrap;
+  color: var(--fuwari-fg-50);
+  font-size: calc(12 * var(--admin-unit));
+}
+.agent-skill-table td:last-child {
+  text-align: right;
+}
+@media (max-width: 600px) {
+  .agent-skill-table th:nth-child(2),
+  .agent-skill-table td:nth-child(2) {
+    display: none;
+  }
+}
+.agent-skill-expiry {
+  opacity: 0.7;
+}

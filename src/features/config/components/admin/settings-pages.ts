@@ -2,6 +2,7 @@ export const SETTINGS_PAGE_TO = {
   site: "/admin/settings/site",
   notify: "/admin/settings/notifications",
   "api-keys": "/admin/settings/api-keys",
+  "agent-skill": "/admin/settings/agent-skill",
   "muted-users": "/admin/settings/muted-users",
   maintenance: "/admin/settings/maintenance",
 } as const;
@@ -12,6 +13,7 @@ export const SETTINGS_PAGE_IDS = [
   "site",
   "notify",
   "api-keys",
+  "agent-skill",
   "muted-users",
   "maintenance",
 ] as const satisfies ReadonlyArray<SettingsPageId>;
@@ -31,6 +33,7 @@ export function settingsSectionFromPath(
   if (path.endsWith("/settings/site")) return "site";
   if (path.endsWith("/settings/notifications")) return "notify";
   if (path.endsWith("/settings/api-keys")) return "api-keys";
+  if (path.endsWith("/settings/agent-skill")) return "agent-skill";
   if (path.endsWith("/settings/muted-users")) return "muted-users";
   if (path.endsWith("/settings/maintenance")) return "maintenance";
   return null;

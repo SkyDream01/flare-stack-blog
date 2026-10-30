@@ -29,6 +29,10 @@ export function createAuthConfig() {
       apiKey({
         enableSessionForAPIKeys: true,
         requireName: true,
+        // A paired key is named "<agent name> · <date>", the agent name up to
+        // 50 characters, and marked as created by Pairing in its metadata.
+        maximumNameLength: 64,
+        enableMetadata: true,
         defaultPrefix: "fsb_",
         rateLimit: { enabled: false },
         keyExpiration: {

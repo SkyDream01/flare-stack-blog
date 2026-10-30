@@ -196,3 +196,38 @@ describe("renderReact tables", () => {
     expect(html).not.toContain("katex");
   });
 });
+
+describe("renderReact links", () => {
+  const linked = (attrs: Record<string, unknown>): JSONContent => ({
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [
+          { type: "text", text: "go", marks: [{ type: "link", attrs }] },
+        ],
+      },
+    ],
+  });
+
+  it("sets target and rel itself and shows no class from the body", () => {
+    const html = render(
+      linked({
+        href: "https://example.com/",
+        target: "_self",
+        rel: "opener",
+        class: "fixed inset-0",
+        title: "Example",
+      }),
+    );
+    expect(html).toBe(
+      '<p><a href="https://example.com/" title="Example" target="_blank" rel="noopener noreferrer nofollow">go</a></p>',
+    );
+  });
+
+  it("leaves out an address a post cannot show", () => {
+    expect(render(linked({ href: "javascript:alert(1)" }))).toBe(
+      '<p><a target="_blank" rel="noopener noreferrer nofollow">go</a></p>',
+    );
+  });
+});

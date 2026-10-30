@@ -4,6 +4,8 @@ import * as FriendLinkService from "@/features/friend-links/friend-links.service
 import {
   authProcedure,
   publicProcedure,
+  rateLimitErrors,
+  turnstileErrors,
   turnstileMiddleware,
   withRateLimit,
 } from "@/lib/orpc/procedure";
@@ -20,6 +22,7 @@ const listApproved = publicProcedure
   .handler(({ context }) => FriendLinkService.getApprovedFriendLinks(context));
 
 const submit = authProcedure
+  .errors({ ...rateLimitErrors, ...turnstileErrors })
   .use(
     withRateLimit({
       capacity: 3,

@@ -1,3 +1,5 @@
+import { inlineScriptJson } from "@/lib/inline-script-json";
+
 type ArticleJsonLdInput = {
   authorName: string;
   canonicalHref: string;
@@ -86,5 +88,5 @@ export function buildArticleJsonLd({
     jsonLd.image = post.image;
   }
 
-  return JSON.stringify(jsonLd);
+  return inlineScriptJson(jsonLd);
 }

@@ -8,7 +8,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import * as PostService from "@/features/posts/services/posts.service";
 import * as SearchService from "@/features/search/service/search.service";
 import * as TagService from "@/features/tags/tags.service";
-import { PostsTable, PostTagsTable, TagsTable } from "@/lib/db/schema";
+import {
+  PostPublicTagsTable,
+  PostsTable,
+  PostTagsTable,
+  TagsTable,
+} from "@/lib/db/schema";
 import { unwrap } from "@/lib/errors";
 
 describe("Tags & Search Integration", () => {
@@ -277,7 +282,7 @@ describe("Tags & Search Integration", () => {
       expect(results).toHaveLength(0);
     });
 
-    it("should rebuild index using current tags even when the public snapshot has none", async () => {
+    it("rebuilds the index from the public Tags, not the draft's", async () => {
       const context = createAdminTestContext();
       await seedUser(context.db, context.session.user);
 
@@ -298,7 +303,6 @@ describe("Tags & Search Integration", () => {
           tagIds: [],
           categoryId: null,
           publishedAt: new Date().toISOString(),
-          pinnedAt: null,
           cover: null,
         },
       };
@@ -309,11 +313,18 @@ describe("Tags & Search Integration", () => {
         id: 1,
         name: "dbtag",
       };
-      await context.db.insert(TagsTable).values(tagData);
+      await context.db
+        .insert(TagsTable)
+        .values([tagData, { id: 2, name: "drafttag" }]);
 
-      await context.db.insert(PostTagsTable).values({
+      await context.db.insert(PostPublicTagsTable).values({
         postId: postData.id,
         tagId: tagData.id,
+      });
+      // Assigned to the draft only, so not yet public.
+      await context.db.insert(PostTagsTable).values({
+        postId: postData.id,
+        tagId: 2,
       });
 
       await SearchService.deleteIndex(context, { id: postData.id });
@@ -326,7 +337,14 @@ describe("Tags & Search Integration", () => {
       });
       expect(results).toHaveLength(1);
       expect(results[0].post.title).toBe(postData.title);
-      expect(results[0].post.tags).toContain("dbtag");
+      expect(results[0].post.tags).toEqual(["dbtag"]);
+      expect(
+        await SearchService.search(context, {
+          q: "drafttag",
+          v: "1",
+          limit: 10,
+        }),
+      ).toEqual([]);
     });
 
     it("matches Chinese title terms", async () => {

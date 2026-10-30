@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Copy, ExternalLink, FileText, Upload, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FuwariModal } from "@/components/ui/fuwari-modal";
 import { IconButton } from "@/components/ui/icon-button";
@@ -18,6 +19,7 @@ import {
   MAX_FILE_SIZE,
 } from "@/features/media/media.schema";
 import { linkedPostsQuery } from "@/features/media/queries";
+import { mediaUsageOf } from "@/features/media/utils/media.utils";
 import { formatBytes } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import type { MediaAsset } from "../types";
@@ -50,6 +52,7 @@ export function MediaDetail({
   }, [asset.key]);
   const fileRef = useRef<HTMLInputElement>(null);
   const busy = isReplacing;
+  const usage = mediaUsageOf(asset);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const {
@@ -113,10 +116,17 @@ export function MediaDetail({
         </p>
         <section className="media-inspector-usage">
           <h3>
-            {asset.postCount
+            {usage === "current"
               ? m.media_used_in({ count: asset.postCount })
-              : m.media_unreferenced()}
+              : usage === "revisions-only"
+                ? m.media_badge_revisions()
+                : m.media_unreferenced()}
           </h3>
+          {usage === "current" && asset.revisionOnlyPostCount > 0 ? (
+            <p className="media-inspector-note">
+              {m.media_revisions_also({ count: asset.revisionOnlyPostCount })}
+            </p>
+          ) : null}
           {isPending ? (
             <p>{m.media_grid_loading()}</p>
           ) : isError ? (
@@ -135,9 +145,20 @@ export function MediaDetail({
                 className="media-reference"
               >
                 <FileText size={16} />
-                <span>{post.title}</span>
-                {post.isCover ? <small>{m.media_badge_cover()}</small> : null}
+                <span className="media-reference-title">{post.title}</span>
                 <ExternalLink size={14} />
+                {post.isCover || (usage === "current" && post.revisionsOnly) ? (
+                  <span className="media-reference-badges">
+                    {post.isCover ? (
+                      <Badge tone="primary" size="sm">
+                        {m.media_badge_cover()}
+                      </Badge>
+                    ) : null}
+                    {usage === "current" && post.revisionsOnly ? (
+                      <Badge size="sm">{m.media_badge_revisions()}</Badge>
+                    ) : null}
+                  </span>
+                ) : null}
               </Link>
             ))
           )}
@@ -167,7 +188,7 @@ export function MediaDetail({
             {isReplacing ? m.common_processing() : m.media_replace()}
           </Button>
         </div>
-        {asset.postCount === 0 ? (
+        {usage === "none" ? (
           <Button
             variant="text"
             size="sm"

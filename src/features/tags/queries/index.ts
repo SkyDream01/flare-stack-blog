@@ -1,4 +1,5 @@
 import { orpc } from "@/lib/orpc";
+import { emptyListOnNotFound } from "@/lib/orpc/null-on-not-found";
 import type { GetTagsInput } from "../tags.schema";
 
 export const tagsQueryOptions = orpc.tags.list.queryOptions();
@@ -10,8 +11,12 @@ export function tagsAdminQueryOptions(options: GetTagsInput = {}) {
   });
 }
 
+/** Resolves to no tags for a post that does not exist (the server answers 404). */
 export function tagsByPostIdQueryOptions(postId: number) {
-  return orpc.tags.admin.byPostId.queryOptions({ input: { postId } });
+  return emptyListOnNotFound(
+    orpc.tags.admin.byPostId.queryOptions({ input: { postId } }),
+    "POST_NOT_FOUND",
+  );
 }
 
 export function tagsWithCountAdminQueryOptions(options: GetTagsInput = {}) {

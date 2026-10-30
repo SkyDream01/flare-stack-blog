@@ -16,6 +16,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { keepUpdatedAt } from "@/features/comments/data/comments.data";
+import { unpublishedChangesSql } from "@/features/posts/data/helper";
 import {
   CommentsTable,
   PostRevisionsTable,
@@ -29,6 +30,7 @@ const postSummaryColumns = {
   status: PostsTable.status,
   pinnedAt: PostsTable.pinnedAt,
   updatedAt: PostsTable.updatedAt,
+  hasUnpublishedChanges: unpublishedChangesSql().mapWith(Boolean),
 };
 
 const publicPostTitle = sql<string>`coalesce(json_extract(${PostsTable.publicSnapshotJson}, '$.title'), ${PostsTable.title})`;

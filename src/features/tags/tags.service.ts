@@ -1,5 +1,6 @@
 import { invalidate } from "@/features/cache/public-cache";
 import * as PostRepo from "@/features/posts/data/posts.data";
+import * as SearchService from "@/features/search/service/search.service";
 
 import * as TagRepo from "@/features/tags/data/tags.data";
 import { publicTagList } from "@/features/tags/tags.cache";
@@ -13,6 +14,7 @@ import type {
   TagWithCount,
   UpdateTagInput,
 } from "@/features/tags/tags.schema";
+import { isUniqueViolation, TAG_NAME } from "@/lib/db/unique-keys";
 import { err, ok } from "@/lib/errors";
 
 /**
@@ -76,13 +78,17 @@ export async function getTagsWithCount(
 }
 
 /**
- * Get tags for a specific post
+ * Get tags for a specific post, or POST_NOT_FOUND when there is no such post:
+ * a missing post has no tags to list, which is not the same as having none.
  */
 export async function getTagsByPostId(
   context: DbContext,
   data: GetTagsByPostIdInput,
 ) {
-  return await TagRepo.getTagsByPostId(context.db, data.postId);
+  if ((await PostRepo.findPostSaveToken(context.db, data.postId)) === null) {
+    return err({ reason: "POST_NOT_FOUND" });
+  }
+  return ok(await TagRepo.getTagsByPostId(context.db, data.postId));
 }
 
 // ============ Admin Service Methods ============
@@ -106,11 +112,15 @@ export const createTag = async (context: DbContext, data: CreateTagInput) => {
     return err({ reason: "TAG_NAME_ALREADY_EXISTS" });
   }
 
-  const tag = await TagRepo.insertTag(context.db, {
-    name: data.name,
-  });
-
-  return ok(tag);
+  try {
+    return ok(await TagRepo.insertTag(context.db, { name: data.name }));
+  } catch (error) {
+    // A concurrent create or rename took the name after the check.
+    if (isUniqueViolation(error, TAG_NAME)) {
+      return err({ reason: "TAG_NAME_ALREADY_EXISTS" });
+    }
+    throw error;
+  }
 };
 
 /**
@@ -139,7 +149,24 @@ export async function updateTag(
     data.id,
   );
 
-  const tag = await TagRepo.updateTag(context.db, data.id, data.data);
+  let tag;
+  try {
+    tag = await TagRepo.updateTag(context.db, data.id, data.data);
+  } catch (error) {
+    // A concurrent create or rename took the name after the check.
+    if (isUniqueViolation(error, TAG_NAME)) {
+      return err({ reason: "TAG_NAME_ALREADY_EXISTS" });
+    }
+    throw error;
+  }
+
+  // The new name is public at once, so search follows (not left to a rebuild).
+  if (data.data.name && data.data.name !== existingTag.name) {
+    await SearchService.reindexPosts(
+      context,
+      affectedPosts.map((post) => post.id),
+    );
+  }
 
   context.executionCtx.waitUntil(
     invalidateTagRelatedCache(context, affectedPosts),
@@ -167,6 +194,10 @@ export async function deleteTag(
   );
 
   await TagRepo.deleteTag(context.db, data.id);
+  await SearchService.reindexPosts(
+    context,
+    affectedPosts.map((post) => post.id),
+  );
 
   context.executionCtx.waitUntil(
     invalidateTagRelatedCache(context, affectedPosts),
@@ -175,16 +206,45 @@ export async function deleteTag(
   return ok({ success: true });
 }
 
-/** Update shared Tag assignments; public caches refresh in the background. */
-export async function setPostTags(
-  context: DbContext & { executionCtx: ExecutionContext },
-  data: SetPostTagsInput,
-) {
-  await TagRepo.setPostTags(context.db, data.postId, data.tagIds);
-  const post = await PostRepo.touchPostUpdatedAt(context.db, data.postId);
-  if (post?.publicSlug) {
-    context.executionCtx.waitUntil(
-      invalidate.tagChanged(context, { slugs: [post.publicSlug] }),
-    );
+/**
+ * Replaces the Post's draft Tags. The public site keeps the Tags of its Public
+ * Content Snapshot until the Post is published (ADR 0033), so no public cache
+ * needs purging. Returns the Post's new saveToken, or POST_NOT_FOUND when there
+ * is no such Post, or TAG_NOT_FOUND when a Tag id has no Tag. With a stated
+ * saveToken the Post was saved since, nothing is written, and the current token
+ * comes back as an Edit Conflict (ADR 0031).
+ */
+export async function setPostTags(context: DbContext, data: SetPostTagsInput) {
+  // Setting the Tags the Post already has writes nothing, so it keeps the
+  // saveToken an open editor holds. A stated token still has to be current.
+  const held = await PostRepo.findPostSaveToken(context.db, data.postId);
+  if (held !== null) {
+    const tags = await TagRepo.getTagsByPostId(context.db, data.postId);
+    const wanted = new Set(data.tagIds);
+    if (
+      tags.length === wanted.size &&
+      tags.every((tag) => wanted.has(tag.id))
+    ) {
+      if (data.saveToken !== undefined && data.saveToken !== held) {
+        return err({ reason: "EDIT_CONFLICT", saveToken: held });
+      }
+      return ok({ saveToken: held });
+    }
   }
+
+  const saveToken = await TagRepo.setPostTags(
+    context.db,
+    data.postId,
+    data.tagIds,
+    { saveToken: data.saveToken },
+  );
+  if (saveToken !== null) return ok({ saveToken });
+
+  // Nothing was written: the Post is missing, a Tag is missing, or a newer
+  // save replaced the stated token.
+  const current = await PostRepo.findPostSaveToken(context.db, data.postId);
+  if (current === null) return err({ reason: "POST_NOT_FOUND" });
+  const missing = await TagRepo.findMissingTagIds(context.db, data.tagIds);
+  if (missing.length > 0) return err({ reason: "TAG_NOT_FOUND" });
+  return err({ reason: "EDIT_CONFLICT", saveToken: current });
 }

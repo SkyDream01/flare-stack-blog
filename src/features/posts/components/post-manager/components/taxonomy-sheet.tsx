@@ -28,7 +28,14 @@ import { m } from "@/paraglide/messages";
 import "./taxonomy-sheet.css";
 
 export type TaxonomyKind = "category" | "tag";
-export type TaxonomyItem = { id: number; name: string; postCount: number };
+export type TaxonomyItem = {
+  id: number;
+  name: string;
+  /** Posts that carry it in their draft. */
+  postCount: number;
+  /** Published posts the public site shows it on. */
+  publicPostCount: number;
+};
 
 /** The same 50-character limit the create and update inputs enforce. */
 const NAME_MAX_LENGTH = 50;
@@ -156,6 +163,24 @@ export function TaxonomySheet({
       />
     </Sheet>
   );
+}
+
+/**
+ * What deleting removes at once: the draft assignments of every post, and the
+ * public ones of the published posts, which go live without a publish.
+ */
+function deleteMessage(kind: TaxonomyKind, item: TaxonomyItem | null) {
+  const name = item?.name ?? "";
+  const count = item?.postCount ?? 0;
+  const published = item?.publicPostCount ?? 0;
+  if (kind === "category") {
+    return published > 0
+      ? m.taxonomy_sheet_delete_category_desc({ name, count, published })
+      : m.taxonomy_sheet_delete_category_desc_draft_only({ name, count });
+  }
+  return published > 0
+    ? m.taxonomy_sheet_delete_tag_desc({ name, count, published })
+    : m.taxonomy_sheet_delete_tag_desc_draft_only({ name, count });
 }
 
 function useTaxonomyItems(kind: TaxonomyKind) {
@@ -427,17 +452,7 @@ function TaxonomyPanel({
             ? m.category_manager_delete_title()
             : m.tag_manager_delete_title()
         }
-        message={
-          kind === "category"
-            ? m.taxonomy_sheet_delete_category_desc({
-                name: toDelete?.name ?? "",
-                count: toDelete?.postCount ?? 0,
-              })
-            : m.taxonomy_sheet_delete_tag_desc({
-                name: toDelete?.name ?? "",
-                count: toDelete?.postCount ?? 0,
-              })
-        }
+        message={deleteMessage(kind, toDelete)}
         confirmLabel={m.category_manager_delete()}
         isDanger
         isLoading={deleteMutation.isPending}

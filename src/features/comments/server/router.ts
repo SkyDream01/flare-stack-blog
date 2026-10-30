@@ -16,6 +16,8 @@ import * as CommentService from "@/features/comments/comments.service";
 import {
   authProcedure,
   optionalSessionProcedure,
+  rateLimitErrors,
+  turnstileErrors,
   turnstileMiddleware,
   withRateLimit,
 } from "@/lib/orpc/procedure";
@@ -69,6 +71,7 @@ const thread = optionalSessionProcedure
   );
 
 const create = authProcedure
+  .errors({ ...rateLimitErrors, ...turnstileErrors })
   .use(withRateLimit({ capacity: 10, interval: "1m", key: "comments:create" }))
   .use(turnstileMiddleware)
   .errors(commentErrors)
@@ -115,6 +118,7 @@ const create = authProcedure
   );
 
 const remove = authProcedure
+  .errors(rateLimitErrors)
   .use(withRateLimit({ capacity: 10, interval: "1m", key: "comments:delete" }))
   .errors(commentErrors)
   .route({

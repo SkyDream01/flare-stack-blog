@@ -8,6 +8,7 @@ import { useContentMotion } from "@/hooks/use-motion";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SearchHighlight } from "@/features/search/components/search-highlight";
 import { m } from "@/paraglide/messages";
 import "./search-page.css";
 
@@ -116,13 +117,13 @@ export function SearchPage({
                   className="public-search-result"
                 >
                   <h2>
-                    <Highlighted
+                    <SearchHighlight
                       html={result.matches.title}
                       fallback={result.post.title}
                     />
                   </h2>
                   <p className="public-search-excerpt">
-                    <Highlighted
+                    <SearchHighlight
                       html={
                         result.matches.summary ||
                         (!result.post.summary
@@ -171,37 +172,4 @@ export function SearchPage({
       </div>
     </section>
   );
-}
-
-const entities: Record<string, string> = {
-  "&amp;": "&",
-  "&lt;": "<",
-  "&gt;": ">",
-  "&quot;": '"',
-  "&#039;": "'",
-};
-function decode(text: string) {
-  return text.replace(
-    /&(?:amp|lt|gt|quot|#039);/g,
-    (entity) => entities[entity],
-  );
-}
-/** Render only the search API's mark delimiters; titles and excerpts remain text. */
-export function Highlighted({
-  html,
-  fallback,
-}: {
-  html: string | null;
-  fallback: string;
-}) {
-  if (!html) return fallback;
-  return html
-    .split(/(<mark>.*?<\/mark>)/gs)
-    .map((part, index) =>
-      part.startsWith("<mark>") && part.endsWith("</mark>") ? (
-        <mark key={index}>{decode(part.slice(6, -7))}</mark>
-      ) : (
-        decode(part)
-      ),
-    );
 }

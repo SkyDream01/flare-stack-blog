@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { SearchHighlight } from "@/features/search/components/search-highlight";
 import type { SearchPageProps } from "@/features/theme/contract/pages";
 import { m } from "@/paraglide/messages";
 
@@ -75,18 +76,20 @@ export function SearchPage({
                     style={{
                       viewTransitionName: `post-title-${result.post.slug}`,
                     }}
-                    dangerouslySetInnerHTML={{
-                      __html: result.matches.title || result.post.title,
-                    }}
-                  />
+                  >
+                    <SearchHighlight
+                      html={result.matches.title}
+                      fallback={result.post.title}
+                    />
+                  </h4>
                 </div>
 
-                <p
-                  className="text-sm font-sans text-muted-foreground line-clamp-2 opacity-60 group-hover:opacity-100 transition-opacity duration-300"
-                  dangerouslySetInnerHTML={{
-                    __html: result.matches.summary || result.post.summary || "",
-                  }}
-                />
+                <p className="text-sm font-sans text-muted-foreground line-clamp-2 opacity-60 group-hover:opacity-100 transition-opacity duration-300">
+                  <SearchHighlight
+                    html={result.matches.summary}
+                    fallback={result.post.summary || ""}
+                  />
+                </p>
 
                 {result.post.tags.length > 0 && (
                   <div className="flex gap-2 pt-2">

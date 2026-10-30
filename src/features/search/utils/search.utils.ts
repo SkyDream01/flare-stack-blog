@@ -5,6 +5,12 @@ import {
   SNIPPET_SLICE,
 } from "@/features/search/search.constants";
 
+/**
+ * An excerpt of `text` around the first match of the terms, as HTML: the text
+ * is always HTML-escaped, whether or not a term matched, and each match is
+ * wrapped in `<mark>`. Without a match it is the text's beginning, still
+ * escaped. Null for an empty text.
+ */
 export function buildSnippet({
   text,
   terms,
@@ -32,7 +38,7 @@ export function buildSnippet({
     terms.length > 0 ? terms : fallbackTerm ? [fallbackTerm] : [];
 
   if (activeTerms.length === 0) {
-    return source.slice(0, snippetSlice);
+    return escapeHtml(source.slice(0, snippetSlice));
   }
 
   const lowerSource = source.toLowerCase();
@@ -41,7 +47,7 @@ export function buildSnippet({
     findApproxMatch(source, activeTerms, scanLimit, fuzzyMaxDistance);
 
   if (!match) {
-    return source.slice(0, snippetSlice);
+    return escapeHtml(source.slice(0, snippetSlice));
   }
 
   const { idx, len, token } = match;
@@ -52,21 +58,30 @@ export function buildSnippet({
       ? Math.min(source.length, SNIPPET_SLICE)
       : Math.min(source.length, idx + len + SNIPPET_CONTEXT);
 
-  const slice = source.slice(start, end);
-  const safeSlice = escapeHtml(slice);
+  return markTerms(source.slice(start, end), [token, ...activeTerms]);
+}
 
-  const highlightTerms = [token, ...activeTerms]
-    .filter((t) => t && t.length > 0)
-    .map((t) => escapeRegExp(escapeHtml(t)));
+/**
+ * `text` HTML-escaped, with every occurrence of a term wrapped in `<mark>`.
+ * Terms are found in the text as written, not in its escaped form, so a
+ * search for `amp` or `lt` cannot land inside an entity.
+ */
+function markTerms(text: string, terms: Array<string>) {
+  const pattern = terms
+    .filter((term) => term.length > 0)
+    .map(escapeRegExp)
+    .join("|");
+  if (!pattern) return escapeHtml(text);
 
-  const highlightRegex = new RegExp(highlightTerms.join("|"), "gi");
-
-  const highlighted = safeSlice.replace(
-    highlightRegex,
-    (m) => `<mark>${m}</mark>`,
-  );
-
-  return highlighted;
+  let html = "";
+  let last = 0;
+  for (const found of text.matchAll(new RegExp(pattern, "gi"))) {
+    if (found[0].length === 0) continue;
+    html += escapeHtml(text.slice(last, found.index));
+    html += `<mark>${escapeHtml(found[0])}</mark>`;
+    last = found.index + found[0].length;
+  }
+  return html + escapeHtml(text.slice(last));
 }
 
 function escapeRegExp(str: string) {

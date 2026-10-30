@@ -1,3 +1,88 @@
+import { withoutControlCharacters } from "@/lib/unicode-text";
+
+/** The longest file name a Media can have, the usual limit of a file system. */
+export const MEDIA_NAME_MAX_LENGTH = 255;
+
+/**
+ * How posts use an image: in a draft or published version (`current`), only in
+ * Post Revisions, which restoring would bring back (`revisions-only`), or not
+ * at all.
+ */
+export function mediaUsageOf(counts: {
+  postCount: number;
+  revisionOnlyPostCount: number;
+}): "current" | "revisions-only" | "none" {
+  if (counts.postCount > 0) return "current";
+  return counts.revisionOnlyPostCount > 0 ? "revisions-only" : "none";
+}
+
+const IMAGE_TYPE_EXTENSIONS: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+};
+
+/** `mimeType` as one name per image type: lower case, no parameters, image/jpg as image/jpeg. */
+export function normalizeImageType(mimeType: string) {
+  const type = mimeType.split(";")[0].trim().toLowerCase();
+  return type === "image/jpg" ? "image/jpeg" : type;
+}
+
+/** Whether two content types are the same image type. */
+export function isSameImageType(a: string, b: string) {
+  return normalizeImageType(a) === normalizeImageType(b);
+}
+
+/** The extension an image of `mimeType` is stored with. */
+export function imageExtensionOf(mimeType: string) {
+  return IMAGE_TYPE_EXTENSIONS[normalizeImageType(mimeType)] ?? "jpg";
+}
+
+// Extensions of image files. One of these on a name that does not match the
+// image's type is replaced; any other ending (`v1.2`) is part of the name.
+const IMAGE_FILE_EXTENSION =
+  /\.(?:jpe?g|png|webp|gif|svg|avif|bmp|ico|tiff?|heic)$/i;
+
+/**
+ * A file name for Media as the Admin could rename it to: control and format
+ * characters taken out, trimmed, and cut to `MEDIA_NAME_MAX_LENGTH` characters
+ * without losing its extension. Empty when nothing is left.
+ */
+export function cleanMediaName(name: string) {
+  const cleaned = withoutControlCharacters(name, { emoji: true }).trim();
+  if (cleaned.length <= MEDIA_NAME_MAX_LENGTH) return cleaned;
+  const extension = cleaned.match(/\.[A-Za-z0-9]{1,10}$/)?.[0] ?? "";
+  const base = Array.from(cleaned.slice(0, cleaned.length - extension.length));
+  while (base.join("").length > MEDIA_NAME_MAX_LENGTH - extension.length) {
+    base.pop();
+  }
+  return `${base.join("").trim()}${extension}`;
+}
+
+/**
+ * The file name of an image taken from an address: `name`, the Admin's or the
+ * last part of the address, with the extension of the type the response turned
+ * out to be. The stored key takes its extension from this name, so it must not
+ * name another type. A name with nothing left is `image.<ext>`.
+ */
+export function importedMediaName(name: string, mimeType: string) {
+  const extension = imageExtensionOf(mimeType);
+  const cleaned = cleanMediaName(name);
+  if (!cleaned) return `image.${extension}`;
+  const current = cleaned.match(IMAGE_FILE_EXTENSION)?.[0];
+  if (!current) return cleanMediaName(`${cleaned}.${extension}`);
+  const stem = cleaned.slice(0, -current.length).trim();
+  if (!stem) return `image.${extension}`;
+  const own = current.slice(1).toLowerCase();
+  // jpeg and jpg are one type; the name keeps the one it has.
+  if (own === extension || (own === "jpeg" && extension === "jpg")) {
+    return cleaned;
+  }
+  return cleanMediaName(`${stem}.${extension}`);
+}
+
 export function getContentTypeFromKey(key: string): string | undefined {
   const extension = key.split(".").pop()?.toLowerCase();
   const contentTypes: Record<string, string> = {
@@ -70,15 +155,19 @@ export function getOriginalImageUrl(key: string) {
 }
 
 /**
- * The original an image transform reads. It carries the request's `v` so a
- * replaced file at the same key is fetched fresh instead of from the edge
- * cache of the unversioned original.
+ * The original an image transform reads. Cloudflare keeps transformed images
+ * by their source URL, and only a zone purge clears that, so the source names
+ * the stored file's version (its R2 ETag): once a file is replaced at the same
+ * key, transforms read and cache the new one.
  */
-export function getTransformSourceUrl(requestUrl: URL, key: string) {
+export function getTransformSourceUrl(
+  requestUrl: URL,
+  key: string,
+  fileVersion: string,
+) {
   const source = new URL(getOriginalImageUrl(key), requestUrl.origin);
   source.searchParams.set("original", "true");
-  const version = requestUrl.searchParams.get("v");
-  if (version) source.searchParams.set("v", version);
+  source.searchParams.set("v", fileVersion);
   return source.toString();
 }
 

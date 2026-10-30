@@ -55,15 +55,24 @@ const home = publicProcedure
   });
 
 const bySlug = publicProcedure
+  .errors({
+    POST_NOT_FOUND: { status: 404, message: "Post not found." },
+  })
   .route({
     method: "GET",
     path: "/posts/{slug}",
     summary: "Get a published post by slug",
+    description:
+      "Returns the published post, or answers 404 POST_NOT_FOUND when no published post has that slug. A draft, or a post that was unpublished, has none.",
     tags: ["Posts"],
   })
   .input(FindPostBySlugInputSchema)
   .output(PostWithTocSchema)
-  .handler(({ context, input }) => PostService.findPostBySlug(context, input));
+  .handler(async ({ context, input, errors }) => {
+    const post = await PostService.findPostBySlug(context, input);
+    if (!post) throw errors.POST_NOT_FOUND();
+    return post;
+  });
 
 const adjacent = publicProcedure
   .route({

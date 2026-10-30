@@ -116,6 +116,31 @@ describe("POST /api/admin/media", () => {
     expect(body).toMatchObject({ width: 640, height: 480 });
   });
 
+  it("refuses a file whose bytes are not the type it declares", async () => {
+    const apiKey = await seedAdminApiKey();
+    const cases = [
+      new File(["just some text"], "notes.png", { type: "image/png" }),
+      new File([bytes(FIXTURES.jpeg.base64)], "photo.gif", {
+        type: "image/gif",
+      }),
+      new File(["<html><body>hi</body></html>"], "page.svg", {
+        type: "image/svg+xml",
+      }),
+    ];
+
+    for (const file of cases) {
+      const { status, body } = await upload(apiKey, file);
+      expect(status, file.name).toBe(400);
+      expect(body).toMatchObject({
+        code: "MEDIA_INVALID",
+        data: { detail: "TYPE_MISMATCH" },
+      });
+      expect((body as { message: string }).message).toContain(
+        "bytes are not the image type",
+      );
+    }
+  });
+
   it("refuses a format that is not on the allow-list", async () => {
     const apiKey = await seedAdminApiKey();
     // AVIF is deliberately excluded: Cloudflare only accepts it as a

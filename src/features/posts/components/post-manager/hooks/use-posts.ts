@@ -26,7 +26,7 @@ export function adminPostsListParams({
   return {
     offset: (page - 1) * ADMIN_ITEMS_PER_PAGE,
     limit: ADMIN_ITEMS_PER_PAGE,
-    status: statusFilterToApi(status),
+    ...statusFilterToApi(status),
     sortDir: "DESC",
     sortBy,
     search: search || undefined,
@@ -75,18 +75,24 @@ interface MutationCallbacks {
   onError?: () => void;
 }
 
+interface UnpublishCallbacks {
+  /** The post's `saveToken` after it went back to a draft. */
+  onSuccess?: (result: { saveToken: string }) => void;
+  onError?: () => void;
+}
+
 export function useUnpublishPost({
   onSuccess,
   onError,
-}: MutationCallbacks = {}) {
+}: UnpublishCallbacks = {}) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: number) => orpcClient.posts.admin.unpublish({ id }),
-    onSuccess: (_result, id) => {
-      toast.success(m.editor_header_unpublish());
+    onSuccess: (result, id) => {
+      toast.success(m.editor_toast_unpublished());
       void invalidatePostQueries(queryClient, id);
-      onSuccess?.();
+      onSuccess?.(result);
     },
     onError: () => {
       toast.error(m.editor_action_unpublish_failed());
@@ -99,17 +105,25 @@ export function useTogglePostPin() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (post: Pick<AdminPostListItem, "id" | "pinnedAt">) =>
-      orpcClient.posts.admin.update({
-        id: post.id,
-        data: { pinnedAt: post.pinnedAt ? null : new Date() },
-      }),
+    mutationFn: (
+      post: Pick<AdminPostListItem, "id" | "pinnedAt" | "status">,
+    ) =>
+      post.pinnedAt
+        ? orpcClient.posts.admin.unpin({ id: post.id })
+        : orpcClient.posts.admin.pin({ id: post.id }),
     onSuccess: async (_result, post) => {
       await invalidatePostQueries(queryClient, post.id);
+      // Pinning is live at once for a published post; a draft's pin shows
+      // when it is published.
+      const live = post.status === "published";
       toast.success(
         post.pinnedAt
-          ? m.admin_posts_toast_unpinned()
-          : m.admin_posts_toast_pinned(),
+          ? live
+            ? m.admin_posts_toast_unpinned()
+            : m.admin_posts_toast_unpinned_draft()
+          : live
+            ? m.admin_posts_toast_pinned()
+            : m.admin_posts_toast_pinned_draft(),
       );
     },
     onError: () => {
