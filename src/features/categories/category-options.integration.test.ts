@@ -33,7 +33,7 @@ it("requires an Admin session and exposes only Category option fields on the HTT
   await context.db
     .insert(schema.CategoriesTable)
     .values({ id: 1, name: "Not published yet" });
-  const getSession = vi.spyOn(context.auth.api, "getSession");
+  const getSession = vi.spyOn((await context.getAuth()).api, "getSession");
   const handler = new OpenAPIHandler({ categories: categoryRouter });
   const request = async () => {
     const result = await handler.handle(

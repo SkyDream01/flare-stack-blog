@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { resetAuthBoundQueries } from "@/features/auth/queries";
-import { authClient } from "@/lib/auth/auth-client";
+import { getAuthClient } from "@/lib/auth/auth-client";
 import { getLogoutAuthErrorMessage } from "@/lib/auth/auth-errors";
 import { m } from "@/paraglide/messages";
 
@@ -9,7 +9,7 @@ export function useLogout({ onSuccess }: { onSuccess?: () => void } = {}) {
   const queryClient = useQueryClient();
 
   const logout = async () => {
-    const { error } = await authClient.signOut();
+    const { error } = await getAuthClient().signOut();
     if (error) {
       toast.error(m.auth_logout_failed(), {
         description:

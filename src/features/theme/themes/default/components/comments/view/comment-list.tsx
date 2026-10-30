@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { RootCommentWithReplyCount } from "@/features/comments/comments.schema";
 import { repliesByRootIdInfiniteQuery } from "@/features/comments/queries";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 import { CommentItem } from "./comment-item";
 import { CommentReplyForm } from "./comment-reply-form";
@@ -38,7 +38,7 @@ export const CommentList = ({
   initialExpandedRootId,
   highlightCommentId,
 }: CommentListProps) => {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const [expandedRoots, setExpandedRoots] = useState<Set<number>>(new Set());
 
   useEffect(() => {

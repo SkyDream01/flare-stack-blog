@@ -23,7 +23,7 @@ export function PostOutdatedNotice({
 
   return (
     <Callout tone="warning" icon={History} className="mb-6">
-      {/* A cached page can be a day behind the client's clock. */}
+      {/* A cached page can be days behind the client's clock. */}
       <p
         className="text-sm leading-relaxed font-medium"
         suppressHydrationWarning

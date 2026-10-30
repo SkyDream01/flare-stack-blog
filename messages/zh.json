@@ -1491,5 +1491,7 @@
   "email_auth_sign_in_code_desc": "请在登录页面输入以下登录码：",
   "email_auth_sign_in_code_expiry": "登录码将在 10 分钟后过期，且只能使用一次。",
   "email_auth_sign_in_code_ignore": "如果您没有尝试登录，请忽略此邮件。",
-  "friend_apply_name_required": "请先在个人资料中设置公开名称，再提交友链申请。"
+  "friend_apply_name_required": "请先在个人资料中设置公开名称，再提交友链申请。",
+  "settings_api_keys_skill_hint": "安装 Agent Skill 后，AI agent 可以直接帮你撰写、发布和管理文章。{download}，解压到 agent 的 skill 目录，输入 {command} 即可使用。首次使用时需提供站点地址和 API Key。",
+  "settings_api_keys_skill_download": "下载 Agent Skill（v{version}）"
 }

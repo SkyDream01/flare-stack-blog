@@ -2,7 +2,7 @@ import { ClientOnly } from "@tanstack/react-router";
 import { memo, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import type { CommentWithUser } from "@/features/comments/comments.schema";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { cn, formatDate } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { ExpandableContent } from "./expandable-content";
@@ -29,7 +29,7 @@ export const CommentItem = memo(
   }: CommentItemProps) => {
     const isHighlighted = highlightCommentId === comment.id;
 
-    const { data: session } = authClient.useSession();
+    const { data: session } = useSession();
 
     const isAuthor = session?.user.id === comment.userId;
     const isAdmin = session?.user.role === "admin";

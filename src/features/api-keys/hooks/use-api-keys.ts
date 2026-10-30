@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { authClient } from "@/lib/auth/auth-client";
+import { getAuthClient } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 
 const API_KEYS_QUERY_KEY = ["auth", "api-keys"] as const;
@@ -32,7 +32,7 @@ export function useApiKeys() {
   const listQuery = useQuery({
     queryKey: API_KEYS_QUERY_KEY,
     queryFn: async () => {
-      const { data, error } = await authClient.apiKey.list({
+      const { data, error } = await getAuthClient().apiKey.list({
         query: { sortBy: "createdAt", sortDirection: "desc" },
       });
       if (error) throw error;
@@ -43,7 +43,7 @@ export function useApiKeys() {
 
   const createMutation = useMutation({
     mutationFn: async (name: string) => {
-      const { data, error } = await authClient.apiKey.create({ name });
+      const { data, error } = await getAuthClient().apiKey.create({ name });
       if (error) throw error;
       if (!data?.key) {
         throw new Error("missing key");
@@ -60,7 +60,7 @@ export function useApiKeys() {
 
   const deleteMutation = useMutation({
     mutationFn: async (keyId: string) => {
-      const { error } = await authClient.apiKey.delete({ keyId });
+      const { error } = await getAuthClient().apiKey.delete({ keyId });
       if (error) throw error;
     },
     onSuccess: async () => {

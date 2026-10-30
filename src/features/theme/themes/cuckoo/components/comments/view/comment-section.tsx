@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { jsonCommentToPlainText } from "@/features/comments/comment-body";
 import { useComments } from "@/features/comments/hooks/use-comments";
 import { rootCommentsByPostIdInfiniteQuery } from "@/features/comments/queries";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 import { CuckooCommentEditor } from "../editor/comment-editor";
 import { CuckooCommentList } from "./comment-list";
@@ -22,7 +22,7 @@ interface CuckooCommentSectionProps {
 }
 
 export function CuckooCommentSection({ postId }: CuckooCommentSectionProps) {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const { comment: highlightCommentId } = routeApi.useSearch();
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery(rootCommentsByPostIdInfiniteQuery(postId));

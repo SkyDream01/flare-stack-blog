@@ -29,7 +29,7 @@ describe("Admin API Keys", () => {
       const headers = new Headers({ "x-api-key": key });
       const result = await handler.handle(
         new Request("http://localhost:3000/protected", { headers }),
-        { context: { ...context, auth, headers } },
+        { context: { ...context, getAuth: async () => auth, headers } },
       );
       if (!result.response) throw new Error("Protected route was not matched");
       return result.response;

@@ -23,7 +23,7 @@ declare global {
   };
 
   type SessionContext = DbContext & {
-    auth: Auth;
+    getAuth: () => Promise<Auth>;
     session: Session | null;
   };
 

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { PostPageProps } from "@/features/theme/contract/pages";
 import { ContentRenderer } from "@/features/theme/themes/default/components/content/content-renderer";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
 import { CompactTableOfContents } from "@/features/posts/components/compact-table-of-contents";
 import { PostOutdatedNotice } from "@/features/posts/components/post-outdated-notice";
@@ -17,7 +17,7 @@ import TableOfContents from "./components/table-of-contents";
 
 export function PostPage({ post }: PostPageProps) {
   const navigate = useNavigate();
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const [showBackToTop, setShowBackToTop] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   useHeadingAnchors(contentRef);

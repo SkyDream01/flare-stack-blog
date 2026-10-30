@@ -3,6 +3,7 @@ import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import { loadEnv } from "vite";
 import { defineConfig } from "vitest/config";
 import packageJson from "./package.json";
+import { routedFirstSegmentsPlugin } from "./scripts/vite-routed-segments.ts";
 
 export default defineConfig(async () => {
   const migrationsPath = path.join(__dirname, "migrations");
@@ -14,6 +15,7 @@ export default defineConfig(async () => {
       __BUILD_ID__: JSON.stringify("test"),
     },
     plugins: [
+      routedFirstSegmentsPlugin(),
       cloudflareTest({
         experimental: {
           newConfig: { configPath: "./cloudflare.config.ts" },

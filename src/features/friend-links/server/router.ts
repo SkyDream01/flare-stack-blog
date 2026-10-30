@@ -1,36 +1,14 @@
-import {
-  AdminFriendLinkListResponseSchema,
-  ApproveFriendLinkInputSchema,
-  CreateFriendLinkInputSchema,
-  DeleteFriendLinkInputSchema,
-  GetAllFriendLinksInputSchema,
-  RejectFriendLinkInputSchema,
-  SubmitFriendLinkInputSchema,
-  UpdateFriendLinkInputSchema,
-} from "@/features/friend-links/friend-links.schema";
+import { lazy } from "@orpc/server";
+import { SubmitFriendLinkInputSchema } from "@/features/friend-links/friend-links.schema";
 import * as FriendLinkService from "@/features/friend-links/friend-links.service";
 import {
-  adminProcedure,
   authProcedure,
   publicProcedure,
   turnstileMiddleware,
   withRateLimit,
 } from "@/lib/orpc/procedure";
 import { unwrapResult } from "@/lib/orpc/unwrap-result";
-
-const friendLinkErrors = {
-  DUPLICATE_URL: { status: 409, message: "Friend link URL already exists." },
-  INVALID_STATE: {
-    status: 409,
-    message:
-      "Only a rejected application can be resubmitted. Refresh its status.",
-  },
-  NOT_FOUND: { status: 404, message: "Friend link not found." },
-  NAME_REQUIRED: {
-    status: 403,
-    message: "Set a public name before submitting a friend link.",
-  },
-} as const;
+import { friendLinkErrors } from "./errors";
 
 const listApproved = publicProcedure
   .route({
@@ -86,110 +64,12 @@ const mine = authProcedure
   })
   .handler(({ context }) => FriendLinkService.getMyFriendLinks(context));
 
-const adminList = adminProcedure
-  .route({
-    method: "GET",
-    path: "/admin/friend-links",
-    summary: "List friend links for admin",
-    tags: ["Admin Friend Links"],
-  })
-  .input(GetAllFriendLinksInputSchema)
-  .output(AdminFriendLinkListResponseSchema)
-  .handler(({ context, input }) =>
-    FriendLinkService.getAllFriendLinks(context, input),
-  );
-
-const create = adminProcedure
-  .errors(friendLinkErrors)
-  .route({
-    method: "POST",
-    path: "/admin/friend-links",
-    summary: "Create a friend link",
-    tags: ["Admin Friend Links"],
-  })
-  .input(CreateFriendLinkInputSchema)
-  .handler(({ context, input }) =>
-    FriendLinkService.createFriendLink(context, input),
-  );
-
-const update = adminProcedure
-  .errors(friendLinkErrors)
-  .route({
-    method: "PATCH",
-    path: "/admin/friend-links/{id}",
-    summary: "Update a friend link",
-    tags: ["Admin Friend Links"],
-  })
-  .input(UpdateFriendLinkInputSchema)
-  .handler(({ context, input, errors }) =>
-    unwrapResult(FriendLinkService.updateFriendLink(context, input), {
-      NOT_FOUND: () => {
-        throw errors.NOT_FOUND();
-      },
-    }),
-  );
-
-const approve = adminProcedure
-  .errors(friendLinkErrors)
-  .route({
-    method: "POST",
-    path: "/admin/friend-links/{id}/approve",
-    summary: "Approve a friend link",
-    tags: ["Admin Friend Links"],
-  })
-  .input(ApproveFriendLinkInputSchema)
-  .handler(({ context, input, errors }) =>
-    unwrapResult(FriendLinkService.approveFriendLink(context, input), {
-      NOT_FOUND: () => {
-        throw errors.NOT_FOUND();
-      },
-    }),
-  );
-
-const reject = adminProcedure
-  .errors(friendLinkErrors)
-  .route({
-    method: "POST",
-    path: "/admin/friend-links/{id}/reject",
-    summary: "Reject a friend link",
-    tags: ["Admin Friend Links"],
-  })
-  .input(RejectFriendLinkInputSchema)
-  .handler(({ context, input, errors }) =>
-    unwrapResult(FriendLinkService.rejectFriendLink(context, input), {
-      NOT_FOUND: () => {
-        throw errors.NOT_FOUND();
-      },
-    }),
-  );
-
-const remove = adminProcedure
-  .errors(friendLinkErrors)
-  .route({
-    method: "DELETE",
-    path: "/admin/friend-links/{id}",
-    summary: "Delete a friend link",
-    tags: ["Admin Friend Links"],
-  })
-  .input(DeleteFriendLinkInputSchema)
-  .handler(({ context, input, errors }) =>
-    unwrapResult(FriendLinkService.deleteFriendLink(context, input), {
-      NOT_FOUND: () => {
-        throw errors.NOT_FOUND();
-      },
-    }),
-  );
-
 export default {
   listApproved,
   submit,
   mine,
-  admin: {
-    list: adminList,
-    create,
-    update,
-    approve,
-    reject,
-    remove,
-  },
+  // Loaded on the first request under the prefix; public calls never load it.
+  admin: lazy(() => import("./admin-router"), {
+    prefix: "/admin/friend-links",
+  }),
 };

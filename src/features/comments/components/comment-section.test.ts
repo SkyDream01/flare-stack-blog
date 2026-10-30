@@ -61,17 +61,15 @@ vi.mock("@/lib/orpc", async () => {
 vi.mock("@/lib/auth/auth-client", async () => {
   const { useSyncExternalStore } = await import("react");
   return {
-    authClient: {
-      useSession: () => ({
-        data: useSyncExternalStore(
-          (notify) => {
-            boundary.listeners.add(notify);
-            return () => boundary.listeners.delete(notify);
-          },
-          () => boundary.session,
-        ),
-      }),
-    },
+    useSession: () => ({
+      data: useSyncExternalStore(
+        (notify) => {
+          boundary.listeners.add(notify);
+          return () => boundary.listeners.delete(notify);
+        },
+        () => boundary.session,
+      ),
+    }),
   };
 });
 

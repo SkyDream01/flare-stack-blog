@@ -8,6 +8,7 @@ import {
 } from "@/features/cache/workers-cache-policy";
 import { postPopularityService } from "@/features/post-popularity/service/post-popularity.service";
 import { getDb } from "@/lib/db";
+import { isRoutedPath, probeNotFoundResponse } from "@/lib/probe-404";
 import { handleQueueBatch } from "@/lib/queue/queue.handler";
 import { extractLocaleFromRequest } from "@/paraglide/runtime";
 import { paraglideMiddleware } from "@/paraglide/server";
@@ -51,6 +52,10 @@ export class App extends WorkerEntrypoint<Env, AppProps> {
 
 export default {
   async fetch(request, _env, ctx) {
+    // Scanner probes would each cost an SSR render, so answer them here.
+    if (!isRoutedPath(new URL(request.url).pathname)) {
+      return probeNotFoundResponse(request);
+    }
     const locale = extractLocaleFromRequest(request);
     return ctx.exports.App({ props: { locale } }).fetch(request, {
       // Cached pages name the hashed assets of the build that rendered them,

@@ -1512,5 +1512,7 @@
   "email_auth_sign_in_code_desc": "Enter this code on the sign-in page:",
   "email_auth_sign_in_code_expiry": "This code expires in 10 minutes and can be used once.",
   "email_auth_sign_in_code_ignore": "If you did not try to sign in, you can ignore this email.",
-  "friend_apply_name_required": "Set your public name in your profile before submitting a friend link."
+  "friend_apply_name_required": "Set your public name in your profile before submitting a friend link.",
+  "settings_api_keys_skill_hint": "With the Agent Skill, your AI agent can write, publish and manage posts for you. {download}, unzip it into your agent's skills folder, and run {command}. You'll need your site URL and an API Key the first time.",
+  "settings_api_keys_skill_download": "Download Agent Skill (v{version})"
 }

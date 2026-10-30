@@ -11,6 +11,8 @@ export type WorkersCachePurgeTarget =
 
 const HTML_TAG = "html";
 const POSTS_TAG = "posts";
+// Only the pages that render view counts or the popular ranking.
+const POPULARITY_TAG = "popularity";
 const FRIEND_LINKS_TAG = "friend-links";
 
 const SITE_DOCUMENTS_WITH_POSTS = new Set([
@@ -69,7 +71,7 @@ export function workersCachePolicy(pathname: string): WorkersCachePolicy {
   const path = normalizePathname(pathname);
 
   if (path === "/") {
-    return { cache: "public", tags: [HTML_TAG, POSTS_TAG] };
+    return { cache: "public", tags: [HTML_TAG, POSTS_TAG, POPULARITY_TAG] };
   }
   if (path === "/posts") {
     return { cache: "public", tags: [HTML_TAG, POSTS_TAG] };
@@ -114,6 +116,9 @@ export function purgeOptionsFor(
 ): WorkersCachePurgeTarget {
   if (reason === "all") {
     return { purgeEverything: true };
+  }
+  if (reason === "post-popularity.updated") {
+    return { tags: [POPULARITY_TAG] };
   }
   if (reason === "site-config.changed") {
     return { tags: [HTML_TAG] };

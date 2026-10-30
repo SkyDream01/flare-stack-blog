@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { queryOptions } from "@tanstack/react-query";
-import { authClient } from "@/lib/auth/auth-client";
+import { getAuthClient } from "@/lib/auth/auth-client";
 import { orpc } from "@/lib/orpc";
 
 const AUTH_KEYS = {
@@ -15,7 +15,7 @@ export const sessionQuery = queryOptions({
         await import("@/lib/auth/get-request-session");
       return getRequestSession();
     }
-    const result = await authClient.getSession();
+    const result = await getAuthClient().getSession();
     return result.data ?? null;
   },
 });

@@ -5,6 +5,12 @@ export const CACHE_CONTROL = {
     "Cache-Control": "public, max-age=0, must-revalidate",
     "CDN-Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
   },
+  // Public HTML and site documents. Every content change purges by Cache-Tag,
+  // so the edge can keep them a day; media keeps the shorter `public`.
+  html: {
+    "Cache-Control": "public, max-age=0, must-revalidate",
+    "CDN-Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+  },
   swr: {
     "Cache-Control": "public, max-age=0, must-revalidate",
     "CDN-Cache-Control": "public, s-maxage=1, stale-while-revalidate=604800",

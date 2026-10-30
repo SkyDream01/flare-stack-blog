@@ -1,5 +1,4 @@
 import { ORPCError, os } from "@orpc/server";
-import { isAPIError } from "better-auth/api";
 import { z } from "zod";
 import type { RateLimitOptions } from "@/lib/do/rate-limiter";
 import { getRateLimiter } from "@/lib/do/rate-limiter-binding";
@@ -10,8 +9,12 @@ import type { ApiContext, AuthedApiContext } from "./context";
 
 async function readSession(context: ApiContext) {
   try {
-    return await context.auth.api.getSession({ headers: context.headers });
+    const auth = await context.getAuth();
+    return await auth.api.getSession({ headers: context.headers });
   } catch (error) {
+    // Imported here so better-auth stays out of the public procedures' module
+    // graph; getAuth has already loaded it by the time getSession throws.
+    const { isAPIError } = await import("better-auth/api");
     if (
       isAPIError(error) &&
       (error.statusCode === 401 || error.statusCode === 403)

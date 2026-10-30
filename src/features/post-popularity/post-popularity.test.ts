@@ -3,6 +3,7 @@ import {
   buildPostPopularitySnapshot,
   getPostPopularityWindow,
   isPostPopularitySnapshotUsable,
+  isPostPopularityUnchanged,
   postSlugFromPath,
   withViewCounts,
 } from "./post-popularity";
@@ -108,5 +109,72 @@ describe("post popularity", () => {
     expect(
       withViewCounts([{ id: 1 }], snapshot, now + 8 * 24 * 60 * 60 * 1000),
     ).toEqual([{ id: 1 }]);
+  });
+});
+
+describe("isPostPopularityUnchanged", () => {
+  const snapshot = (
+    entries: Array<{ postId: number; score: number }>,
+    syncedAt = Date.parse("2026-08-22T00:15:00.000Z"),
+  ) => ({ entries, windowStart: 0, windowEnd: 0, syncedAt });
+  const now = Date.parse("2026-08-23T00:15:00.000Z");
+
+  it("matches the same posts, scores and order", () => {
+    const entries = [
+      { postId: 2, score: 12 },
+      { postId: 1, score: 4 },
+    ];
+    expect(
+      isPostPopularityUnchanged(snapshot(entries), snapshot(entries), now),
+    ).toBe(true);
+    expect(isPostPopularityUnchanged(snapshot([]), snapshot([]), now)).toBe(
+      true,
+    );
+  });
+
+  it("differs when a score, the order or the post set changes", () => {
+    const previous = snapshot([
+      { postId: 2, score: 12 },
+      { postId: 1, score: 4 },
+    ]);
+    expect(
+      isPostPopularityUnchanged(
+        previous,
+        snapshot([
+          { postId: 2, score: 13 },
+          { postId: 1, score: 4 },
+        ]),
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      isPostPopularityUnchanged(
+        previous,
+        snapshot([
+          { postId: 1, score: 4 },
+          { postId: 2, score: 12 },
+        ]),
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      isPostPopularityUnchanged(
+        previous,
+        snapshot([{ postId: 2, score: 12 }]),
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("never matches a missing or expired previous snapshot", () => {
+    const entries = [{ postId: 1, score: 4 }];
+    expect(isPostPopularityUnchanged(null, snapshot(entries), now)).toBe(false);
+    expect(
+      isPostPopularityUnchanged(
+        snapshot(entries, Date.parse("2026-08-10T00:15:00.000Z")),
+        snapshot(entries),
+        now,
+      ),
+    ).toBe(false);
   });
 });

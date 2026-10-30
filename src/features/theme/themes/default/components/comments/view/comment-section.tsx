@@ -10,7 +10,7 @@ import { jsonCommentToPlainText } from "@/features/comments/comment-body";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
 import { useComments } from "@/features/comments/hooks/use-comments";
 import { rootCommentsByPostIdInfiniteQuery } from "@/features/comments/queries";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { CommentEditor } from "./comment-editor";
@@ -25,7 +25,7 @@ interface CommentSectionProps {
 }
 
 export const CommentSection = ({ postId, className }: CommentSectionProps) => {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const { comment: highlightCommentId } = routeApi.useSearch();
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery(rootCommentsByPostIdInfiniteQuery(postId));

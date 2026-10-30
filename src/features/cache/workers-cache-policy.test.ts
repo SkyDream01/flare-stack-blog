@@ -63,7 +63,7 @@ describe("workersCachePolicy", () => {
   it("tags home and post lists so a publish can clear them together", () => {
     expect(workersCachePolicy("/")).toEqual({
       cache: "public",
-      tags: ["html", "posts"],
+      tags: ["html", "posts", "popularity"],
     });
     expect(workersCachePolicy("/posts")).toEqual({
       cache: "public",
@@ -119,10 +119,56 @@ describe("purgeOptionsFor", () => {
     });
   });
 
-  it("purges post lists when popularity changes", () => {
+  it("purges only the popularity tag when popularity changes", () => {
     expect(purgeOptionsFor("post-popularity.updated", {})).toEqual({
-      tags: ["posts"],
+      tags: ["popularity"],
     });
+  });
+
+  it("reaches only the home pages through the popularity tag", () => {
+    const [tag] = (
+      purgeOptionsFor("post-popularity.updated", {}) as { tags: string[] }
+    ).tags;
+    const paths = [
+      "/",
+      "/posts",
+      "/post/hello",
+      "/friend-links",
+      "/search",
+      "/rss.xml",
+      "/atom.xml",
+      "/feed.json",
+      "/sitemap.xml",
+      "/robots.txt",
+      "/site.webmanifest",
+      "/images/cover.webp",
+    ];
+    const purged = paths.filter((path) => {
+      const policy = workersCachePolicy(path);
+      return policy.cache === "public" && policy.tags.includes(tag!);
+    });
+    expect(purged).toEqual(["/"]);
+  });
+
+  it("still reaches the home pages for every content change", () => {
+    const home = workersCachePolicy("/");
+    if (home.cache !== "public") throw new Error("home must be public");
+    const reasons = [
+      ["post.published", { slug: "a" }],
+      ["post.deleted", { slug: "a" }],
+      ["tag.changed", {}],
+      ["tag.changed", { slugs: ["a"] }],
+      ["category.changed", {}],
+      ["category.changed", { slugs: ["a"] }],
+      ["site-config.changed", {}],
+    ] satisfies Array<Parameters<typeof purgeOptionsFor>>;
+    for (const [reason, params] of reasons) {
+      const target = purgeOptionsFor(reason, params) as { tags: string[] };
+      expect(
+        target.tags.some((tag) => home.tags.includes(tag)),
+        reason,
+      ).toBe(true);
+    }
   });
 
   it("purges encoded slug tags", () => {
@@ -151,6 +197,26 @@ describe("purgeOptionsFor", () => {
 
   it("purges everything for a full reset", () => {
     expect(purgeOptionsFor("all", {})).toEqual({ purgeEverything: true });
+  });
+});
+
+describe("CACHE_CONTROL", () => {
+  it("keeps public HTML fresh at the edge for a day and stale for a week", () => {
+    expect(CACHE_CONTROL.html["CDN-Cache-Control"]).toBe(
+      "public, max-age=86400, stale-while-revalidate=604800",
+    );
+  });
+
+  it("leaves the browser always revalidating public HTML", () => {
+    expect(CACHE_CONTROL.html["Cache-Control"]).toBe(
+      "public, max-age=0, must-revalidate",
+    );
+  });
+
+  it("keeps media on the one-hour edge lifetime", () => {
+    expect(CACHE_CONTROL.public["CDN-Cache-Control"]).toBe(
+      "public, max-age=3600, stale-while-revalidate=86400",
+    );
   });
 });
 
@@ -183,5 +249,13 @@ describe("applyWorkersCachePolicy", () => {
       CACHE_CONTROL.public["Cache-Control"],
     );
     expect(response.headers.get("Cache-Tag")).toBe("html,posts,post:hello");
+  });
+
+  it("tags the home page with popularity", () => {
+    const response = applyWorkersCachePolicy(
+      new Request("https://blog.example/?page=2"),
+      new Response("<html></html>"),
+    );
+    expect(response.headers.get("Cache-Tag")).toBe("html,posts,popularity");
   });
 });

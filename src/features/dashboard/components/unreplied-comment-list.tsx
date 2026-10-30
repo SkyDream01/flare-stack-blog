@@ -19,7 +19,7 @@ import type { DashboardComment } from "@/features/dashboard/dashboard.schema";
 import { refreshUnrepliedComments } from "@/features/dashboard/hooks/use-handled-comments";
 import { useMutedUsers } from "@/features/muted-users/hooks/use-muted-users";
 import { useMediaQuery } from "@/hooks/use-motion";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { formatTimeAgo } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import "@/features/comments/components/comments.css";
@@ -45,7 +45,7 @@ export function UnrepliedCommentList({
   fallbackFocus: () => HTMLElement | null;
 }) {
   const queryClient = useQueryClient();
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const replyTrigger = useRef<HTMLButtonElement | null>(null);
   const [replyingId, setReplyingId] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<Record<number, string>>({});

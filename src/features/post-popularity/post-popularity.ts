@@ -109,6 +109,27 @@ export function isPostPopularitySnapshotUsable(
   return now - snapshot.syncedAt <= POST_POPULARITY_MAX_AGE_MS;
 }
 
+/**
+ * Whether `next` renders exactly like `previous` did: the same posts with the
+ * same scores in the same order. A previous snapshot too old to rank rendered
+ * no counts at all, so it never matches.
+ */
+export function isPostPopularityUnchanged(
+  previous: PostPopularitySnapshot | null,
+  next: PostPopularitySnapshot,
+  now = Date.now(),
+): boolean {
+  if (!previous || !isPostPopularitySnapshotUsable(previous, now)) return false;
+  return (
+    previous.entries.length === next.entries.length &&
+    previous.entries.every(
+      (entry, index) =>
+        entry.postId === next.entries[index]?.postId &&
+        entry.score === next.entries[index]?.score,
+    )
+  );
+}
+
 export function withViewCounts<T extends { id: number }>(
   posts: T[],
   snapshot: PostPopularitySnapshot | null,

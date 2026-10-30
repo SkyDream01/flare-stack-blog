@@ -10,7 +10,7 @@ import {
   gradientCoverFor,
 } from "@/features/theme/themes/cuckoo/components/cover";
 import { setSidebarToc } from "@/features/theme/themes/cuckoo/components/toc-store";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
 import { CompactTableOfContents } from "@/features/posts/components/compact-table-of-contents";
 import { m } from "@/paraglide/messages";
@@ -38,7 +38,7 @@ function getOutdatedInfo(
 }
 
 export function PostPage({ post }: PostPageProps) {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const { siteConfig } = useRouteContext({ from: "__root__" });
   const contentRef = useRef<HTMLDivElement>(null);
   useHeadingAnchors(contentRef);

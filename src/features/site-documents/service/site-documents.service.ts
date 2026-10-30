@@ -3,7 +3,6 @@ import {
   getPublishedPostsForSitemapBatch,
   type SitemapPostRow,
 } from "@/features/posts/data/posts.data";
-import { buildFeed } from "@/features/posts/utils/feed";
 import { getDb } from "@/lib/db";
 import { serverEnv } from "@/lib/env/server.env";
 
@@ -34,6 +33,13 @@ function buildManifest(
     background_color: "#ffffff",
     display: "standalone",
   };
+}
+
+// The feed library (feed, xml-js, sax) is only for the three feed documents,
+// so the route tree that imports this module doesn't evaluate it.
+async function buildFeed(env: Env, executionCtx: ExecutionContext) {
+  const Feed = await import("@/features/posts/utils/feed");
+  return Feed.buildFeed(env, executionCtx);
 }
 
 export async function buildFeedJson(env: Env, executionCtx: ExecutionContext) {

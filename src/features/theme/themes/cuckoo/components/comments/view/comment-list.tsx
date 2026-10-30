@@ -4,7 +4,7 @@ import type { JSONContent } from "@tiptap/react";
 import { useEffect, useState } from "react";
 import type { RootCommentWithReplyCount } from "@/features/comments/comments.schema";
 import { repliesByRootIdInfiniteQuery } from "@/features/comments/queries";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 import { CuckooCommentEditor } from "../editor/comment-editor";
 import { CuckooCommentItem } from "./comment-item";
@@ -36,7 +36,7 @@ export const CuckooCommentList = ({
   initialExpandedRootId,
   highlightCommentId,
 }: CommentListProps) => {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const [expandedRoots, setExpandedRoots] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -99,7 +99,7 @@ interface RootCommentWithRepliesProps {
   onCancelReply?: () => void;
   onSubmitReply?: (content: JSONContent) => Promise<void>;
   isSubmittingReply?: boolean;
-  session: ReturnType<typeof authClient.useSession>["data"];
+  session: ReturnType<typeof useSession>["data"];
   highlightCommentId?: number;
 }
 

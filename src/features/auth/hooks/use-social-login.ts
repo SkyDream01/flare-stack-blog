@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { usePreviousLocation } from "@/hooks/use-previous-location";
-import { authClient } from "@/lib/auth/auth-client";
+import { getAuthClient } from "@/lib/auth/auth-client";
 import { getSocialLoginAuthErrorMessage } from "@/lib/auth/auth-errors";
 import { m } from "@/paraglide/messages";
 import { normalizeRedirectUrl } from "./normalize-redirect-url";
@@ -23,7 +23,7 @@ export function useSocialLogin(options: UseSocialLoginOptions) {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const { error } = await authClient.signIn.social({
+      const { error } = await getAuthClient().signIn.social({
         provider: "github",
         errorCallbackURL: `${window.location.origin}/login`,
         callbackURL,

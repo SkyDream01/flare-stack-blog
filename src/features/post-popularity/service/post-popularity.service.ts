@@ -9,6 +9,7 @@ import {
   buildPostPopularitySnapshot,
   getPostPopularityWindow,
   isPostPopularitySnapshotUsable,
+  isPostPopularityUnchanged,
   POST_POPULARITY_MAX_AGE_MS,
   withViewCounts,
   type PostPopularityMetric,
@@ -132,7 +133,10 @@ export function createPostPopularityService(dependencies: Dependencies) {
     const now = dependencies.now();
     const attemptedAt = now.getTime();
     const window = getPostPopularityWindow(now);
-    const previousStatus = await dependencies.readStatus(context.env);
+    const [previousStatus, previousSnapshot] = await Promise.all([
+      dependencies.readStatus(context.env),
+      dependencies.readSnapshot(context.env),
+    ]);
     let snapshotWritten = false;
 
     try {
@@ -149,7 +153,17 @@ export function createPostPopularityService(dependencies: Dependencies) {
       });
       await dependencies.writeSnapshot(context.env, snapshot);
       snapshotWritten = true;
-      await dependencies.invalidate(context);
+      // Skip the purge only when the last sync finished its own purge;
+      // otherwise cached pages may still show what that snapshot replaced.
+      const lastSyncCompleted =
+        previousStatus?.lastError === null &&
+        previousStatus.lastSuccessAt === previousSnapshot?.syncedAt;
+      if (
+        !lastSyncCompleted ||
+        !isPostPopularityUnchanged(previousSnapshot, snapshot, attemptedAt)
+      ) {
+        await dependencies.invalidate(context);
+      }
       const status = {
         lastAttemptAt: attemptedAt,
         lastSuccessAt: attemptedAt,

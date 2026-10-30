@@ -1,7 +1,6 @@
+import { lazy } from "@orpc/server";
 import {
-  CommentHandledInputSchema,
   CommentSelectSchema,
-  CommentsHandledCountSchema,
   CreateCommentInputSchema,
   DeleteCommentInputSchema,
   GetCommentsByPostIdInputSchema,
@@ -15,48 +14,13 @@ import {
 import { z } from "zod";
 import * as CommentService from "@/features/comments/comments.service";
 import {
-  adminProcedure,
   authProcedure,
   optionalSessionProcedure,
   turnstileMiddleware,
   withRateLimit,
 } from "@/lib/orpc/procedure";
 import { unwrapResult } from "@/lib/orpc/unwrap-result";
-
-const commentErrors = {
-  ROOT_COMMENT_NOT_FOUND: { status: 404, message: "Root comment not found." },
-  INVALID_ROOT_ID: { status: 400, message: "Invalid root comment." },
-  ROOT_COMMENT_POST_MISMATCH: {
-    status: 400,
-    message: "Root comment does not belong to this post.",
-  },
-  REPLY_TO_COMMENT_NOT_FOUND: {
-    status: 404,
-    message: "Reply target not found.",
-  },
-  REPLY_TO_COMMENT_ROOT_MISMATCH: {
-    status: 400,
-    message: "Reply target is not in this thread.",
-  },
-  ROOT_COMMENT_CANNOT_HAVE_REPLY_TO: {
-    status: 400,
-    message: "A root comment cannot reply to another comment.",
-  },
-  COMMENT_NOT_FOUND: { status: 404, message: "Comment not found." },
-  POST_NOT_FOUND: { status: 404, message: "Post not found." },
-  POST_NOT_PUBLISHED: {
-    status: 400,
-    message: "Comments require a published post.",
-  },
-  USER_MUTED: {
-    status: 403,
-    message: "Muted users cannot create comments.",
-  },
-  NAME_REQUIRED: {
-    status: 403,
-    message: "Set a public name before commenting.",
-  },
-} as const;
+import { commentErrors } from "./errors";
 
 const roots = optionalSessionProcedure
   .route({
@@ -184,60 +148,6 @@ const mine = authProcedure
     CommentService.getMyComments(context, input),
   );
 
-const markHandled = adminProcedure
-  .errors({ COMMENT_NOT_FOUND: commentErrors.COMMENT_NOT_FOUND })
-  .route({
-    method: "PUT",
-    path: "/admin/comments/{id}/handled",
-    summary: "Mark a comment handled",
-    description:
-      "Takes the Comment off the dashboard's unreplied list without replying. An Admin reply marks the Comment it answers handled too.",
-    tags: ["Admin Comments"],
-  })
-  .input(CommentHandledInputSchema)
-  .output(z.object({ success: z.boolean() }))
-  .handler(({ context, input, errors }) =>
-    unwrapResult(CommentService.markCommentHandled(context, input), {
-      COMMENT_NOT_FOUND: () => {
-        throw errors.COMMENT_NOT_FOUND();
-      },
-    }),
-  );
-
-const unmarkHandled = adminProcedure
-  .errors({ COMMENT_NOT_FOUND: commentErrors.COMMENT_NOT_FOUND })
-  .route({
-    method: "DELETE",
-    path: "/admin/comments/{id}/handled",
-    summary: "Unmark a handled comment",
-    description:
-      "Undoes marking the Comment handled. It returns to the unreplied list unless an Admin Comment still answers it.",
-    tags: ["Admin Comments"],
-  })
-  .input(CommentHandledInputSchema)
-  .output(z.object({ success: z.boolean() }))
-  .handler(({ context, input, errors }) =>
-    unwrapResult(CommentService.unmarkCommentHandled(context, input), {
-      COMMENT_NOT_FOUND: () => {
-        throw errors.COMMENT_NOT_FOUND();
-      },
-    }),
-  );
-
-const markAllHandled = adminProcedure
-  .route({
-    method: "POST",
-    path: "/admin/comments/handled",
-    summary: "Mark all unreplied comments handled",
-    description:
-      "Marks every Comment on the dashboard's unreplied list handled and returns how many it marked.",
-    tags: ["Admin Comments"],
-  })
-  .output(CommentsHandledCountSchema)
-  .handler(({ context }) =>
-    CommentService.markAllUnrepliedCommentsHandled(context),
-  );
-
 export default {
   roots,
   replies,
@@ -245,9 +155,6 @@ export default {
   create,
   remove,
   mine,
-  admin: {
-    markHandled,
-    unmarkHandled,
-    markAllHandled,
-  },
+  // Loaded on the first request under the prefix; public calls never load it.
+  admin: lazy(() => import("./admin-router"), { prefix: "/admin/comments" }),
 };

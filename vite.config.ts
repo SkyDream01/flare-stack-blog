@@ -8,6 +8,7 @@ import viteReact from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 import { z } from "zod";
 import packageJson from "./package.json";
+import { routedFirstSegmentsPlugin } from "./scripts/vite-routed-segments.ts";
 import { themeNames, themes } from "./src/features/theme/registry";
 
 const buildEnvSchema = z.object({
@@ -52,6 +53,7 @@ const config = defineConfig(({ mode }) => {
         // Read the Worker from cloudflare.config.ts instead of wrangler.jsonc.
         experimental: { newConfig: true },
       }),
+      routedFirstSegmentsPlugin(),
       tailwindcss(),
       devtools(),
       tanstackStart(),

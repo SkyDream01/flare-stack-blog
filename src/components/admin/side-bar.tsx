@@ -22,7 +22,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/use-motion";
 import { resetAuthBoundQueries } from "@/features/auth/queries";
-import { authClient } from "@/lib/auth/auth-client";
+import { getAuthClient, useSession } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 import type { FileRoutesByTo } from "@/routeTree.gen";
 import "./side-bar.css";
@@ -48,7 +48,7 @@ export function SideBar({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { siteConfig } = useRouteContext({ from: "__root__" });
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const user = session?.user;
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -64,7 +64,7 @@ export function SideBar({
 
   const handleConfirmSignOut = async () => {
     setIsLoggingOut(true);
-    const { error } = await authClient.signOut();
+    const { error } = await getAuthClient().signOut();
     setIsLoggingOut(false);
     setShowLogoutConfirm(false);
 

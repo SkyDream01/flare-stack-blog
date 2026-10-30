@@ -3,38 +3,51 @@ import "@/features/friend-links/friend-links.cache";
 import "@/features/posts/posts.cache";
 import "@/features/categories/categories.cache";
 import "@/features/tags/tags.cache";
-import cacheRouter from "@/features/cache/server/router";
+import { lazy, type UnlaziedRouter } from "@orpc/server";
 import categoriesRouter from "@/features/categories/server/router";
 import commentsRouter from "@/features/comments/server/router";
 import configRouter from "@/features/config/server/router";
-import dashboardRouter from "@/features/dashboard/server/router";
 import emailRouter from "@/features/email/server/router";
 import friendLinksRouter from "@/features/friend-links/server/router";
-import mediaRouter from "@/features/media/server/router";
-import mutedUsersRouter from "@/features/muted-users/server/router";
-import postPopularityRouter from "@/features/post-popularity/server/router";
 import postsRouter from "@/features/posts/server/router";
 import searchRouter from "@/features/search/server/router";
 import tagsRouter from "@/features/tags/server/router";
-import versionRouter from "@/features/version/server/router";
-import webhookRouter from "@/features/webhook/server/router";
 
+// Admin-only features load on the first request under their prefix, so a
+// public call never evaluates them. Each public feature router keeps its own
+// Admin procedures lazy the same way.
 export const router = {
   posts: postsRouter,
   tags: tagsRouter,
   categories: categoriesRouter,
   comments: commentsRouter,
-  media: mediaRouter,
-  mutedUsers: mutedUsersRouter,
+  media: lazy(() => import("@/features/media/server/router"), {
+    prefix: "/admin/media",
+  }),
+  mutedUsers: lazy(() => import("@/features/muted-users/server/router"), {
+    prefix: "/admin/muted-users",
+  }),
   config: configRouter,
   friendLinks: friendLinksRouter,
   email: emailRouter,
   search: searchRouter,
-  postPopularity: postPopularityRouter,
-  dashboard: dashboardRouter,
-  cache: cacheRouter,
-  version: versionRouter,
-  webhooks: webhookRouter,
+  postPopularity: lazy(
+    () => import("@/features/post-popularity/server/router"),
+    { prefix: "/admin/post-popularity" },
+  ),
+  dashboard: lazy(() => import("@/features/dashboard/server/router"), {
+    prefix: "/admin/dashboard",
+  }),
+  cache: lazy(() => import("@/features/cache/server/router"), {
+    prefix: "/admin/cache",
+  }),
+  version: lazy(() => import("@/features/version/server/router"), {
+    prefix: "/admin/version",
+  }),
+  webhooks: lazy(() => import("@/features/webhook/server/router"), {
+    prefix: "/admin/webhooks",
+  }),
 };
 
-export type AppRouter = typeof router;
+/** The router with every lazy part loaded: the shape clients call. */
+export type AppRouter = UnlaziedRouter<typeof router>;

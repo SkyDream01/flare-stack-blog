@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { createPublicNameSchema } from "@/features/auth/utils/public-name";
-import { authClient } from "@/lib/auth/auth-client";
+import { getAuthClient } from "@/lib/auth/auth-client";
 import { getProfileAuthErrorMessage } from "@/lib/auth/auth-errors";
 import { m } from "@/paraglide/messages";
 
@@ -29,7 +29,7 @@ export function usePublicNameForm(options: UsePublicNameFormOptions = {}) {
   const onSubmit = async (data: NameFormSchema) => {
     setSubmitError(null);
     try {
-      const { error } = await authClient.updateUser({ name: data.name });
+      const { error } = await getAuthClient().updateUser({ name: data.name });
       if (error) {
         setSubmitError(
           getProfileAuthErrorMessage(error, m) ?? m.auth_error_default_desc(),

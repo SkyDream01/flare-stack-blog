@@ -9,3 +9,5 @@ When syncing future upstream changes, preserve the theme registry, contracts, th
 As of the v3.1.0 sync, themes share the upstream Post renderer for headings, schema, table alignment and proportional column widths, while supplying their own image and code block components. Code block frames retain each theme's presentation and load the shared Mermaid diagram renderer only for Mermaid blocks. The local Markdown issue tracker remains the downstream issue tracker.
 
 As of the v3.7.0 sync, all three themes implement the upstream GitHub and Sign-in Code flow through the Theme Contract, including resend cooldowns and the public-name step. The shared Name Gate enforces the same public-name requirement in every theme. Password forms and their obsolete theme contract entries are removed; legacy authentication routes redirect to sign-in.
+
+As of the v3.8.0 sync, all three themes read browser sessions through the shared isomorphic `useSession` hook so Better Auth's browser client stays out of the Worker build. The `@theme` build alias and theme image preloads remain in place alongside the generated route-segment probe guard and upstream public HTML cache policy.

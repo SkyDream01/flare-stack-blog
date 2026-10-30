@@ -103,11 +103,12 @@ export async function waitForBackgroundTasks(ctx: ExecutionContext) {
 export function createTestContext(
   overrides: Partial<AuthContext & { executionCtx: ExecutionContext }> = {},
 ) {
+  const auth = createMockAuth();
   const context = {
     db: createTestDb(),
     env: { ...env },
     executionCtx: createMockExecutionCtx(),
-    auth: createMockAuth(),
+    getAuth: async () => auth,
     ...overrides,
   };
 

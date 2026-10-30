@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { SubmitFriendLinkPage } from "@/features/friend-links/components/submit-friend-link-page";
 import { myFriendLinksQuery } from "@/features/friend-links/queries";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 
 export const Route = createFileRoute("/_public/_user/submit-friend-link")({
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_public/_user/submit-friend-link")({
 });
 
 function SubmitFriendLinkRoute() {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const user = session?.user;
   const query = useQuery({ ...myFriendLinksQuery(), refetchOnMount: "always" });
 

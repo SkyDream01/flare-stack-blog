@@ -4,7 +4,7 @@ import theme from "@theme";
 import { NameGate } from "@/features/auth/components/name-gate";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 import { getThemePreloadImages } from "@/features/theme/site-config.helpers";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { CACHE_CONTROL } from "@/lib/constants";
 import { clientEnv } from "@/lib/env/client.env";
 import { m } from "@/paraglide/messages";
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_public")({
   }),
   component: PublicLayout,
   headers: () => {
-    return CACHE_CONTROL.public;
+    return CACHE_CONTROL.html;
   },
   head: ({ loaderData }) => {
     const env = clientEnv();
@@ -40,8 +40,7 @@ export const Route = createFileRoute("/_public")({
 
 function PublicLayout() {
   const navigate = useNavigate();
-  const { data: session, isPending: isSessionPending } =
-    authClient.useSession();
+  const { data: session, isPending: isSessionPending } = useSession();
   const { logout } = useLogout();
 
   const navOptions = [

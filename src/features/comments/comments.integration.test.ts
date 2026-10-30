@@ -519,6 +519,206 @@ describe("Comments Integration", () => {
         ]);
       });
 
+      it("should resolve previews and reply targets per thread across many roots", async () => {
+        const otherSession = createMockSession({
+          user: {
+            id: "user-2",
+            name: "Other User",
+            email: "other@example.com",
+            role: null,
+          },
+        });
+        await seedUser(userContext.db, otherSession.user);
+        const author = userContext.session.user.id;
+        const authorName = userContext.session.user.name;
+        const other = otherSession.user.id;
+        const at = (day: number) => new Date(Date.UTC(2026, 0, day));
+
+        // Roots by age: oldest, anonymous, quiet, lonely, then a deleted one.
+        const [oldest, anonymous, quiet, lonely, deletedRoot] =
+          await userContext.db
+            .insert(CommentsTable)
+            .values([
+              { postId, userId: author, content: "oldest", createdAt: at(1) },
+              { postId, userId: null, content: "anonymous", createdAt: at(2) },
+              { postId, userId: other, content: "quiet", createdAt: at(3) },
+              { postId, userId: other, content: "lonely", createdAt: at(4) },
+              {
+                postId,
+                userId: other,
+                content: "gone",
+                status: "deleted",
+                createdAt: at(5),
+              },
+            ])
+            .returning();
+
+        const [orphan, , survivor] = await userContext.db
+          .insert(CommentsTable)
+          .values([
+            {
+              postId,
+              rootId: anonymous.id,
+              userId: null,
+              content: "orphan",
+              createdAt: at(15),
+            },
+            {
+              postId,
+              rootId: lonely.id,
+              userId: author,
+              content: "removed",
+              status: "deleted",
+              createdAt: at(16),
+            },
+            {
+              postId,
+              rootId: deletedRoot.id,
+              userId: author,
+              content: "survivor",
+              createdAt: at(17),
+            },
+          ])
+          .returning();
+
+        // oldest has five replies, inserted newest first so the preview has
+        // to follow createdAt. Targets: b -> a, c -> b, d -> the root,
+        // e -> a reply whose author is gone. The earliest ("a") is deleted.
+        const [a] = await userContext.db
+          .insert(CommentsTable)
+          .values({
+            postId,
+            rootId: oldest.id,
+            userId: other,
+            content: "a",
+            status: "deleted",
+            createdAt: at(10),
+          })
+          .returning();
+        const [b] = await userContext.db
+          .insert(CommentsTable)
+          .values({
+            postId,
+            rootId: oldest.id,
+            replyToCommentId: a.id,
+            userId: author,
+            content: "b",
+            createdAt: at(11),
+          })
+          .returning();
+        const [c] = await userContext.db
+          .insert(CommentsTable)
+          .values({
+            postId,
+            rootId: oldest.id,
+            replyToCommentId: b.id,
+            userId: other,
+            content: "c",
+            createdAt: at(12),
+          })
+          .returning();
+        const [d] = await userContext.db
+          .insert(CommentsTable)
+          .values({
+            postId,
+            rootId: oldest.id,
+            replyToCommentId: oldest.id,
+            userId: author,
+            content: "d",
+            createdAt: at(13),
+          })
+          .returning();
+        const [e] = await userContext.db
+          .insert(CommentsTable)
+          .values({
+            postId,
+            rootId: oldest.id,
+            replyToCommentId: orphan.id,
+            userId: other,
+            content: "e",
+            createdAt: at(14),
+          })
+          .returning();
+
+        const result = await CommentService.getRootCommentsByPostId(
+          userContext,
+          { postId },
+        );
+
+        // Published: oldest, anonymous, quiet, lonely, b, c, d, e, orphan,
+        // survivor.
+        expect(result.total).toBe(10);
+        expect(
+          result.items.map((item) => ({
+            id: item.id,
+            status: item.status,
+            replyCount: item.replyCount,
+            replies: item.replies.map((reply) => reply.id),
+          })),
+        ).toEqual([
+          {
+            id: deletedRoot.id,
+            status: "deleted",
+            replyCount: 1,
+            replies: [survivor.id],
+          },
+          // lonely has only a deleted reply, so it shows no preview at all.
+          { id: lonely.id, status: "published", replyCount: 0, replies: [] },
+          { id: quiet.id, status: "published", replyCount: 0, replies: [] },
+          {
+            id: anonymous.id,
+            status: "published",
+            replyCount: 1,
+            replies: [orphan.id],
+          },
+          {
+            id: oldest.id,
+            status: "published",
+            replyCount: 4,
+            replies: [a.id, b.id, c.id],
+          },
+        ]);
+
+        const oldestThread = result.items[4];
+        expect(oldestThread.user).toMatchObject({
+          id: author,
+          name: authorName,
+        });
+        expect(result.items[3].user).toBeNull();
+        expect(result.items[3].replies[0].user).toBeNull();
+        expect(oldestThread.replies.map((reply) => reply.replyTo)).toEqual([
+          null,
+          { id: other, name: "Other User" },
+          { id: author, name: authorName },
+        ]);
+        expect(oldestThread.replies[0].user?.id).toBe(other);
+        expect(oldestThread.replies[1].replyToCommentId).toBe(a.id);
+
+        // The paginated replies endpoint resolves the same targets.
+        const page = await CommentService.getRepliesByRootId(userContext, {
+          postId,
+          rootId: oldest.id,
+          offset: 2,
+          limit: 3,
+        });
+        expect(page.total).toBe(4);
+        expect(page.items.map((reply) => reply.id)).toEqual([c.id, d.id, e.id]);
+        expect(page.items.map((reply) => reply.replyTo)).toEqual([
+          { id: author, name: authorName },
+          { id: author, name: authorName },
+          null,
+        ]);
+
+        // A thread opened by one of its replies carries the same preview.
+        const thread = unwrap(
+          await CommentService.getThreadByCommentId(userContext, {
+            postId,
+            id: e.id,
+          }),
+        );
+        expect(thread).toEqual(oldestThread);
+      });
+
       it("should hide comments on the public list after unpublish and restore them on publish", async () => {
         unwrap(
           await CommentService.createComment(userContext, {

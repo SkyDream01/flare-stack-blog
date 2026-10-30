@@ -1,8 +1,13 @@
-import { createRouterClient } from "@orpc/server";
+import { createRouterClient, lazy } from "@orpc/server";
 import { getGlobalStartContext } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { createApiContext } from "./create-context";
-import { router } from "./router";
+
+// `@/lib/orpc` builds this client while the route tree loads, which every
+// request does, so the procedures load on the first call instead.
+const router = lazy(async () => ({
+  default: (await import("./router")).router,
+}));
 
 export function createServerORPCClient() {
   return createRouterClient(router, {

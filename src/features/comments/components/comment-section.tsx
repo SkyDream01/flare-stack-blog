@@ -15,7 +15,7 @@ import {
   commentThreadQuery,
   rootCommentsByPostIdInfiniteQuery,
 } from "@/features/comments/queries";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { Callout } from "@/components/ui/callout";
 import { m } from "@/paraglide/messages";
 import { CommentConfirmationModal } from "./comment-confirmation-modal";
@@ -34,7 +34,7 @@ interface CommentSectionProps {
 }
 
 export function CommentSection({ postId }: CommentSectionProps) {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const { comment: commentId } = routeApi.useSearch();
   const listQuery = useInfiniteQuery(rootCommentsByPostIdInfiniteQuery(postId));
   const {

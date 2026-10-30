@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { handleImageRequest } from "@/features/media/service/media.service";
 
 export const Route = createFileRoute("/images/$")({
   server: {
@@ -11,7 +10,14 @@ export const Route = createFileRoute("/images/$")({
         }
 
         try {
-          return await handleImageRequest(context.env, key, request);
+          // Pages don't need the media service, so the route tree leaves it out.
+          const MediaService =
+            await import("@/features/media/service/media.service");
+          return await MediaService.handleImageRequest(
+            context.env,
+            key,
+            request,
+          );
         } catch (error) {
           console.error(
             JSON.stringify({

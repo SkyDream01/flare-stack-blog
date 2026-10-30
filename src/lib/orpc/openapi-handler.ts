@@ -1,11 +1,26 @@
 import { SmartCoercionPlugin } from "@orpc/json-schema";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
-import { onError } from "@orpc/server";
+import { lazy, onError, unlazyRouter } from "@orpc/server";
 import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
+import type { ApiContext } from "./context";
 import { router } from "./router";
 
 const schemaConverter = new ZodToJsonSchemaConverter();
+
+type PluginInit = OpenAPIReferencePlugin<ApiContext>["init"];
+
+// The spec generator lists loaded procedures before lazy ones; handing it the
+// whole router behind a single lazy keeps the spec in the router's own order.
+// The generator resolves a lazy root, though Router's type has no such case.
+class ReferencePlugin extends OpenAPIReferencePlugin<ApiContext> {
+  override init(...[options, appRouter]: Parameters<PluginInit>) {
+    const wholeRouter = lazy(async () => ({
+      default: await unlazyRouter(appRouter),
+    }));
+    super.init(options, wholeRouter as unknown as typeof appRouter);
+  }
+}
 
 export const openAPIHandler = new OpenAPIHandler(router, {
   interceptors: [
@@ -30,7 +45,7 @@ export const openAPIHandler = new OpenAPIHandler(router, {
     new SmartCoercionPlugin({
       schemaConverters: [schemaConverter],
     }),
-    new OpenAPIReferencePlugin({
+    new ReferencePlugin({
       schemaConverters: [schemaConverter],
       docsPath: "/docs",
       specPath: "/spec.json",

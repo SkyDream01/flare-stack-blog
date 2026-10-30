@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { resetAuthBoundQueries } from "@/features/auth/queries";
 import { usePreviousLocation } from "@/hooks/use-previous-location";
-import { authClient } from "@/lib/auth/auth-client";
+import { getAuthClient } from "@/lib/auth/auth-client";
 import {
   getRetryAfterMs,
   getSignInCodeAuthErrorMessage,
@@ -98,7 +98,7 @@ export function useLoginForm(options: UseLoginFormOptions) {
     setError(null);
     try {
       const { error: sendError } =
-        await authClient.emailOtp.sendVerificationOtp({
+        await getAuthClient().emailOtp.sendVerificationOtp({
           email: address,
           type: "sign-in",
           fetchOptions: {
@@ -138,7 +138,7 @@ export function useLoginForm(options: UseLoginFormOptions) {
     setError(null);
     try {
       const { data: result, error: signInError } =
-        await authClient.signIn.emailOtp({
+        await getAuthClient().signIn.emailOtp({
           email,
           otp: normalizeSignInCode(data.code),
         });

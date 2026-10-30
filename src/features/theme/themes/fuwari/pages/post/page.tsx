@@ -8,13 +8,13 @@ import TableOfContents from "@/features/posts/components/table-of-contents";
 import { useHeadingAnchors } from "@/features/posts/components/content/use-heading-anchors";
 import { FuwariCommentSection } from "@/features/theme/themes/fuwari/components/comments/view/comment-section";
 import { ContentRenderer } from "@/features/theme/themes/fuwari/components/content/content-renderer";
-import { authClient } from "@/lib/auth/auth-client";
+import { useSession } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 import { PostMeta } from "./components/post-meta";
 import { PostSummary } from "./components/post-summary";
 
 export function PostPage({ post }: PostPageProps) {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const contentRef = useRef<HTMLDivElement>(null);
   useHeadingAnchors(contentRef);
   // Approximate word count

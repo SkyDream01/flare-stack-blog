@@ -23,7 +23,7 @@ function createClient(capacity: number) {
     };
     const result = await handler.handle(
       new Request("http://localhost:3000/limited", { headers }),
-      { context: { ...context, auth, headers } as never },
+      { context: { ...context, getAuth: async () => auth, headers } as never },
     );
     if (!result.response) throw new Error("Route was not matched");
     return result.response.status;

@@ -1,8 +1,9 @@
 import { ClientOnly } from "@tanstack/react-router";
-import { Copy, KeyRound, Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { Bot, Copy, KeyRound, Plus } from "lucide-react";
+import { Fragment, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Callout } from "@/components/ui/callout";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FormField } from "@/components/ui/form-field";
@@ -13,6 +14,46 @@ import { useApiKeys } from "@/features/api-keys/hooks/use-api-keys";
 import { formatDate } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import "./api-key-settings.css";
+
+/** The skill zip attached to the upstream release this build was cut from. */
+const AGENT_SKILL_URL = `https://github.com/du2333/flare-stack-blog/releases/download/v${__APP_VERSION__}/flare-stack-blog-skills-v${__APP_VERSION__}.zip`;
+const AGENT_SKILL_COMMAND = "/flare-stack-blog";
+
+function AgentSkillHint() {
+  const slots = {
+    download: (
+      <a
+        href={AGENT_SKILL_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="font-medium underline underline-offset-2"
+      >
+        {m.settings_api_keys_skill_download({ version: __APP_VERSION__ })}
+      </a>
+    ),
+    command: <code>{AGENT_SKILL_COMMAND}</code>,
+  };
+  // Slots go in as \0-wrapped names so each locale keeps its own word order.
+  const parts = m
+    .settings_api_keys_skill_hint({
+      download: "\0download\0",
+      command: "\0command\0",
+    })
+    .split("\0");
+  return (
+    <Callout icon={Bot} className="settings-key-skill">
+      <p>
+        {parts.map((part, index) =>
+          index % 2 ? (
+            <Fragment key={part}>{slots[part as keyof typeof slots]}</Fragment>
+          ) : (
+            part
+          ),
+        )}
+      </p>
+    </Callout>
+  );
+}
 
 export function ApiKeySettingsSection() {
   const {
@@ -70,6 +111,7 @@ export function ApiKeySettingsSection() {
           </Button>
         }
       />
+      <AgentSkillHint />
       <div className="settings-key-list" aria-busy={isLoading}>
         {isError ? (
           <EmptyState

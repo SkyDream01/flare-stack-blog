@@ -76,6 +76,9 @@ it("keeps both localized public date styles and missing-date behavior", () => {
   expect(
     formatPublicPostDate(post.publishedAt, { locale: "en", monthDay: true }),
   ).toBe("12/31");
+  expect(
+    formatPublicPostDate(post.publishedAt, { locale: "zh", monthDay: true }),
+  ).toBe("12/31");
   expect(formatPublicPostDate(null)).toBe("-");
   expect(formatPublicPostDate("invalid")).toBe("-");
 });

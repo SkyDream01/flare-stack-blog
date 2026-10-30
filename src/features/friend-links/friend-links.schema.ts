@@ -5,20 +5,23 @@ import type { Messages } from "@/lib/i18n";
 
 const coercedDate = z.union([z.date(), z.string().pipe(z.coerce.date())]);
 
-const FriendLinkSelectSchema = createSelectSchema(FriendLinksTable, {
-  createdAt: coercedDate,
-  updatedAt: coercedDate,
-});
-
 const FriendLinkUserSchema = z.object({
   id: z.string(),
   name: z.string(),
   image: z.string().nullable(),
 });
 
-const FriendLinkWithUserSchema = FriendLinkSelectSchema.extend({
-  user: FriendLinkUserSchema.nullable(),
-});
+// drizzle-zod walks every column when it builds a schema (about 3 ms), and this
+// module is imported by the public pages. z.lazy builds it on first parse, and
+// only once, so the cost moves to the callers that actually validate a row.
+const FriendLinkWithUserSchema = z.lazy(() =>
+  createSelectSchema(FriendLinksTable, {
+    createdAt: coercedDate,
+    updatedAt: coercedDate,
+  }).extend({
+    user: FriendLinkUserSchema.nullable(),
+  }),
+);
 
 const friendLinkFields = {
   siteName: z.string().min(1).max(100),

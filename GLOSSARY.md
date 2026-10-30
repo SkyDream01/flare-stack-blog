@@ -96,6 +96,10 @@ _Avoid_: Owner
 A secret an **Admin** issues so a caller can authenticate as that **Admin** on the HTTP API without a browser session. It carries that Admin's content-management permissions, but it cannot create or revoke **API Keys**.
 _Avoid_: Token, bearer, service account, machine user, OAuth client
 
+**Agent Skill**:
+The instructions and scripts an AI agent installs so it can operate a Flare Stack Blog as an **Admin** over the HTTP API with an **API Key**. It is not part of the deployed CMS.
+_Avoid_: MCP, plugin, integration, 插件, 技能包
+
 **Search Index**:
 The public search read model built from **Published Posts**.
 _Avoid_: Orama index
@@ -183,6 +187,8 @@ _Avoid_: New commit, fork update
 - An **Admin** can have zero or more **API Keys**.
 - An **API Key** authenticates as its owning **Admin** and has that Admin's content-management permissions.
 - An **API Key** cannot create or revoke **API Keys**. Only a signed-in **Admin** in the admin UI can.
+- An **Agent Skill** authenticates with an **API Key**.
+- Each **Application Release** publishes the **Agent Skill** that matches it. The admin UI offers the one matching the **Running Application Release**.
 - A **User** can create **Comments** and submit **Friend Links**.
 - A **User** signs in with GitHub or with a **Sign-in Code**. There are no passwords.
 - A **Sign-in Code** for an email that has no **User** creates one; the person chooses that **User**'s public name before the sign-in completes.
