@@ -21,8 +21,12 @@ import {
 } from "@/features/posts/utils/toc";
 import { CodeBlock as DefaultCodeBlock } from "@/features/posts/components/content/code-block";
 import { ImageDisplay as DefaultImageDisplay } from "@/features/posts/components/content/image-display";
-import { VideoEmbed } from "@/features/posts/components/content/video-embed";
 import {
+  DirectVideoEmbed,
+  VideoEmbed,
+} from "@/features/posts/components/content/video-embed";
+import {
+  directVideoOf,
   videoMetaOf,
   videoSourceOf,
 } from "@/features/posts/utils/video-source";
@@ -70,9 +74,13 @@ export function renderReact(
         },
         video: ({ node }) => {
           const source = videoSourceOf(node.attrs);
-          return source ? (
-            <VideoEmbed source={source} meta={videoMetaOf(node.attrs)} />
-          ) : null;
+          if (source) {
+            return (
+              <VideoEmbed source={source} meta={videoMetaOf(node.attrs)} />
+            );
+          }
+          const direct = directVideoOf(node.attrs);
+          return direct ? <DirectVideoEmbed video={direct} /> : null;
         },
         image: ({ node }) => {
           const attrs = node.attrs as {
