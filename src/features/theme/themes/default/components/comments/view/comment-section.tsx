@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import type { JSONContent } from "@tiptap/react";
 import { LogIn } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -9,7 +9,12 @@ import { Button } from "@/components/ui/button";
 import { jsonCommentToPlainText } from "@/features/comments/comment-body";
 import ConfirmationModal from "@/components/ui/confirmation-modal";
 import { useComments } from "@/features/comments/hooks/use-comments";
-import { rootCommentsByPostIdInfiniteQuery } from "@/features/comments/queries";
+import { rootCommentsInfiniteQuery } from "@/features/comments/queries";
+import {
+  createCommentInput,
+  type CommentTarget,
+} from "@/features/comments/comment-target";
+import { useThemeCommentThread } from "@/features/theme/components/use-theme-comment-thread";
 import { useSession } from "@/lib/auth/auth-client";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
@@ -17,24 +22,27 @@ import { CommentEditor } from "./comment-editor";
 import { CommentList } from "./comment-list";
 import { CommentSectionSkeleton } from "./comment-section-skeleton";
 
-const routeApi = getRouteApi("/_public/post/$slug");
-
 interface CommentSectionProps {
-  postId: number;
+  target: CommentTarget;
   className?: string;
 }
 
-export const CommentSection = ({ postId, className }: CommentSectionProps) => {
+export const CommentSection = ({ target, className }: CommentSectionProps) => {
   const { data: session } = useSession();
-  const { comment: highlightCommentId } = routeApi.useSearch();
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery(rootCommentsByPostIdInfiniteQuery(postId));
+    useInfiniteQuery(rootCommentsInfiniteQuery(target));
 
-  const rootComments = data?.pages.flatMap((page) => page.items) ?? [];
+  const listed = data?.pages.flatMap((page) => page.items) ?? [];
+  const { rootComments, highlightCommentId, expandedRootId } =
+    useThemeCommentThread(target, listed);
+  const [locallyMuted, setLocallyMuted] = useState(false);
+  const viewerMuted = locallyMuted || (data?.pages[0]?.viewerMuted ?? false);
   const totalCount = data?.pages[0]?.total ?? 0;
 
-  const { createComment, deleteComment, isCreating, isDeleting } =
-    useComments(postId);
+  const { createComment, deleteComment, isCreating, isDeleting } = useComments(
+    target,
+    { onMuted: () => setLocallyMuted(true) },
+  );
 
   const [replyTarget, setReplyTarget] = useState<{
     rootId: number;
@@ -64,10 +72,11 @@ export const CommentSection = ({ postId, className }: CommentSectionProps) => {
   const handleCreateComment = async (content: JSONContent) => {
     requireTurnstile();
     try {
-      await createComment({
-        postId,
-        content: jsonCommentToPlainText(content),
-      });
+      await createComment(
+        createCommentInput(target, {
+          content: jsonCommentToPlainText(content),
+        }),
+      );
     } finally {
       resetTurnstile();
     }
@@ -77,12 +86,13 @@ export const CommentSection = ({ postId, className }: CommentSectionProps) => {
     if (!replyTarget) return;
     requireTurnstile();
     try {
-      await createComment({
-        postId,
-        content: jsonCommentToPlainText(content),
-        rootId: replyTarget.rootId,
-        replyToCommentId: replyTarget.commentId,
-      });
+      await createComment(
+        createCommentInput(target, {
+          content: jsonCommentToPlainText(content),
+          rootId: replyTarget.rootId,
+          replyToCommentId: replyTarget.commentId,
+        }),
+      );
       setReplyTarget(null);
     } finally {
       resetTurnstile();
@@ -96,48 +106,10 @@ export const CommentSection = ({ postId, className }: CommentSectionProps) => {
     }
   };
 
-  /* New Enhancement: Handle Anchor Navigation for CSR */
   useEffect(() => {
-    if (isLoading || !data) return;
-
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const handleAnchor = () => {
-      const hash = window.location.hash;
-      if (!hash || !hash.startsWith("#comment-")) return;
-
-      const commentId = parseInt(hash.replace("#comment-", ""), 10);
-      if (isNaN(commentId)) return;
-
-      // Robust retry mechanism to find the element as it might be rendered after data load/expansion
-      let retries = 0;
-      const maxRetries = 20;
-
-      const attemptScroll = () => {
-        const element = document.getElementById(`comment-${commentId}`);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth", block: "center" });
-          return;
-        }
-
-        if (retries < maxRetries) {
-          retries++;
-          timeoutId = setTimeout(attemptScroll, 200);
-        }
-      };
-
-      attemptScroll();
-    };
-
-    handleAnchor();
-    window.addEventListener("hashchange", handleAnchor);
-    return () => {
-      window.removeEventListener("hashchange", handleAnchor);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [isLoading, data]);
+    setReplyTarget(null);
+    setLocallyMuted(false);
+  }, [target.type, target.id, session?.user.id]);
 
   if (isLoading || !data) {
     return <CommentSectionSkeleton className={className} />;
@@ -145,6 +117,7 @@ export const CommentSection = ({ postId, className }: CommentSectionProps) => {
 
   return (
     <section
+      id="comments"
       className={cn(
         "space-y-12 mt-24 pt-12 border-t border-border/20 animate-in fade-in duration-700",
         className,
@@ -159,7 +132,11 @@ export const CommentSection = ({ postId, className }: CommentSectionProps) => {
       </header>
 
       {/* Main Editor */}
-      {session ? (
+      {viewerMuted ? (
+        <p role="status" className="w-full text-sm text-muted-foreground">
+          {m.comments_muted_message()}
+        </p>
+      ) : session ? (
         <div className="space-y-6">
           <CommentEditor
             onSubmit={handleCreateComment}
@@ -190,16 +167,19 @@ export const CommentSection = ({ postId, className }: CommentSectionProps) => {
       {/* Comments List */}
       <CommentList
         rootComments={rootComments}
-        postId={postId}
-        onReply={(rootIdArg, commentId, userName) =>
-          setReplyTarget({ rootId: rootIdArg, commentId, userName })
+        target={target}
+        onReply={
+          viewerMuted
+            ? undefined
+            : (rootIdArg, commentId, userName) =>
+                setReplyTarget({ rootId: rootIdArg, commentId, userName })
         }
         onDelete={(id) => setCommentToDelete(id)}
-        replyTarget={replyTarget}
+        replyTarget={viewerMuted ? null : replyTarget}
         onCancelReply={() => setReplyTarget(null)}
         onSubmitReply={handleCreateReply}
         isSubmittingReply={isCreating}
-        initialExpandedRootId={undefined}
+        initialExpandedRootId={expandedRootId}
         highlightCommentId={highlightCommentId}
       />
 

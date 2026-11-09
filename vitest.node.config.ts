@@ -6,6 +6,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(packageJson.version),
     __BUILD_ID__: JSON.stringify("test"),
+    __THEME_NAME__: JSON.stringify("default"),
   },
   plugins: [routedFirstSegmentsPlugin()],
   resolve: {

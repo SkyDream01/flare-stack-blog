@@ -69,7 +69,10 @@ export function PublicLayout({
         <main ref={mainRef} className="min-w-0">
           {children}
         </main>
-        <Sidebar className="mt-5 lg:mt-0" />
+        <Sidebar
+          className="mt-5 lg:mt-0"
+          showLatestMoments={pathname === "/"}
+        />
       </div>
 
       <Footer />

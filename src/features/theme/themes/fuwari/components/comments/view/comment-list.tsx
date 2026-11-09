@@ -1,3 +1,4 @@
+import type { CommentTarget } from "@/features/comments/comment-target";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { JSONContent } from "@tiptap/react";
@@ -13,7 +14,7 @@ type RootCommentWithUser = RootCommentWithReplyCount;
 
 interface CommentListProps {
   rootComments: Array<RootCommentWithUser>;
-  postId: number;
+  target: CommentTarget;
   onReply?: (rootId: number, commentId: number, userName: string) => void;
   onDelete?: (commentId: number) => void;
   replyTarget?: { rootId: number; commentId: number; userName: string } | null;
@@ -26,7 +27,7 @@ interface CommentListProps {
 
 export const FuwariCommentList = ({
   rootComments,
-  postId,
+  target,
   onReply,
   onDelete,
   replyTarget,
@@ -71,7 +72,7 @@ export const FuwariCommentList = ({
         <RootCommentWithReplies
           key={root.id}
           root={root}
-          postId={postId}
+          target={target}
           isExpanded={expandedRoots.has(root.id)}
           onToggleExpand={() => toggleExpand(root.id)}
           onReply={onReply}
@@ -90,7 +91,7 @@ export const FuwariCommentList = ({
 
 interface RootCommentWithRepliesProps {
   root: RootCommentWithUser;
-  postId: number;
+  target: CommentTarget;
   isExpanded: boolean;
   onToggleExpand: () => void;
   onReply?: (rootId: number, commentId: number, userName: string) => void;
@@ -105,7 +106,7 @@ interface RootCommentWithRepliesProps {
 
 function RootCommentWithReplies({
   root,
-  postId,
+  target,
   isExpanded,
   onToggleExpand,
   onReply,
@@ -119,12 +120,35 @@ function RootCommentWithReplies({
 }: RootCommentWithRepliesProps) {
   const {
     data: repliesData,
+    isError,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteQuery(repliesByRootIdInfiniteQuery(postId, root.id));
+  } = useInfiniteQuery(repliesByRootIdInfiniteQuery(target, root.id));
 
-  const allReplies = repliesData?.pages.flatMap((page) => page.items) ?? [];
+  const fetched = repliesData?.pages.flatMap((page) => page.items) ?? [];
+  const allReplies = fetched.length ? fetched : root.replies;
+  useEffect(() => {
+    if (
+      !isError &&
+      isExpanded &&
+      highlightCommentId != null &&
+      root.id !== highlightCommentId &&
+      !allReplies.some((reply) => reply.id === highlightCommentId) &&
+      hasNextPage &&
+      !isFetchingNextPage
+    )
+      void fetchNextPage();
+  }, [
+    isError,
+    isExpanded,
+    highlightCommentId,
+    root.id,
+    allReplies,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  ]);
   const isReplyingToRoot =
     replyTarget &&
     replyTarget.rootId === root.id &&
@@ -134,6 +158,7 @@ function RootCommentWithReplies({
     <div>
       <FuwariCommentItem
         comment={root}
+        canReply={!!onReply}
         onReply={() => {
           if (onReply) {
             onReply(
@@ -199,6 +224,7 @@ function RootCommentWithReplies({
                   <div key={reply.id}>
                     <FuwariCommentItem
                       comment={reply}
+                      canReply={!!onReply}
                       onReply={() => {
                         if (onReply) {
                           onReply(

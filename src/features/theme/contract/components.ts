@@ -9,6 +9,8 @@ import type {
   FriendLinksPageProps,
   HomePageProps,
   LoginPageProps,
+  MomentPageProps,
+  MomentsPageProps,
   PostPageProps,
   PostsPageProps,
   ProfilePageProps,
@@ -35,6 +37,11 @@ export interface ThemeComponents {
   HomePage: React.ComponentType<HomePageProps>;
   /** 主页加载中骨架屏（用于 TanStack Router pendingComponent） */
   HomePageSkeleton: React.ComponentType;
+
+  MomentsPage: React.ComponentType<MomentsPageProps>;
+  MomentsPageSkeleton: React.ComponentType;
+  MomentPage: React.ComponentType<MomentPageProps>;
+  MomentPageSkeleton: React.ComponentType;
 
   /** 文章列表页组件 */
   PostsPage: React.ComponentType<PostsPageProps>;

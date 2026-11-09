@@ -5,6 +5,16 @@
 @import "@fontsource-variable/noto-serif-sc";
 @import "@fontsource-variable/jetbrains-mono";
 
+.default-theme .theme-moments {
+  --fuwari-primary: hsl(var(--foreground));
+  --fuwari-card-bg: hsl(var(--background));
+  --fuwari-radius-large: 0.25rem;
+}
+
+.default-theme .theme-moments .fuwari-card-base {
+  border: 1px solid hsl(var(--border));
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

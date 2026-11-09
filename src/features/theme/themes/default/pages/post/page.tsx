@@ -173,7 +173,7 @@ export function PostPage({ post }: PostPageProps) {
 
         {/* Comments Section */}
         <div className="pt-12 border-t-0 border-border/40">
-          <CommentSection postId={post.id} />
+          <CommentSection target={{ type: "post", id: post.id }} />
         </div>
       </article>
 

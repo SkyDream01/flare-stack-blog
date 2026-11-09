@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import type { JSONContent } from "@tiptap/react";
 import { LogIn } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -8,30 +8,38 @@ import { Turnstile, useTurnstile } from "@/components/common/turnstile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { jsonCommentToPlainText } from "@/features/comments/comment-body";
 import { useComments } from "@/features/comments/hooks/use-comments";
-import { rootCommentsByPostIdInfiniteQuery } from "@/features/comments/queries";
+import { rootCommentsInfiniteQuery } from "@/features/comments/queries";
+import {
+  createCommentInput,
+  type CommentTarget,
+} from "@/features/comments/comment-target";
+import { useThemeCommentThread } from "@/features/theme/components/use-theme-comment-thread";
 import { useSession } from "@/lib/auth/auth-client";
 import { m } from "@/paraglide/messages";
 import { FuwariCommentEditor } from "../editor/comment-editor";
 import { FuwariCommentList } from "./comment-list";
 import FuwariConfirmationModal from "./confirmation-modal";
 
-const routeApi = getRouteApi("/_public/post/$slug");
-
 interface FuwariCommentSectionProps {
-  postId: number;
+  target: CommentTarget;
 }
 
-export function FuwariCommentSection({ postId }: FuwariCommentSectionProps) {
+export function FuwariCommentSection({ target }: FuwariCommentSectionProps) {
   const { data: session } = useSession();
-  const { comment: highlightCommentId } = routeApi.useSearch();
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery(rootCommentsByPostIdInfiniteQuery(postId));
+    useInfiniteQuery(rootCommentsInfiniteQuery(target));
 
-  const rootComments = data?.pages.flatMap((page) => page.items) ?? [];
+  const listed = data?.pages.flatMap((page) => page.items) ?? [];
+  const { rootComments, highlightCommentId, expandedRootId } =
+    useThemeCommentThread(target, listed);
+  const [locallyMuted, setLocallyMuted] = useState(false);
+  const viewerMuted = locallyMuted || (data?.pages[0]?.viewerMuted ?? false);
   const totalCount = data?.pages[0]?.total ?? 0;
 
-  const { createComment, deleteComment, isCreating, isDeleting } =
-    useComments(postId);
+  const { createComment, deleteComment, isCreating, isDeleting } = useComments(
+    target,
+    { onMuted: () => setLocallyMuted(true) },
+  );
 
   const [replyTarget, setReplyTarget] = useState<{
     rootId: number;
@@ -60,10 +68,11 @@ export function FuwariCommentSection({ postId }: FuwariCommentSectionProps) {
   const handleCreateComment = async (content: JSONContent) => {
     requireTurnstile();
     try {
-      await createComment({
-        postId,
-        content: jsonCommentToPlainText(content),
-      });
+      await createComment(
+        createCommentInput(target, {
+          content: jsonCommentToPlainText(content),
+        }),
+      );
     } finally {
       resetTurnstile();
     }
@@ -73,12 +82,13 @@ export function FuwariCommentSection({ postId }: FuwariCommentSectionProps) {
     if (!replyTarget) return;
     requireTurnstile();
     try {
-      await createComment({
-        postId,
-        content: jsonCommentToPlainText(content),
-        rootId: replyTarget.rootId,
-        replyToCommentId: replyTarget.commentId,
-      });
+      await createComment(
+        createCommentInput(target, {
+          content: jsonCommentToPlainText(content),
+          rootId: replyTarget.rootId,
+          replyToCommentId: replyTarget.commentId,
+        }),
+      );
       setReplyTarget(null);
     } finally {
       resetTurnstile();
@@ -92,53 +102,27 @@ export function FuwariCommentSection({ postId }: FuwariCommentSectionProps) {
     }
   };
 
-  /* Anchor Navigation for CSR */
   useEffect(() => {
-    if (isLoading || !data) return;
-
-    const handleAnchor = () => {
-      const hash = window.location.hash;
-      if (!hash || !hash.startsWith("#comment-")) return;
-
-      const commentId = parseInt(hash.replace("#comment-", ""), 10);
-      if (isNaN(commentId)) return;
-
-      let retries = 0;
-      const maxRetries = 20;
-
-      const attemptScroll = () => {
-        const element = document.getElementById(`comment-${commentId}`);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth", block: "center" });
-          return;
-        }
-
-        if (retries < maxRetries) {
-          retries++;
-          setTimeout(attemptScroll, 200);
-        }
-      };
-
-      attemptScroll();
-    };
-
-    handleAnchor();
-    window.addEventListener("hashchange", handleAnchor);
-    return () => window.removeEventListener("hashchange", handleAnchor);
-  }, [isLoading, data]);
+    setReplyTarget(null);
+    setLocallyMuted(false);
+  }, [target.type, target.id, session?.user.id]);
 
   if (isLoading || !data) {
     return <FuwariCommentSectionSkeleton />;
   }
 
   return (
-    <div className="space-y-6">
+    <div id="comments" className="space-y-6">
       <h2 className="text-xl font-bold fuwari-text-90">
         {m.comments_count({ count: totalCount })}
       </h2>
 
       {/* Main Editor */}
-      {session ? (
+      {viewerMuted ? (
+        <p role="status" className="w-full text-sm text-muted-foreground">
+          {m.comments_muted_message()}
+        </p>
+      ) : session ? (
         <FuwariCommentEditor
           onSubmit={handleCreateComment}
           isSubmitting={isCreating && !replyTarget}
@@ -164,16 +148,19 @@ export function FuwariCommentSection({ postId }: FuwariCommentSectionProps) {
       {/* Comments List */}
       <FuwariCommentList
         rootComments={rootComments}
-        postId={postId}
-        onReply={(rootIdArg, commentId, userName) =>
-          setReplyTarget({ rootId: rootIdArg, commentId, userName })
+        target={target}
+        onReply={
+          viewerMuted
+            ? undefined
+            : (rootIdArg, commentId, userName) =>
+                setReplyTarget({ rootId: rootIdArg, commentId, userName })
         }
         onDelete={(id) => setCommentToDelete(id)}
-        replyTarget={replyTarget}
+        replyTarget={viewerMuted ? null : replyTarget}
         onCancelReply={() => setReplyTarget(null)}
         onSubmitReply={handleCreateReply}
         isSubmittingReply={isCreating}
-        initialExpandedRootId={undefined}
+        initialExpandedRootId={expandedRootId}
         highlightCommentId={highlightCommentId}
       />
 

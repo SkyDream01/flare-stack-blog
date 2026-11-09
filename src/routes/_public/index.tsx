@@ -4,6 +4,7 @@ import theme from "@theme";
 import { z } from "zod";
 import { siteDomainQuery } from "@/features/config/queries";
 import { getThemePreloadImages } from "@/features/theme/site-config.helpers";
+import { latestMomentsQuery } from "@/features/moments/queries";
 import { popularPostsQuery, homePostsQuery } from "@/features/posts/queries";
 import { buildCanonicalUrl, canonicalLink } from "@/lib/seo";
 
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/_public/")({
       context.queryClient.ensureQueryData(homePostsQuery(deps.page)),
       context.queryClient.ensureQueryData(siteDomainQuery),
       context.queryClient.ensureQueryData(popularPostsQuery(3)),
+      context.queryClient.ensureQueryData(latestMomentsQuery),
     ]);
 
     if (posts.page !== deps.page) {

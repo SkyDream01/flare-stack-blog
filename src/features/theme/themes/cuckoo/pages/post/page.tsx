@@ -123,7 +123,7 @@ export function PostPage({ post }: PostPageProps) {
       <PostAdjacentNav slug={post.slug} />
 
       {/* 评论区 */}
-      <CuckooCommentSection postId={post.id} />
+      <CuckooCommentSection target={{ type: "post", id: post.id }} />
 
       <ClientOnly>
         <CompactTableOfContents headers={post.toc} theme="cuckoo" />

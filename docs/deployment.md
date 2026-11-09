@@ -228,6 +228,8 @@ Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) =>
 
 ### 8. 以后如何更新
 
+当前 v3.11.0 的两个数据库迁移、Webhook 与 OpenAPI 兼容性变化，以及本分支的主题适配见 [v3.11.0 更新与迁移说明](./releases/v3.11.0.md)。
+
 上游有新代码时，先阅读 [更新说明](https://github.com/du2333/flare-stack-blog/releases)，然后：
 
 1. 打开**自己的 Fork 仓库**，切换到 Cloudflare 监听的生产分支，本文为 `main`。

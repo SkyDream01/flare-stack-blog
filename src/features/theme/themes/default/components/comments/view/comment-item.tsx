@@ -9,6 +9,7 @@ import { ExpandableContent } from "./expandable-content";
 
 interface CommentItemProps {
   comment: CommentWithUser;
+  canReply?: boolean;
   onReply?: (rootId: number, commentId: number, userName: string) => void;
   onDelete?: (commentId: number) => void;
   isReply?: boolean;
@@ -21,6 +22,7 @@ export const CommentItem = memo(
   ({
     comment,
     onReply,
+    canReply = true,
     onDelete,
     isReply,
     replyToName,
@@ -122,21 +124,23 @@ export const CommentItem = memo(
 
           {comment.status !== "deleted" && (
             <div className="flex items-center gap-4 pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const rootId = comment.rootId ?? comment.id;
-                  onReply?.(
-                    rootId,
-                    comment.id,
-                    comment.user?.name || m.comments_item_unknown_user(),
-                  );
-                }}
-                className="h-auto p-0 text-[9px] uppercase tracking-widest font-bold text-muted-foreground hover:text-foreground bg-transparent hover:bg-transparent"
-              >
-                {m.comments_item_reply()}
-              </Button>
+              {canReply ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const rootId = comment.rootId ?? comment.id;
+                    onReply?.(
+                      rootId,
+                      comment.id,
+                      comment.user?.name || m.comments_item_unknown_user(),
+                    );
+                  }}
+                  className="h-auto p-0 text-[9px] uppercase tracking-widest font-bold text-muted-foreground hover:text-foreground bg-transparent hover:bg-transparent"
+                >
+                  {m.comments_item_reply()}
+                </Button>
+              ) : null}
 
               {(isAuthor || isAdmin) && (
                 <Button

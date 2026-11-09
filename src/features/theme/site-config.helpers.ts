@@ -1,5 +1,11 @@
 import type { SiteConfig } from "@/features/config/site-config.schema";
 
+export function getThemeAvatar(siteConfig: SiteConfig): string {
+  return __THEME_NAME__ === "cuckoo"
+    ? siteConfig.theme.cuckoo.avatar
+    : siteConfig.theme.fuwari.avatar;
+}
+
 // if the theme doesn't have a preload image, return an empty array
 export function getThemePreloadImages(siteConfig: SiteConfig): Array<string> {
   switch (__THEME_NAME__) {

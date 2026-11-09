@@ -1,3 +1,9 @@
+import {
+  MomentPage,
+  MomentPageSkeleton,
+  MomentsPage,
+  MomentsPageSkeleton,
+} from "./pages/moments";
 import "./styles/index.css";
 import Toaster from "@/components/ui/toaster";
 import type { SiteConfig } from "@/features/config/site-config.schema";
@@ -22,6 +28,10 @@ import { ProfilePage } from "./pages/user/profile";
 export default {
   config,
   getDocumentStyle: (_siteConfig: SiteConfig) => undefined,
+  MomentPage,
+  MomentPageSkeleton,
+  MomentsPage,
+  MomentsPageSkeleton,
   HomePage,
   HomePageSkeleton,
   PostsPage,

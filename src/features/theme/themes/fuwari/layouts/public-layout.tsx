@@ -75,7 +75,10 @@ export function PublicLayout({
             style={{ maxWidth: "var(--fuwari-page-width)" }}
           >
             {/* Sidebar Column */}
-            <Sidebar className="order-2 lg:order-1" />
+            <Sidebar
+              className="order-2 lg:order-1"
+              showLatestMoments={isHomePage}
+            />
 
             {/* Main Content Column */}
             <main className="order-1 lg:order-2 flex flex-col gap-4 min-w-0">

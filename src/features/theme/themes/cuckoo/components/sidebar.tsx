@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useRouteContext } from "@tanstack/react-router";
 import { Suspense } from "react";
+import { LatestMoments } from "@/features/moments/components/latest-moments";
 import { approvedFriendLinksQuery } from "@/features/friend-links/queries";
 import { tagsQueryOptions } from "@/features/tags/queries";
 import { useSidebarToc } from "@/features/theme/themes/cuckoo/components/toc-store";
@@ -13,7 +14,13 @@ import { Reveal } from "./reveal";
  * 侧栏(对应原主题 includes/sidebar.php):
  * 站点信息卡 + 标签云 + 友情链接 + 文章目录(仅文章页)。
  */
-export function Sidebar({ className }: { className?: string }) {
+export function Sidebar({
+  className,
+  showLatestMoments = false,
+}: {
+  className?: string;
+  showLatestMoments?: boolean;
+}) {
   const { siteConfig } = useRouteContext({ from: "__root__" });
 
   return (
@@ -62,6 +69,12 @@ export function Sidebar({ className }: { className?: string }) {
           </div>
         </div>
       </Reveal>
+
+      {showLatestMoments ? (
+        <Suspense fallback={null}>
+          <LatestMoments className="cuckoo-card-base mt-5" />
+        </Suspense>
+      ) : null}
 
       {/* 标签云(.sidebar-module) */}
       <Reveal className="cuckoo-card-base mt-5" delay={130}>

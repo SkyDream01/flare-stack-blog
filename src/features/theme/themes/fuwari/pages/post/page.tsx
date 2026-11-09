@@ -120,7 +120,7 @@ export function PostPage({ post }: PostPageProps) {
         className="fuwari-card-base p-6 fuwari-onload-animation"
         style={{ animationDelay: "450ms" }}
       >
-        <FuwariCommentSection postId={post.id} />
+        <FuwariCommentSection target={{ type: "post", id: post.id }} />
       </div>
     </div>
   );

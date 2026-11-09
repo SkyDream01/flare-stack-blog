@@ -8,6 +8,7 @@ import { ExpandableContent } from "./expandable-content";
 
 interface CommentItemProps {
   comment: CommentWithUser;
+  canReply?: boolean;
   onReply?: (rootId: number, commentId: number, userName: string) => void;
   onDelete?: (commentId: number) => void;
   isReply?: boolean;
@@ -20,6 +21,7 @@ export const FuwariCommentItem = memo(
   ({
     comment,
     onReply,
+    canReply = true,
     onDelete,
     isReply,
     replyToName,
@@ -120,19 +122,21 @@ export const FuwariCommentItem = memo(
 
           {comment.status !== "deleted" && (
             <div className="flex items-center gap-4 pt-1">
-              <button
-                onClick={() => {
-                  const rootId = comment.rootId ?? comment.id;
-                  onReply?.(
-                    rootId,
-                    comment.id,
-                    comment.user?.name || m.comments_item_unknown_user(),
-                  );
-                }}
-                className="text-xs fuwari-text-30 hover:text-(--fuwari-primary) transition-colors font-medium"
-              >
-                {m.comments_item_reply()}
-              </button>
+              {canReply ? (
+                <button
+                  onClick={() => {
+                    const rootId = comment.rootId ?? comment.id;
+                    onReply?.(
+                      rootId,
+                      comment.id,
+                      comment.user?.name || m.comments_item_unknown_user(),
+                    );
+                  }}
+                  className="text-xs fuwari-text-30 hover:text-(--fuwari-primary) transition-colors font-medium"
+                >
+                  {m.comments_item_reply()}
+                </button>
+              ) : null}
 
               {(isAuthor || isAdmin) && (
                 <button

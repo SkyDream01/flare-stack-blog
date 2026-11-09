@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import theme from "@theme";
@@ -7,13 +8,19 @@ import { getThemePreloadImages } from "@/features/theme/site-config.helpers";
 import { useSession } from "@/lib/auth/auth-client";
 import { CACHE_CONTROL } from "@/lib/constants";
 import { clientEnv } from "@/lib/env/client.env";
+import { useIsAdmin } from "@/features/moments/hooks/use-is-admin";
+import { momentsExistQuery } from "@/features/moments/queries";
 import { m } from "@/paraglide/messages";
 
 export const Route = createFileRoute("/_public")({
-  loader: ({ context }) => ({
-    preloadImages: getThemePreloadImages(context.siteConfig),
-  }),
   component: PublicLayout,
+  // The navigation shows the Moments entry only once a Moment exists, so the
+  // answer is in the server-rendered page. A failed lookup only leaves the
+  // entry out.
+  loader: async ({ context }) => {
+    await context.queryClient.prefetchQuery(momentsExistQuery);
+    return { preloadImages: getThemePreloadImages(context.siteConfig) };
+  },
   headers: () => {
     return CACHE_CONTROL.html;
   },
@@ -42,10 +49,23 @@ function PublicLayout() {
   const navigate = useNavigate();
   const { data: session, isPending: isSessionPending } = useSession();
   const { logout } = useLogout();
+  const isAdmin = useIsAdmin();
+  const { data: moments } = useQuery(momentsExistQuery);
+  // The Admin always has the entry, to post the first Moment.
+  const showMoments = moments?.exists === true || isAdmin;
 
   const navOptions = [
     { id: "home", label: m.nav_home(), to: "/" as const },
     { id: "posts", label: m.nav_posts(), to: "/posts" as const },
+    ...(showMoments
+      ? [
+          {
+            id: "moments",
+            label: m.moments_title(),
+            to: "/moments" as const,
+          },
+        ]
+      : []),
     {
       id: "friend-links",
       label: m.nav_friend_links(),

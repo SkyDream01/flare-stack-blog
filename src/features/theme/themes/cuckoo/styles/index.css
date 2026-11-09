@@ -6,6 +6,30 @@
 @import "./glass.css";
 @plugin "@tailwindcss/typography";
 
+/* Shared Moment cards use the selected theme's surfaces and accent. */
+.cuckoo-public .theme-moments {
+  --fuwari-primary: var(--cuckoo-primary);
+  --fuwari-radius-large: var(--cuckoo-radius);
+  --fuwari-card-bg: var(--cuckoo-card-bg);
+}
+
+.cuckoo-public .theme-moments .fuwari-card-base {
+  border: 1px solid var(--cuckoo-glass-edge);
+  background-color: var(--cuckoo-glass-reading-tint);
+  background-image: var(--cuckoo-glass-sheen);
+  box-shadow: var(--cuckoo-glass-shadow), var(--cuckoo-glass-inset);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  backdrop-filter: blur(24px) saturate(1.5);
+}
+
+@media (prefers-reduced-transparency: reduce), (forced-colors: active), print {
+  .cuckoo-public .theme-moments .fuwari-card-base {
+    background: var(--cuckoo-card-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 @layer base {
   html {
     scroll-behavior: smooth;

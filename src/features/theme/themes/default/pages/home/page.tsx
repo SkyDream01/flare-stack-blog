@@ -1,6 +1,7 @@
 import { Link, useRouteContext } from "@tanstack/react-router";
 import { Terminal } from "lucide-react";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
+import { LatestMoments } from "@/features/moments/components/latest-moments";
 import {
   resolveSocialHref,
   SOCIAL_PLATFORMS,
@@ -79,6 +80,10 @@ export function HomePage({ posts, pinnedPosts }: HomePageProps) {
             })}
         </div>
       </section>
+
+      <Suspense fallback={null}>
+        <LatestMoments className="border-y border-border/30 py-4" />
+      </Suspense>
 
       {/* Selected Posts */}
       <section className="space-y-10">

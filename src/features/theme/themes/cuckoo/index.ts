@@ -1,3 +1,9 @@
+import {
+  MomentPage,
+  MomentPageSkeleton,
+  MomentsPage,
+  MomentsPageSkeleton,
+} from "./pages/moments";
 import "./styles/index.css";
 import type { ThemeComponents } from "@/features/theme/contract/components";
 import { Toaster } from "./components/toaster";
@@ -22,6 +28,10 @@ import { getCuckooThemeStyle } from "./theme-style";
 export default {
   config,
   getDocumentStyle: getCuckooThemeStyle,
+  MomentPage,
+  MomentPageSkeleton,
+  MomentsPage,
+  MomentsPageSkeleton,
   HomePage,
   HomePageSkeleton,
   PostsPage,
