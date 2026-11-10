@@ -4,6 +4,7 @@ import { useRef } from "react";
 import type { PostPageProps } from "@/features/theme/contract/pages";
 import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
 import { PostOutdatedNotice } from "@/features/posts/components/post-outdated-notice";
+import { PostShareButton } from "@/features/posts/components/post-share-button";
 import TableOfContents from "@/features/posts/components/table-of-contents";
 import { useHeadingAnchors } from "@/features/posts/components/content/use-heading-anchors";
 import { FuwariCommentSection } from "@/features/theme/themes/fuwari/components/comments/view/comment-section";
@@ -13,7 +14,7 @@ import { m } from "@/paraglide/messages";
 import { PostMeta } from "./components/post-meta";
 import { PostSummary } from "./components/post-summary";
 
-export function PostPage({ post }: PostPageProps) {
+export function PostPage({ post, canonicalHref }: PostPageProps) {
   const { data: session } = useSession();
   const contentRef = useRef<HTMLDivElement>(null);
   useHeadingAnchors(contentRef);
@@ -101,6 +102,9 @@ export function PostPage({ post }: PostPageProps) {
             END
           </span>
           <div className="h-px w-full bg-linear-to-r from-(--fuwari-meta-divider) via-transparent to-transparent opacity-20" />
+        </div>
+        <div className="mb-4 flex justify-center">
+          <PostShareButton title={post.title} url={canonicalHref} />
         </div>
       </div>
 

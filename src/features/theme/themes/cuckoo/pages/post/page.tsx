@@ -12,6 +12,7 @@ import {
 import { setSidebarToc } from "@/features/theme/themes/cuckoo/components/toc-store";
 import { useSession } from "@/lib/auth/auth-client";
 import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
+import { PostShareButton } from "@/features/posts/components/post-share-button";
 import { CompactTableOfContents } from "@/features/posts/components/compact-table-of-contents";
 import { m } from "@/paraglide/messages";
 import { PostMeta } from "./components/post-meta";
@@ -37,7 +38,7 @@ function getOutdatedInfo(
   return { createdDays, modifiedDays };
 }
 
-export function PostPage({ post }: PostPageProps) {
+export function PostPage({ post, canonicalHref }: PostPageProps) {
   const { data: session } = useSession();
   const { siteConfig } = useRouteContext({ from: "__root__" });
   const contentRef = useRef<HTMLDivElement>(null);
@@ -117,6 +118,12 @@ export function PostPage({ post }: PostPageProps) {
         >
           <ContentRenderer content={post.contentJson} />
         </div>
+        <footer className="flex flex-col items-center gap-4 px-5 pb-6">
+          <span className="text-xs tracking-widest text-muted-foreground">
+            {m.post_end_notice()}
+          </span>
+          <PostShareButton title={post.title} url={canonicalHref} />
+        </footer>
       </article>
 
       {/* 相关文章 */}

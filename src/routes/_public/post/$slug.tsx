@@ -102,9 +102,10 @@ export const Route = createFileRoute("/_public/post/$slug")({
 
 function RouteComponent() {
   const { slug } = Route.useParams();
+  const { canonicalHref } = Route.useLoaderData();
   const { data: post } = useSuspenseQuery(postBySlugQuery(slug));
 
   if (!post) throw notFound();
 
-  return <theme.PostPage post={post} />;
+  return <theme.PostPage post={post} canonicalHref={canonicalHref} />;
 }

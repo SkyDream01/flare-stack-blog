@@ -1,7 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUp, Pencil, Share2, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { PostPageProps } from "@/features/theme/contract/pages";
 import { ContentRenderer } from "@/features/theme/themes/default/components/content/content-renderer";
@@ -11,11 +10,12 @@ import { CompactTableOfContents } from "@/features/posts/components/compact-tabl
 import { PostOutdatedNotice } from "@/features/posts/components/post-outdated-notice";
 import { useHeadingAnchors } from "@/features/posts/components/content/use-heading-anchors";
 import { formatDate } from "@/lib/utils";
+import { shareLink } from "@/lib/share";
 import { m } from "@/paraglide/messages";
 import { CommentSection } from "../../components/comments/view/comment-section";
 import TableOfContents from "./components/table-of-contents";
 
-export function PostPage({ post }: PostPageProps) {
+export function PostPage({ post, canonicalHref }: PostPageProps) {
   const navigate = useNavigate();
   const { data: session } = useSession();
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -139,23 +139,12 @@ export function PostPage({ post }: PostPageProps) {
               </div>
               <Button
                 variant="ghost"
-                onClick={() => {
-                  navigator.clipboard
-                    .writeText(window.location.href)
-                    .then(() => {
-                      toast.success(m.post_share_success(), {
-                        description: m.post_share_success_desc(),
-                      });
-                    })
-                    .catch(() => {
-                      toast.error(m.post_share_error(), {
-                        description: m.post_share_error_desc(),
-                      });
-                    });
-                }}
+                onClick={() =>
+                  void shareLink({ title: post.title, url: canonicalHref })
+                }
                 className="group h-auto p-0 flex items-center gap-3 text-xs uppercase tracking-widest font-medium text-muted-foreground hover:text-foreground transition-colors bg-transparent hover:bg-transparent"
               >
-                <span>{m.post_share()}</span>
+                <span>{m.common_share()}</span>
                 <Share2
                   size={12}
                   strokeWidth={1.5}
