@@ -228,7 +228,7 @@ Array.from(crypto.getRandomValues(new Uint8Array(32)), (n) =>
 
 ### 8. 以后如何更新
 
-当前 v3.11.0 的两个数据库迁移、Webhook 与 OpenAPI 兼容性变化，以及本分支的主题适配见 [v3.11.0 更新与迁移说明](./releases/v3.11.0.md)。
+当前已同步上游 v3.12.1，动态单图布局修复及主题保留情况见 [v3.12.1 更新说明](./releases/v3.12.1.md)。从 v3.10.0 或更早版本升级时，还须遵循 [v3.11.0 更新与迁移说明](./releases/v3.11.0.md)中的两个数据库迁移、Webhook 与 OpenAPI 兼容性要求。
 
 上游有新代码时，先阅读 [更新说明](https://github.com/du2333/flare-stack-blog/releases)，然后：
 
