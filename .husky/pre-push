@@ -11,6 +11,10 @@ esac
 bun typecheck
 
 if [ "$plan" = deploy ]; then
-  echo "pre-push: pushing to dev/main deploys the blog, running build, bundle budget and node tests first"
-  bun run build && bun scripts/bundle-report.ts --check && bun run test:node || exit 1
+  echo "pre-push: checking the shared Fuwari budget, node tests and the selected theme's build"
+  selected_theme=$(bun -e 'console.log(process.env.THEME || "default")') || exit 1
+  THEME=fuwari bun run build && bun scripts/bundle-report.ts --check && bun run test:node || exit 1
+  if [ "$selected_theme" != fuwari ]; then
+    THEME="$selected_theme" bun run build || exit 1
+  fi
 fi

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { availableParallelism } from "node:os";
 import { defineConfig } from "vitest/config";
 import packageJson from "./package.json";
 import { routedFirstSegmentsPlugin } from "./scripts/vite-routed-segments.ts";
@@ -17,6 +18,8 @@ export default defineConfig({
     alias: { "@": path.resolve(import.meta.dirname, "src") },
   },
   test: {
+    // Whole-source AST checks time out when competing with every CPU worker.
+    maxWorkers: Math.min(6, availableParallelism()),
     environment: "node",
     // A Theme's stylesheet URL names its file (themes.test.ts reads it).
     css: { include: [/\/(features\/theme|tests\/theme-fixture)\/.+\.css/] },
