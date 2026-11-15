@@ -16,7 +16,7 @@
 }
 
 @layer base {
-  :root {
+  :root:not(:has(.admin-layout)) {
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
 
@@ -53,7 +53,7 @@
     --selection-foreground: 0 0% 100%;
   }
 
-  .dark {
+  .dark:not(:has(.admin-layout)) {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
 
@@ -155,7 +155,7 @@ mark {
 }
 
 @layer base {
-  body {
+  body:not(:has(.admin-layout)) {
     @apply bg-background text-foreground overflow-x-hidden font-sans antialiased;
     transition:
       background-color 0.5s ease-in-out,

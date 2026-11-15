@@ -1,7 +1,7 @@
 import { ClientOnly } from "@tanstack/react-router";
 import { memo, useMemo } from "react";
 import type { CommentWithUser } from "@/features/comments/comments.schema";
-import { useSession } from "@/lib/auth/auth-client";
+import { useSession } from "@/features/auth/hooks/use-session";
 import { cn, formatDate } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
 import { ExpandableContent } from "./expandable-content";

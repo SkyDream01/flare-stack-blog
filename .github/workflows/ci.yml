@@ -53,7 +53,21 @@ jobs:
 
       # Same command Workers Builds runs to deploy, so a broken build fails here first.
       - name: Build
+        env:
+          THEME: fuwari
         run: bun run build
+
+      # What a page preloads, against scripts/bundle-budgets.json.
+      - name: Bundle Budget
+        run: bun scripts/bundle-report.ts --check
+
+      # The retained presentations have their own styles and page components.
+      # Keep the upstream preload budgets on its shared Fuwari presentation.
+      - name: Build retained themes
+        run: |
+          for theme in default cuckoo; do
+            THEME="$theme" bun run build
+          done
 
       - name: Run Node Tests
         run: bun run test:node

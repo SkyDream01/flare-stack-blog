@@ -36,4 +36,6 @@ declare global {
   const __THEME_CONFIG__: import("@/features/theme/registry").ThemeRouterConfig;
   /** Identifies the deployed build; see the Workers Cache key in server.ts. */
   const __BUILD_ID__: string;
+  /** The test fixture Theme's id in a THEME_FIXTURE=1 build; see scripts/vite-theme-fixture.ts. */
+  const __FIXTURE_THEME_IDS__: ReadonlyArray<string> | undefined;
 }

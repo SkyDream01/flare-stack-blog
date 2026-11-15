@@ -1,5 +1,3 @@
-import type { FieldErrors, UseFormRegister } from "react-hook-form";
-
 export interface ProfileUserInfo {
   id: string;
   name: string;
@@ -13,20 +11,13 @@ export interface ProfileSchema {
   image?: string;
 }
 
-export interface ProfileFormData {
-  register: UseFormRegister<ProfileSchema>;
-  errors: FieldErrors<ProfileSchema>;
-  handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
-  isSubmitting: boolean;
-}
+export type ProfileFormData = ReturnType<
+  typeof import("@/features/auth/hooks/use-profile-form").useProfileForm
+>;
 
-export interface NotificationData {
-  available: boolean;
-  enabled: boolean | undefined;
-  isLoading: boolean;
-  isPending: boolean;
-  toggle: () => void;
-}
+export type NotificationData = ReturnType<
+  typeof import("@/features/auth/hooks/use-notification-toggle").useNotificationToggle
+>;
 
 export interface ProfilePageProps {
   user: ProfileUserInfo;

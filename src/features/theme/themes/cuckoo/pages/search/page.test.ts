@@ -52,7 +52,7 @@ it("keeps highlighted matches and literal markup safe while selecting a result",
   data.results = [
     {
       post: {
-        id: "1",
+        id: 1,
         slug: "hello",
         title: '<img src=x onerror="alert(1)">',
         summary: null,

@@ -1,3 +1,4 @@
+import buildTheme from "@theme";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   ClientOnly,
@@ -5,12 +6,20 @@ import {
   HeadContent,
   Scripts,
   useRouteContext,
+  useRouterState,
 } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { lazy, Suspense, type ComponentType } from "react";
-import theme from "@theme";
-import { ThemeProvider } from "@/components/common/theme-provider";
+import { ColourSchemeProvider } from "@/components/common/colour-scheme-provider";
+import { getFuwariThemeStyle } from "@/components/layout/document-style";
 import { siteConfigQuery } from "@/features/config/queries";
+import {
+  previewSiteConfig,
+  resolveThemePreview,
+} from "@/features/theme/theme-preview";
+import { documentThemeId } from "@/features/theme/utils/document-theme";
+import { previewViewerIsAdmin } from "@/features/theme/utils/preview-viewer";
+import { useThemePreviewLive } from "@/features/theme/utils/theme-preview-live";
 import { getLocale } from "@/paraglide/runtime";
 import appCss from "@/styles.css?url";
 
@@ -33,10 +42,22 @@ const AppDevtools = lazy(
 );
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
-  beforeLoad: async ({ context }) => {
-    const siteConfig =
+  beforeLoad: async ({ context, location }) => {
+    const savedSiteConfig =
       await context.queryClient.ensureQueryData(siteConfigQuery);
-    return { siteConfig };
+    // Kept in the route context, never in the Site Config query, so nothing
+    // else rendered from the same data shows it: the preview, and the Site
+    // Config with the preview's draft over the saved fields.
+    const themePreview =
+      __THEME_NAME__ === "fuwari"
+        ? await resolveThemePreview(location.search, () =>
+            previewViewerIsAdmin(context.queryClient),
+          )
+        : null;
+    return {
+      siteConfig: previewSiteConfig(savedSiteConfig, themePreview),
+      themePreview,
+    };
   },
   loader: async ({ context }) => {
     return {
@@ -63,20 +84,20 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         },
       ],
       links: [
-        {
-          rel: "icon",
-          type: "image/svg+xml",
-          href: loaderData?.siteConfig?.icons.faviconSvg,
-        },
+        ...(loaderData?.siteConfig?.icons.faviconSvg
+          ? [
+              {
+                rel: "icon",
+                type: "image/svg+xml",
+                href: loaderData.siteConfig.icons.faviconSvg,
+              },
+            ]
+          : []),
         {
           rel: "icon",
           type: "image/png",
           href: loaderData?.siteConfig?.icons.favicon96,
           sizes: "96x96",
-        },
-        {
-          rel: "shortcut icon",
-          href: loaderData?.siteConfig?.icons.faviconIco,
         },
         {
           rel: "apple-touch-icon",
@@ -118,19 +139,34 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const locale = getLocale();
-  const { siteConfig } = useRouteContext({ from: "__root__" });
+  const { siteConfig, themePreview } = useRouteContext({ from: "__root__" });
+  const liveHue = useThemePreviewLive("primaryHue");
+  // Follows client navigation: set on public pages, removed under /admin.
+  const themeId = useRouterState({
+    select: (state) =>
+      documentThemeId(
+        state.matches.map((match) => match.routeId),
+        themePreview?.id ?? siteConfig?.theme.id,
+      ),
+  });
 
   return (
     <html
       lang={locale}
       suppressHydrationWarning
-      style={theme.getDocumentStyle?.(siteConfig)}
+      data-theme={themeId}
+      style={{
+        ...getFuwariThemeStyle(siteConfig, liveHue),
+        ...(themeId && __THEME_NAME__ !== "fuwari"
+          ? buildTheme.getDocumentStyle?.(siteConfig)
+          : {}),
+      }}
     >
       <head>
         <HeadContent />
       </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ColourSchemeProvider>{children}</ColourSchemeProvider>
         <ClientOnly>
           <Suspense fallback={null}>
             <AppDevtools />

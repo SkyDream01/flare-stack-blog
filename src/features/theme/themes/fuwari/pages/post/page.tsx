@@ -9,7 +9,7 @@ import TableOfContents from "@/features/posts/components/table-of-contents";
 import { useHeadingAnchors } from "@/features/posts/components/content/use-heading-anchors";
 import { FuwariCommentSection } from "@/features/theme/themes/fuwari/components/comments/view/comment-section";
 import { ContentRenderer } from "@/features/theme/themes/fuwari/components/content/content-renderer";
-import { useSession } from "@/lib/auth/auth-client";
+import { useSession } from "@/features/auth/hooks/use-session";
 import { m } from "@/paraglide/messages";
 import { PostMeta } from "./components/post-meta";
 import { PostSummary } from "./components/post-summary";

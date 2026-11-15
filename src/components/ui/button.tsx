@@ -19,8 +19,16 @@ export type ButtonVariant =
   | "danger"
   | "text"
   | "overlay"
+  // The Admin's own (admin-variables.css), on their own scale: xs 28px,
+  // sm 30px, md 36px. inverse and glass sit on a dark card.
+  | "ink"
+  | "outline"
+  | "quiet"
+  | "inverse"
+  | "glass"
   | LegacyButtonVariant;
-export type ButtonSize = "sm" | "md" | "lg" | "default" | "icon";
+/** xs (28px) is for the Admin's variants only. */
+export type ButtonSize = "xs" | "sm" | "md" | "lg" | "default" | "icon";
 
 export interface ButtonStyle {
   variant?: ButtonVariant;
@@ -74,13 +82,14 @@ export function buttonClass({
   tone,
   className,
 }: ButtonStyle = {}) {
-  const isLegacyVariant = variant in legacyVariants;
+  // Outline is now also an Admin variant; legacy sizing still opts into
+  // the retained themes' original outline button.
+  const isLegacyVariant = variant in legacyVariants && variant !== "outline";
   const isLegacySize = size === "default" || size === "icon";
 
   if (isLegacyVariant || isLegacySize) {
-    const legacyVariant = isLegacyVariant
-      ? (variant as LegacyButtonVariant)
-      : "default";
+    const legacyVariant =
+      variant in legacyVariants ? (variant as LegacyButtonVariant) : "default";
     const legacySize = isLegacySize
       ? (size as LegacyButtonSize)
       : size === "sm" || size === "lg"
@@ -132,7 +141,11 @@ export function Button({
       aria-busy={loading || undefined}
       className={buttonClass({ variant, size, tone, className })}
     >
-      {loading ? <Spinner size={size === "sm" ? 14 : 16} /> : icon}
+      {loading ? (
+        <Spinner size={size === "sm" || size === "xs" ? 14 : 16} />
+      ) : (
+        icon
+      )}
       {children}
     </button>
   );

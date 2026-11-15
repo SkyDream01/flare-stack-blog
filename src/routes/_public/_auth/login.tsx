@@ -1,14 +1,12 @@
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
-import { z } from "zod";
 import { Turnstile, useTurnstile } from "@/components/common/turnstile";
 import theme from "@theme";
+import { loginSearchSchema } from "@/features/auth/auth-search";
 import { useLoginForm, useSocialLogin } from "@/features/auth/hooks";
 import { m } from "@/paraglide/messages";
 
 export const Route = createFileRoute("/_public/_auth/login")({
-  validateSearch: z.object({
-    redirectTo: z.string().optional(),
-  }),
+  validateSearch: loginSearchSchema,
   component: RouteComponent,
   head: () => ({
     meta: [

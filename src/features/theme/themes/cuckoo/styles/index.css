@@ -36,7 +36,7 @@
     scrollbar-gutter: stable;
   }
 
-  :root {
+  :root:not(:has(.admin-layout)) {
     --cuckoo-hue: 15;
     --cuckoo-page-width: 71.875rem; /* 1150px */
     --cuckoo-radius: 18px;
@@ -91,7 +91,7 @@
       0 5px 5px -3px rgba(0, 0, 0, 0.2);
   }
 
-  .dark {
+  .dark:not(:has(.admin-layout)) {
     --cuckoo-chip-bg: rgba(255, 255, 255, 0.07);
     --cuckoo-footer-text: rgba(255, 255, 255, 0.9);
     --cuckoo-footer-text-hover: rgb(185, 185, 185);

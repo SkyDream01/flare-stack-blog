@@ -10,7 +10,7 @@ import { m } from "@/paraglide/messages";
 
 const share = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/share", () => ({ shareLink: share }));
-vi.mock("@/lib/auth/auth-client", () => ({
+vi.mock("@/features/auth/hooks/use-session", () => ({
   useSession: () => ({ data: null }),
 }));
 vi.mock("@tanstack/react-router", () => ({

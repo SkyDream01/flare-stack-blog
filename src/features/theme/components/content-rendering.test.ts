@@ -9,8 +9,8 @@ import { renderReact as renderCuckoo } from "../themes/cuckoo/components/content
 
 const mermaid = vi.hoisted(() => ({ initialize: vi.fn(), render: vi.fn() }));
 vi.mock("mermaid", () => ({ default: mermaid }));
-vi.mock("@/components/common/theme-provider", () => ({
-  useTheme: () => ({ appTheme: "light" }),
+vi.mock("@/components/common/colour-scheme-provider", () => ({
+  useColourScheme: () => ({ colourScheme: "light" }),
 }));
 
 const themes = [
@@ -112,7 +112,7 @@ describe.each(themes)("%s Post rendering", (_theme, renderPost) => {
 
   it("renders Mermaid within the theme's code frame and keeps the copy control", async () => {
     const source = "flowchart LR\n A --> B";
-    render(
+    const { container } = render(
       renderPost({
         type: "doc",
         content: [
@@ -126,6 +126,12 @@ describe.each(themes)("%s Post rendering", (_theme, renderPost) => {
     );
 
     expect(await screen.findByTestId("diagram")).toBeDefined();
+    const frame = {
+      default: ".my-12",
+      fuwari: ".expressive-code",
+      cuckoo: ".cuckoo-code-mermaid",
+    }[_theme];
+    expect(container.querySelector(frame)).not.toBeNull();
     expect(screen.getByRole("button")).toBeDefined();
     expect(mermaid.render).toHaveBeenCalledWith(
       expect.any(String),

@@ -5,7 +5,7 @@ import type { JSONContent } from "@tiptap/react";
 import { useEffect, useState } from "react";
 import type { RootCommentWithReplyCount } from "@/features/comments/comments.schema";
 import { repliesByRootIdInfiniteQuery } from "@/features/comments/queries";
-import { useSession } from "@/lib/auth/auth-client";
+import { useSession } from "@/features/auth/hooks/use-session";
 import { m } from "@/paraglide/messages";
 import { CuckooCommentEditor } from "../editor/comment-editor";
 import { CuckooCommentItem } from "./comment-item";

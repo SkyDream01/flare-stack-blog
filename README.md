@@ -29,15 +29,15 @@ Flare Stack Blog 是一个深度拥抱 Cloudflare 生态的开源独立博客系
 
 当前分支基于[上游项目](https://github.com/du2333/flare-stack-blog/)持续同步，同时保留独立的主题系统（Theme Contract）。同步上游的领域模型、数据层、管理后台和部署能力时，主题契约、主题注册表以及主题实现会继续保留。
 
-当前已同步上游 **v3.12.1**，升级前请阅读[本分支的更新与迁移说明](./docs/releases/v3.12.1.md)。
+当前已同步上游 **v3.13.1**，升级前请阅读[本分支的更新与迁移说明](./docs/releases/v3.13.1.md)。
 
 当前内置主题包括：
 
 - `default`：默认主题。
-- `fuwari`：Fuwari 风格主题。
+- `fuwari`：上游新版主题系统，可在后台切换经典、名片、沉浸、侧栏四套主题。
 - `cuckoo`：Cuckoo 主题，包含专属背景、头像、侧栏资源和主题配置项。
 
-主题通过构建变量 `THEME` 选择，例如将 `THEME=cuckoo` 写入 `.env`，或配置为 GitHub Actions 的 Repository variable。Cuckoo 的背景、头像、侧栏、默认封面和主色调可以在管理后台的站点设置中维护。详细决策记录见 [ADR 0027](./docs/adr/0027-retain-theme-contract-in-downstream-fork.md)。
+主题通过构建变量 `THEME` 选择，例如将 `THEME=cuckoo` 写入 `.env`，或配置为 GitHub Actions 的 Repository variable。Cuckoo 的背景、头像、侧栏、默认封面和主色调可以在管理后台的「个性化」中维护。详细决策记录见 [ADR 0027](./docs/adr/0027-retain-theme-contract-in-downstream-fork.md)。
 
 ## 界面预览
 
@@ -62,7 +62,7 @@ Flare Stack Blog 是一个深度拥抱 Cloudflare 生态的开源独立博客系
 
 - ⚡ **边缘基础设施**
   - **全 Serverless 存储栈**：以 Cloudflare D1 作为主关系型数据库，KV 承担高频缓存，Durable Objects 负责精准访问限流。
-  - **全球静态资产加速**：媒体文件直存 R2 存储桶，配合 Cloudflare Image Resizing 实现实时图片缩放与格式优化。
+  - **全球静态资产加速**：媒体文件直存 R2 存储桶，配合 Cloudflare Images 绑定在 Worker 内实现实时图片缩放与格式优化。
   - **异步队列事件解耦**：通知邮件发送与 Webhook 派发经由 Cloudflare Queues 异步队列处理，接口响应零阻塞。
 
 - 🛠️ **系统与扩展能力**

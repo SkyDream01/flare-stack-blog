@@ -1,51 +1,97 @@
-import {
-  MomentPage,
-  MomentPageSkeleton,
-  MomentsPage,
-  MomentsPageSkeleton,
-} from "./pages/moments";
-import "./styles/index.css";
-import Toaster from "@/components/ui/toaster";
-import type { SiteConfig } from "@/features/config/site-config.schema";
+import { lazy } from "react";
 import type { ThemeComponents } from "@/features/theme/contract/components";
 import { config } from "./config";
-import { AuthLayout } from "./layouts/auth-layout";
+import "./styles/index.css";
+import type { SiteConfig } from "@/features/config/site-config.schema";
+import Toaster from "@/components/ui/toaster";
 import { PublicLayout } from "./layouts/public-layout";
-import { UserLayout } from "./layouts/user-layout";
-import { LoginPage } from "./pages/auth/login";
-import { FriendLinksPage, FriendLinksPageSkeleton } from "./pages/friend-links";
-import { HomePage, HomePageSkeleton } from "./pages/home";
-import { PostPage, PostPageSkeleton } from "./pages/post";
-import { PostsPage, PostsPageSkeleton } from "./pages/posts";
-import { SearchPage } from "./pages/search";
-import { SubmitFriendLinkPage } from "./pages/submit-friend-link";
-import { ProfilePage } from "./pages/user/profile";
 
-/**
- * Default theme — implements the full ThemeComponents contract.
- * TypeScript will error at compile time if any required component is missing.
- */
+// Each route loads its own presentation; the shell never pulls every page in.
 export default {
   config,
   getDocumentStyle: (_siteConfig: SiteConfig) => undefined,
-  MomentPage,
-  MomentPageSkeleton,
-  MomentsPage,
-  MomentsPageSkeleton,
-  HomePage,
-  HomePageSkeleton,
-  PostsPage,
-  PostsPageSkeleton,
-  PostPage,
-  PostPageSkeleton,
   PublicLayout,
-  AuthLayout,
-  UserLayout,
-  FriendLinksPage,
-  FriendLinksPageSkeleton,
-  SearchPage,
-  SubmitFriendLinkPage,
-  LoginPage,
-  ProfilePage,
   Toaster,
+  MomentPage: lazy(() =>
+    import("./pages/moments").then((module) => ({
+      default: module.MomentPage,
+    })),
+  ),
+  MomentPageSkeleton: lazy(() =>
+    import("./pages/moments").then((module) => ({
+      default: module.MomentPageSkeleton,
+    })),
+  ),
+  MomentsPage: lazy(() =>
+    import("./pages/moments").then((module) => ({
+      default: module.MomentsPage,
+    })),
+  ),
+  MomentsPageSkeleton: lazy(() =>
+    import("./pages/moments").then((module) => ({
+      default: module.MomentsPageSkeleton,
+    })),
+  ),
+  HomePage: lazy(() =>
+    import("./pages/home").then((module) => ({ default: module.HomePage })),
+  ),
+  HomePageSkeleton: lazy(() =>
+    import("./pages/home").then((module) => ({
+      default: module.HomePageSkeleton,
+    })),
+  ),
+  PostsPage: lazy(() =>
+    import("./pages/posts").then((module) => ({ default: module.PostsPage })),
+  ),
+  PostsPageSkeleton: lazy(() =>
+    import("./pages/posts").then((module) => ({
+      default: module.PostsPageSkeleton,
+    })),
+  ),
+  PostPage: lazy(() =>
+    import("./pages/post").then((module) => ({ default: module.PostPage })),
+  ),
+  PostPageSkeleton: lazy(() =>
+    import("./pages/post").then((module) => ({
+      default: module.PostPageSkeleton,
+    })),
+  ),
+  AuthLayout: lazy(() =>
+    import("./layouts/auth-layout").then((module) => ({
+      default: module.AuthLayout,
+    })),
+  ),
+  UserLayout: lazy(() =>
+    import("./layouts/user-layout").then((module) => ({
+      default: module.UserLayout,
+    })),
+  ),
+  FriendLinksPage: lazy(() =>
+    import("./pages/friend-links").then((module) => ({
+      default: module.FriendLinksPage,
+    })),
+  ),
+  FriendLinksPageSkeleton: lazy(() =>
+    import("./pages/friend-links").then((module) => ({
+      default: module.FriendLinksPageSkeleton,
+    })),
+  ),
+  SearchPage: lazy(() =>
+    import("./pages/search").then((module) => ({ default: module.SearchPage })),
+  ),
+  SubmitFriendLinkPage: lazy(() =>
+    import("./pages/submit-friend-link").then((module) => ({
+      default: module.SubmitFriendLinkPage,
+    })),
+  ),
+  LoginPage: lazy(() =>
+    import("./pages/auth/login").then((module) => ({
+      default: module.LoginPage,
+    })),
+  ),
+  ProfilePage: lazy(() =>
+    import("./pages/user/profile").then((module) => ({
+      default: module.ProfilePage,
+    })),
+  ),
 } satisfies ThemeComponents;

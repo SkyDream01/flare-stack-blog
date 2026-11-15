@@ -24,7 +24,7 @@ const state = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock("@/lib/auth/auth-client", () => ({
+vi.mock("@/features/auth/hooks/use-session", () => ({
   useSession: () => ({ data: { user: { id: "reader", name: "Reader" } } }),
 }));
 vi.mock("@tanstack/react-router", () => ({
@@ -57,7 +57,7 @@ vi.mock("@/features/comments/hooks/use-comments", () => ({
 vi.mock("@/features/comments/hooks/use-scroll-to-comment", () => ({
   useScrollToComment: vi.fn(),
 }));
-vi.mock("sonner", () => ({ toast: { error: state.error } }));
+vi.mock("@/lib/toast", () => ({ toast: { error: state.error } }));
 vi.mock("@/components/common/turnstile", () => ({
   Turnstile: () => null,
   useTurnstile: () => ({

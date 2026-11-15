@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import type { CommentTarget } from "@/features/comments/comment-target";
 import type { RootCommentWithReplyCount } from "@/features/comments/comments.schema";
 import { useScrollToComment } from "@/features/comments/hooks/use-scroll-to-comment";

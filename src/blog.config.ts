@@ -13,12 +13,17 @@ export const blogConfig = {
   navLinks: [],
   icons: {
     faviconSvg: "/favicon.svg",
-    faviconIco: "/favicon.ico",
     favicon96: "/favicon-96x96.png",
     appleTouchIcon: "/apple-touch-icon.png",
     webApp192: "/web-app-manifest-192x192.png",
     webApp512: "/web-app-manifest-512x512.png",
   },
+  bannerImage: "/images/home-bg.webp",
+  bannerFocus: { x: 50, y: 50 },
+  avatar: "/images/avatar.png",
+  primaryHue: 250,
+  brandMark: "default",
+  tagline: "",
   theme: {
     default: {
       navBarName: "导航栏名称",
@@ -35,5 +40,7 @@ export const blogConfig = {
       primaryHue: 15,
       defaultCover: "",
     },
+    id: "classic",
+    options: {},
   },
 } as const satisfies SiteConfig;

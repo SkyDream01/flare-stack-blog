@@ -9,7 +9,7 @@
     scroll-behavior: smooth;
   }
 
-  :root {
+  :root:not(:has(.admin-layout)) {
     --fuwari-radius-large: 1rem;
     --fuwari-content-delay: 150ms;
     --fuwari-hue: 250;
@@ -41,7 +41,7 @@
     --fuwari-toc-btn-active: oklch(0.9 0.015 var(--fuwari-hue));
   }
 
-  .dark {
+  .dark:not(:has(.admin-layout)) {
     --fuwari-primary: oklch(0.75 0.14 var(--fuwari-hue));
     --fuwari-primary-hover: oklch(0.8 0.14 var(--fuwari-hue));
     --fuwari-primary-active: oklch(0.85 0.14 var(--fuwari-hue));

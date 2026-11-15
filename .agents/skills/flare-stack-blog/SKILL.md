@@ -1,6 +1,6 @@
 ---
 name: flare-stack-blog
-description: Manage a Flare Stack Blog over its HTTP API with an Admin API Key. Use to connect a blog and its key, and for any change to or question about its posts, moments, categories, tags, media and publishing.
+description: Manage a Flare Stack Blog over its HTTP API with an Admin API Key. Use to connect a blog and its key, and for any change to or question about its posts, moments, categories, tags, media and publishing, and, when asked for exactly that, its site settings such as the Theme and the navigation.
 ---
 
 # Manage a Flare Stack Blog
@@ -32,9 +32,9 @@ The key goes only in the `x-api-key` header, and only to the configured origin. 
 
 ## 2. Discover
 
-At the start of every task, GET `<origin>/api/spec/index.json` with the same headers: it lists every operation and carries the document's `info.description`. Read that description first: it says how to fetch parts of the document, and states authentication, the browser User-Agent requirement, drafts and publishing, the save guard and Edit Conflict, and Markdown content. Then fetch, as it says, only the operations you are about to call, and more as the task needs them; fetch the whole `<origin>/api/spec.json` only when the task needs most of it. Done when you hold the index and, for what you are about to touch, have read its operations and schemas, following every `$ref`. Operation paths are relative to the document's server URL; public pages, such as a Post's public page, are on the site origin itself.
+At the start of every task, GET `<origin>/api/spec/index.json` with the same headers: it lists every operation and carries the document's `info.description`. Read that description first: it says how to fetch parts of the document, and states authentication, the browser User-Agent requirement, drafts and publishing, the save guard and Edit Conflict, and Markdown content. It also states the revision of this Skill the blog serves: when that is higher than this copy's, [Update this Skill](#update-this-skill) comes before the task. Then fetch, as it says, only the operations you are about to call, and more as the task needs them; fetch the whole `<origin>/api/spec.json` only when the task needs most of it. Done when you hold the index and, for what you are about to touch, have read its operations and schemas, following every `$ref`. Operation paths are relative to the document's server URL; public pages, such as a Post's public page, are on the site origin itself.
 
-When an entity has both public and admin operations, use the admin ones. Stay within posts, moments, categories, tags, media and publishing: leave site settings, notifications and their test sends (which deliver real messages), comments, friend links and API keys alone unless the human asks for exactly that.
+When an entity has both public and admin operations, use the admin ones. Stay within posts, moments, categories, tags, media and publishing: leave site settings, notifications and their test sends (which deliver real messages), comments, friend links and API keys alone unless the human asks for exactly that. For site settings, [Site settings](#site-settings) says how.
 
 ## 3. Change the draft
 
@@ -70,6 +70,35 @@ A Moment is a short public entry with no title, draft or history: every post or 
 - **Confirm before posting.** The text and images go live as sent: confirm them with the human unless they gave them or delegated the wording. Delete only when asked.
 - **Read right before each save, send only what changes, and send the `saveToken` you read.** Swapping images for a video, or back, takes both fields in one save, as the document describes. A 409 Edit Conflict follows [Conflicts](#conflicts) as a Post's does.
 - After a write, fetch the Moment's public page on the site origin and confirm it shows, retrying as for a Post.
+
+## Site settings
+
+Only when the human asks for exactly that: which Theme the site wears and that Theme's options, the banner, the avatar, the hue, the brand mark and the tagline, the navigation links, and the other values of the Site Config. The notification settings sit beside them and hold secrets, and their test sends deliver real messages: leave those alone unless they are what was asked.
+
+- **There is no draft.** A save is live at once, on every public page, for every visitor. Say what will change and confirm it with the human before saving, unless they gave the exact value.
+- **A save replaces all of what it names.** Whatever the save leaves out goes back to its default, the Theme, its options and the navigation with it. Read the settings right before the save, make only the asked change in what you read, and send all of it back together with the revision that read carried, as the document describes. Never build the save from memory or from an earlier read.
+- **Keep what you were not asked to change, and what you do not recognise.** The settings hold the options of the Themes that are not selected, and a newer blog may have added values this Skill has never seen: send them back as read.
+- **An image is uploaded first.** A banner, an avatar or an icon goes in through the upload the document lists for site images; write the path that upload answers.
+- **A 409 means nothing was written.** The Admin edits the same settings in the browser. Read again, re-apply your one change to the new read, and ask the human first when what they saved touches what you are changing. After a second 409 in a row, stop and ask.
+- **Check the public site.** Fetch the home page, and for a Theme or the navigation one more page, and confirm the change shows, retrying as for a Post. Markup shows that a Theme or a link is in place, not how it looks: after a change of Theme, the banner or the hue, ask the human to look at the site.
+
+## Update this Skill
+
+This copy is revision 1 of the Skill. A blog's description states the revision it serves and the address of its zip. The Skill gains rules as the blog gains abilities, so a copy with a lower revision than the blog's lacks the rules for some of what that blog can do.
+
+- **The blog's revision is higher**: tell the human both revisions and ask whether to update this copy now. Ask once in a conversation.
+- **It is the same or lower, or the description states none**: carry on. A newer copy serves an older blog.
+
+When the human agrees:
+
+1. Download the zip from the configured origin into the working directory, without the key, and unpack it. It holds one folder, `flare-stack-blog`.
+2. Check the unpacked `SKILL.md`: its frontmatter names `flare-stack-blog`, and it states the revision the description stated. When either fails, keep this copy and tell the human what the zip held.
+3. Make the folder this `SKILL.md` was loaded from match the unpacked folder: write each unpacked file into it, and delete the files the unpacked folder lacks.
+4. Read the new `SKILL.md` and follow it from here on, this task included.
+
+Done when the `SKILL.md` in that folder states the blog's revision and you have read it.
+
+When that folder cannot be written, as when the agent's app manages its Skills, give the human the zip's address and the folder's path so they can install it, and carry on with this copy. Carry on with this copy too when the human declines or none is there to answer, and name the blog's newer revision in the report.
 
 ## Conflicts
 

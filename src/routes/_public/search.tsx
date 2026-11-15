@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import theme from "@theme";
 import { useEffect, useState } from "react";
-import { z } from "zod";
+import { siteSearchSchema } from "@/features/search/site-search";
 import { SearchPage } from "@/features/search/components/search-page";
 import {
   searchDocsQueryOptions,
@@ -12,12 +12,8 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { useNavigateBack } from "@/hooks/use-navigate-back";
 import { m } from "@/paraglide/messages";
 
-const searchSchema = z.object({
-  q: z.string().optional(),
-});
-
 export const Route = createFileRoute("/_public/search")({
-  validateSearch: (search) => searchSchema.parse(search),
+  validateSearch: (search) => siteSearchSchema.parse(search),
   component: SearchRoute,
   loader: () => {
     return {
@@ -87,10 +83,7 @@ function SearchRoute() {
       <theme.SearchPage
         query={query}
         searchedQuery={term}
-        results={(resultQuery.data ?? []).map((result) => ({
-          ...result,
-          post: { ...result.post, id: String(result.post.id) },
-        }))}
+        results={resultQuery.data ?? []}
         isSearching={isSearching}
         hasError={hasError}
         onQueryChange={setQuery}

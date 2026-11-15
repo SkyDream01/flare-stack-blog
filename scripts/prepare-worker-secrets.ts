@@ -26,7 +26,6 @@ const runtimeNames = [
   "UMAMI_USERNAME",
   "UMAMI_PASSWORD",
   "TURNSTILE_SECRET_KEY",
-  "GITHUB_TOKEN",
 ] as const;
 
 const requiredRuntimeNames = [
@@ -86,8 +85,8 @@ export async function readWorkerBindings(
   const worker = requireEnv(env, "WORKER_NAME");
   const token = requireEnv(env, "CLOUDFLARE_API_TOKEN");
 
-  // cf beta.5 has no command for reading script settings. This read-only API
-  // supplies legacy text bindings; cf deploy performs the actual secret upload.
+  // This read-only API supplies legacy text bindings; cf deploy performs
+  // the actual secret upload.
   const response = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/workers/scripts/${encodeURIComponent(worker)}/settings`,
     {

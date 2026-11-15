@@ -18,7 +18,7 @@ describe.each([
         results: [
           {
             post: {
-              id: "1",
+              id: 1,
               slug: "search-safety",
               title: '<img src=x onerror=alert(1)> & "title"',
               summary: "<script>alert(2)</script> & summary",

@@ -56,7 +56,6 @@ jobs:
       UMAMI_USERNAME: ${{ secrets.UMAMI_USERNAME }}
       UMAMI_PASSWORD: ${{ secrets.UMAMI_PASSWORD }}
       TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
-      GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_API_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -91,8 +90,9 @@ jobs:
 
       - name: Deploy Worker and apply D1 migrations
         run: |
+          bun scripts/deploy-preflight.ts
           bun run db:migrate
-          bunx cf deploy --prebuilt --secrets-file "$RUNNER_TEMP/flare-stack-blog-secrets.json"
+          bunx cf deploy --prebuilt --force --tag "v$(node -p 'require("./package.json").version')" --secrets-file "$RUNNER_TEMP/flare-stack-blog-secrets.json"
 
       - name: Remove temporary secrets file
         if: always()

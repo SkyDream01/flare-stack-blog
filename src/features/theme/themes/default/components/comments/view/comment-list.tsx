@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { RootCommentWithReplyCount } from "@/features/comments/comments.schema";
 import { repliesByRootIdInfiniteQuery } from "@/features/comments/queries";
-import { useSession } from "@/lib/auth/auth-client";
+import { useSession } from "@/features/auth/hooks/use-session";
 import { m } from "@/paraglide/messages";
 import { CommentItem } from "./comment-item";
 import { CommentReplyForm } from "./comment-reply-form";
@@ -85,7 +85,7 @@ export const CommentList = ({
           onCancelReply={onCancelReply}
           onSubmitReply={onSubmitReply}
           isSubmittingReply={isSubmittingReply}
-          session={session}
+          session={session ?? null}
           highlightCommentId={highlightCommentId}
         />
       ))}

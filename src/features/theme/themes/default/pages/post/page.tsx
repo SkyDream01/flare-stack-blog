@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { PostPageProps } from "@/features/theme/contract/pages";
 import { ContentRenderer } from "@/features/theme/themes/default/components/content/content-renderer";
-import { useSession } from "@/lib/auth/auth-client";
+import { useSession } from "@/features/auth/hooks/use-session";
 import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
 import { CompactTableOfContents } from "@/features/posts/components/compact-table-of-contents";
 import { PostOutdatedNotice } from "@/features/posts/components/post-outdated-notice";

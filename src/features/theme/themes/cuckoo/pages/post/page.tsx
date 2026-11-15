@@ -10,7 +10,7 @@ import {
   gradientCoverFor,
 } from "@/features/theme/themes/cuckoo/components/cover";
 import { setSidebarToc } from "@/features/theme/themes/cuckoo/components/toc-store";
-import { useSession } from "@/lib/auth/auth-client";
+import { useSession } from "@/features/auth/hooks/use-session";
 import { PostAdjacentNav } from "@/features/posts/components/post-adjacent-nav";
 import { PostShareButton } from "@/features/posts/components/post-share-button";
 import { CompactTableOfContents } from "@/features/posts/components/compact-table-of-contents";

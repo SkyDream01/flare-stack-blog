@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import type { JSONContent } from "@tiptap/react";
 import { LogIn } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/lib/toast";
 import { Turnstile, useTurnstile } from "@/components/common/turnstile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { jsonCommentToPlainText } from "@/features/comments/comment-body";
@@ -14,7 +14,7 @@ import {
   type CommentTarget,
 } from "@/features/comments/comment-target";
 import { useThemeCommentThread } from "@/features/theme/components/use-theme-comment-thread";
-import { useSession } from "@/lib/auth/auth-client";
+import { useSession } from "@/features/auth/hooks/use-session";
 import { m } from "@/paraglide/messages";
 import { CuckooCommentEditor } from "../editor/comment-editor";
 import { CuckooCommentList } from "./comment-list";

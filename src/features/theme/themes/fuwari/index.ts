@@ -1,51 +1,108 @@
-import {
-  MomentPage,
-  MomentPageSkeleton,
-  MomentsPage,
-  MomentsPageSkeleton,
-} from "./pages/moments";
-import "./styles/index.css";
+import { lazy, createElement } from "react";
 import type { ThemeComponents } from "@/features/theme/contract/components";
-import { Toaster } from "./components/toaster";
 import { config } from "./config";
-import { AuthLayout } from "./layouts/auth-layout";
+import { LazyToaster as Toaster } from "@/components/layout/lazy-toaster";
+import { getFuwariThemeStyle } from "@/components/layout/document-style";
+import type { HomePageProps } from "@/features/theme/contract/pages";
 import { PublicLayout } from "./layouts/public-layout";
-import { UserLayout } from "./layouts/user-layout";
-import { LoginPage } from "./pages/auth/login";
-import { FriendLinksPage, FriendLinksPageSkeleton } from "./pages/friend-links";
-import { HomePage, HomePageSkeleton } from "./pages/home";
-import { PostPage, PostPageSkeleton } from "./pages/post";
-import { PostsPage, PostsPageSkeleton } from "./pages/posts";
-import { SearchPage } from "./pages/search";
-import { SubmitFriendLinkPage } from "./pages/submit-friend-link";
-import { ProfilePage } from "./pages/user/profile";
-import { getFuwariThemeStyle } from "./theme-style";
 
-/**
- * Theme: fuwari — implements the full ThemeComponents contract.
- * TypeScript will error at compile time if any required component is missing.
- */
+// Each route loads its own presentation; the shell never pulls every page in.
 export default {
   config,
   getDocumentStyle: getFuwariThemeStyle,
-  MomentPage,
-  MomentPageSkeleton,
-  MomentsPage,
-  MomentsPageSkeleton,
-  HomePage,
-  HomePageSkeleton,
-  PostsPage,
-  PostsPageSkeleton,
-  PostPage,
-  PostPageSkeleton,
   PublicLayout,
-  AuthLayout,
-  UserLayout,
-  FriendLinksPage,
-  FriendLinksPageSkeleton,
-  SearchPage,
-  SubmitFriendLinkPage,
-  LoginPage,
-  ProfilePage,
   Toaster,
+  MomentPage: lazy(() =>
+    import("@/features/moments/components/moment-page").then((module) => ({
+      default: module.MomentPage,
+    })),
+  ),
+  MomentPageSkeleton: lazy(() =>
+    import("@/features/moments/components/moments-page-skeleton").then(
+      (module) => ({ default: module.MomentPageSkeleton }),
+    ),
+  ),
+  MomentsPage: lazy(() =>
+    import("@/features/moments/components/moments-page").then((module) => ({
+      default: module.MomentsPage,
+    })),
+  ),
+  MomentsPageSkeleton: lazy(() =>
+    import("@/features/moments/components/moments-page-skeleton").then(
+      (module) => ({ default: module.MomentsPageSkeleton }),
+    ),
+  ),
+  HomePage: lazy(() =>
+    import("@/features/posts/components/home-page").then(({ HomePage }) => ({
+      default: (props: HomePageProps) =>
+        createElement(HomePage, {
+          ...props,
+          page: props.page ?? 1,
+          totalPages: props.totalPages ?? 1,
+        }),
+    })),
+  ),
+  HomePageSkeleton: lazy(() =>
+    import("@/features/posts/components/home-page-skeleton").then((module) => ({
+      default: module.HomePageSkeleton,
+    })),
+  ),
+  PostsPage: lazy(() =>
+    import("@/features/posts/components/posts-page").then((module) => ({
+      default: module.PostsPage,
+    })),
+  ),
+  PostsPageSkeleton: lazy(() =>
+    import("@/features/posts/components/posts-page-skeleton").then(
+      (module) => ({ default: module.PostsPageSkeleton }),
+    ),
+  ),
+  PostPage: lazy(() =>
+    import("@/features/posts/components/post-page").then((module) => ({
+      default: module.PostPage,
+    })),
+  ),
+  PostPageSkeleton: lazy(() =>
+    import("@/features/posts/components/post-page-skeleton").then((module) => ({
+      default: module.PostPageSkeleton,
+    })),
+  ),
+  AuthLayout: lazy(() =>
+    import("@/components/layout/auth-layout").then((module) => ({
+      default: module.AuthLayout,
+    })),
+  ),
+  UserLayout: lazy(() =>
+    import("@/components/layout/user-layout").then((module) => ({
+      default: module.UserLayout,
+    })),
+  ),
+  FriendLinksPage: lazy(() =>
+    import("@/features/friend-links/components/friend-links-page").then(
+      (module) => ({ default: module.FriendLinksPage }),
+    ),
+  ),
+  FriendLinksPageSkeleton: lazy(() =>
+    import("@/features/friend-links/components/friend-links-page-skeleton").then(
+      (module) => ({ default: module.FriendLinksPageSkeleton }),
+    ),
+  ),
+  SearchPage: lazy(() =>
+    import("./pages/search").then((module) => ({ default: module.SearchPage })),
+  ),
+  SubmitFriendLinkPage: lazy(() =>
+    import("./pages/submit-friend-link").then((module) => ({
+      default: module.SubmitFriendLinkPage,
+    })),
+  ),
+  LoginPage: lazy(() =>
+    import("@/features/auth/components/login-page").then((module) => ({
+      default: module.LoginPage,
+    })),
+  ),
+  ProfilePage: lazy(() =>
+    import("@/features/auth/components/profile-page").then((module) => ({
+      default: module.ProfilePage,
+    })),
+  ),
 } satisfies ThemeComponents;
