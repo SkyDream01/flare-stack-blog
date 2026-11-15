@@ -56,10 +56,11 @@ describe("findNamespaceUses", () => {
 });
 
 describe("src", () => {
+  // Binding the whole repository needs time for cold I/O and parallel load.
   it("reads messages as m.<name> only", () => {
     expect(
       findNamespaceUses(readSources()),
       "the messages object must not be passed around; call m.<name>() where the text is needed",
     ).toEqual([]);
-  });
+  }, 30_000);
 });
