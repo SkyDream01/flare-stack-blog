@@ -48,7 +48,7 @@
   "src/features/theme/themes/cuckoo/layouts/drawer.tsx": 2,
   "src/features/theme/themes/cuckoo/layouts/language-switcher.tsx": 3,
   "src/features/theme/themes/cuckoo/pages/auth/login/page.tsx": 6,
-  "src/features/theme/themes/cuckoo/pages/posts/page.tsx": 3,
+  "src/features/theme/themes/cuckoo/pages/posts/page.tsx": 2,
   "src/features/theme/themes/cuckoo/pages/search/page.tsx": 4,
   "src/features/theme/themes/cuckoo/pages/submit-friend-link/page.tsx": 5,
   "src/features/theme/themes/cuckoo/pages/user/profile/page.tsx": 5,

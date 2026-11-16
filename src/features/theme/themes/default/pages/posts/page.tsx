@@ -1,5 +1,6 @@
 import { useRouteContext } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import type { PostsPageProps } from "@/features/theme/contract/pages";
 import { PostItem } from "@/features/theme/themes/default/components/post-item";
 import { cn } from "@/lib/utils";
@@ -20,25 +21,6 @@ export function PostsPage({
   const [isExpanded, setIsExpanded] = useState(false);
   const hasMoreTags = tags.length > INITIAL_TAG_COUNT;
   const visibleTags = isExpanded ? tags : tags.slice(0, INITIAL_TAG_COUNT);
-
-  // Infinite scroll observer
-  const observerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { threshold: 0.1, rootMargin: "0px" },
-    );
-
-    if (observerRef.current) {
-      observer.observe(observerRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div className="w-full max-w-3xl mx-auto pb-20 px-6 md:px-0">
@@ -130,10 +112,7 @@ export function PostsPage({
       </div>
 
       {/* Load More Area */}
-      <div
-        ref={observerRef}
-        className="py-16 flex flex-col items-center justify-center gap-6"
-      >
+      <div className="py-16 flex flex-col items-center justify-center gap-6">
         {isFetchingNextPage ? (
           <div className="flex flex-col items-center gap-4 animate-in fade-in duration-500 fill-mode-both">
             <div className="w-1.5 h-1.5 bg-foreground animate-ping" />
@@ -141,8 +120,16 @@ export function PostsPage({
               {m.posts_loading()}
             </span>
           </div>
-        ) : hasNextPage ? (
-          <div className="h-px w-24 bg-border/40"></div>
+        ) : null}
+        {hasNextPage ? (
+          <Button
+            variant="outline"
+            size="default"
+            onClick={() => fetchNextPage()}
+            loading={isFetchingNextPage}
+          >
+            {m.posts_load_more()}
+          </Button>
         ) : posts.length > 0 ? (
           <div className="flex items-center gap-4 text-muted-foreground/20">
             <span className="h-px w-12 bg-current" />

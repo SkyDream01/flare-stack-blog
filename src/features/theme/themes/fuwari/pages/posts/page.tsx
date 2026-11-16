@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PostsPageProps } from "@/features/theme/contract/pages";
 import { m } from "@/paraglide/messages";
@@ -10,34 +10,11 @@ export function PostsPage({
   isFetchingNextPage,
   fetchNextPage,
 }: PostsPageProps) {
-  const observerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { threshold: 0.1, rootMargin: "0px" },
-    );
-
-    if (observerRef.current) {
-      observer.observe(observerRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
   return (
     <div className="fuwari-onload-animation flex flex-col gap-4">
       {posts.length > 0 && <ArchivePanel posts={posts} />}
 
-      {/* Infinite Scroll trigger and loading indicator */}
-      <div
-        ref={observerRef}
-        className="flex flex-col items-center justify-center pt-2 pb-8"
-      >
+      <div className="flex flex-col items-center justify-center gap-4 pt-2 pb-8">
         {isFetchingNextPage ? (
           <div className="fuwari-card-base w-full px-8 py-6 opacity-70 animate-pulse">
             {/* Inline Mini Skeleton for appending items */}
@@ -58,8 +35,15 @@ export function PostsPage({
               </div>
             ))}
           </div>
-        ) : hasNextPage ? (
-          <div className="h-px w-24 bg-black/10 dark:bg-white/10"></div>
+        ) : null}
+        {hasNextPage ? (
+          <Button
+            size="lg"
+            onClick={() => fetchNextPage()}
+            loading={isFetchingNextPage}
+          >
+            {m.posts_load_more()}
+          </Button>
         ) : posts.length > 0 ? (
           <div className="flex items-center gap-4 text-black/20 dark:text-white/20 mt-4">
             <span className="h-px w-12 bg-current" />

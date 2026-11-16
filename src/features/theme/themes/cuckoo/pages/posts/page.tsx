@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
 import type { PostsPageProps } from "@/features/theme/contract/pages";
 import { cn } from "@/lib/utils";
 import { m } from "@/paraglide/messages";
@@ -14,24 +14,6 @@ export function PostsPage({
   isFetchingNextPage,
   fetchNextPage,
 }: PostsPageProps) {
-  const observerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
-      },
-      { threshold: 0.1, rootMargin: "0px" },
-    );
-
-    if (observerRef.current) {
-      observer.observe(observerRef.current);
-    }
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
   return (
     <div>
       {/* 标签云筛选(对应原主题侧栏标签 chip) */}
@@ -76,20 +58,16 @@ export function PostsPage({
         </div>
       )}
 
-      {/* 无限滚动触发器 + 加载更多(对应原主题 .changePage) */}
-      <div ref={observerRef} className="my-5 text-center">
-        {isFetchingNextPage ? (
-          <div className="cuckoo-card-base cuckoo-text-50 inline-block w-25 pt-2.5 pb-1 text-sm">
-            {m.posts_loading()}
-          </div>
-        ) : hasNextPage ? (
-          <button
-            type="button"
+      <div className="my-5 text-center">
+        {hasNextPage ? (
+          <Button
+            variant="ghost"
             onClick={() => fetchNextPage()}
-            className="cuckoo-card-base cuckoo-card-hoverable cuckoo-text-75 inline-block w-25 pt-2.5 pb-1 text-sm transition-all hover:text-(--cuckoo-accent)"
+            loading={isFetchingNextPage}
+            className="cuckoo-card-base cuckoo-card-hoverable cuckoo-text-75 h-auto px-4 pt-2.5 pb-1 text-sm transition-all hover:text-(--cuckoo-accent)"
           >
             {m.posts_load_more_cuckoo()}
-          </button>
+          </Button>
         ) : posts.length > 0 ? (
           <div className="cuckoo-text-30 inline-block text-sm">
             {m.posts_end()}
