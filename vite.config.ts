@@ -9,6 +9,7 @@ import { defineConfig, loadEnv } from "vite";
 import { z } from "zod";
 import packageJson from "./package.json";
 import { paraglideOptions } from "./scripts/paraglide-options.ts";
+import { devAdminSessionPlugin } from "./scripts/vite-dev-admin-session.ts";
 import { agentSkillZipPlugin } from "./scripts/vite-agent-skill-zip.ts";
 import { routedFirstSegmentsPlugin } from "./scripts/vite-routed-segments.ts";
 import { themeFixturePlugin } from "./scripts/vite-theme-fixture.ts";
@@ -66,6 +67,8 @@ const config = defineConfig(({ mode }) => {
     },
     plugins: [
       paraglideVitePlugin(paraglideOptions),
+      // Dev server only; `enforce: "pre"` puts it ahead of the Worker handler.
+      devAdminSessionPlugin(),
       cloudflare({
         viteEnvironment: {
           name: "ssr",
