@@ -226,9 +226,16 @@ function recordsDir(ctx: Context) {
   return path.join(path.resolve(ctx.cwd, common), "verified");
 }
 
+/** Windows reserves colons in file names; preserve existing records elsewhere. */
+export function recordFileName(gate: GateName) {
+  return process.platform === "win32" ? gate.replace(":", "-") : gate;
+}
+
 function readRecords(dir: string, gate: GateName) {
   try {
-    return parseRecords(readFileSync(path.join(dir, gate), "utf8"));
+    return parseRecords(
+      readFileSync(path.join(dir, recordFileName(gate)), "utf8"),
+    );
   } catch {
     return [];
   }
@@ -236,7 +243,7 @@ function readRecords(dir: string, gate: GateName) {
 
 function writeRecord(dir: string, gate: GateName, tree: string) {
   mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, gate);
+  const file = path.join(dir, recordFileName(gate));
   // Read again right before writing: another worktree may have recorded a
   // tree while this one ran. The rename keeps a reader from seeing half a file.
   const lines = withRecord(readRecords(dir, gate), tree);

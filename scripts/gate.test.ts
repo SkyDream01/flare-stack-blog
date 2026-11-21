@@ -19,6 +19,7 @@ import {
   hiddenPaths,
   parseArgs,
   parseRecords,
+  recordFileName,
   RECORDS_KEPT,
   runGate,
   satisfiers,
@@ -299,7 +300,7 @@ describe("runGate in a real repository", () => {
   const ran = () =>
     existsSync(mark) ? readFileSync(mark, "utf8").trim().split("\n") : [];
   const recorded = (gate: GateName) => {
-    const file = path.join(repo, ".git", "verified", gate);
+    const file = path.join(repo, ".git", "verified", recordFileName(gate));
     return existsSync(file) ? parseRecords(readFileSync(file, "utf8")) : [];
   };
 
@@ -324,6 +325,27 @@ describe("runGate in a real repository", () => {
     expect(second.code).toBe(0);
     expect(second.out).toContain("already passed, skipping");
     expect(ran()).toEqual(["check"]);
+  });
+
+  it("records and reuses a passing test:node result", () => {
+    const lines: Array<string> = [];
+    const options = {
+      gate: "test:node" as const,
+      gates: {
+        ...fakes,
+        "test:node": { command: 'echo test:node >> "$MARK"' },
+      },
+      cwd: repo,
+      env: env(),
+      heavy: undefined,
+      prepare: undefined,
+      log: (line: string) => lines.push(line),
+    };
+    expect(runGate(options)).toBe(0);
+    expect(recorded("test:node")).toEqual([sh("git rev-parse HEAD^{tree}")]);
+    expect(runGate(options)).toBe(0);
+    expect(lines.join("\n")).toContain("already passed, skipping");
+    expect(ran()).toEqual(["test:node"]);
   });
 
   it("runs again after a commit that changes a file", () => {
